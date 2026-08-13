@@ -4,7 +4,7 @@ import { useStore } from '../data/store'
 import { teamTotals } from '../data/derive'
 import type { TeamId } from '../data/types'
 import TeamCrest, { teamColor } from '../components/TeamCrest'
-import { Plate, ScreenHeader } from '../components/chrome'
+import { Plate, ScreenHeader, textureOffset } from '../components/chrome'
 import Lever from '../components/Lever'
 import { usePrefersReducedMotion } from '../fx/Arc'
 
@@ -83,6 +83,7 @@ export default function Award() {
               onClick={() => toggle(camper.id)}
               aria-pressed={on}
               className="plate-shadow relative min-h-[46px]"
+              style={textureOffset(camper.id)}
             >
               <span
                 className="plate grain flex h-full items-center justify-center px-1"

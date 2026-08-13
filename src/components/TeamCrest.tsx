@@ -72,15 +72,27 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
           <stop offset="50%" stopColor="#4e3818" />
           <stop offset="100%" stopColor="#1d1206" />
         </linearGradient>
-        {/* cast-brass pitting on the bezel */}
+        {/* cast-brass pitting on the bezel (~3.5 CSS px cells at render size) */}
         <filter id={g('pit')}>
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="5" stitchTiles="stitch" />
-          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="3" seed="5" stitchTiles="stitch" />
+          <feColorMatrix values="0 0 0 0 0.06  0 0 0 0 0.055  0 0 0 0 0.02  0 0 0 0.72 0" />
         </filter>
-        {/* fine enamel speckle */}
+        {/* verdigris tarnish, pooling toward the unlit lower-right */}
+        <filter id={g('verd')}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.12" numOctaves="3" seed="29" stitchTiles="stitch" />
+          <feColorMatrix values="0 0 0 0 0.18  0 0 0 0 0.22  0 0 0 0 0.13  0 0 0 0.45 0" />
+        </filter>
+        <linearGradient id={g('verdMaskG')} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="35%" stopColor="#000" />
+          <stop offset="100%" stopColor="#fff" />
+        </linearGradient>
+        <mask id={g('verdMask')}>
+          <circle cx="32" cy="32" r="29" fill={`url(#${g('verdMaskG')})`} />
+        </mask>
+        {/* enamel speckle (~2.4 CSS px cells), colored not just alpha */}
         <filter id={g('spk')}>
-          <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="8" stitchTiles="stitch" />
-          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.2 0" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.52" numOctaves="3" seed="8" stitchTiles="stitch" />
+          <feColorMatrix values="0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0 0.09  0 0 0 0.42 0" />
         </filter>
         <radialGradient id={g('enamel')} cx="0.42" cy="0.38" r="0.95">
           <stop offset="0%" stopColor={shade(hex, -0.08)} />
@@ -97,11 +109,13 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
       <circle cx="32" cy="32" r="29" fill={`url(#${g('rimDark')})`} />
       {/* main brass bezel */}
       <circle cx="32" cy="32" r="27" fill={`url(#${g('rim')})`} />
-      {/* bezel pitting + tarnish toward the unlit side */}
-      <circle cx="32" cy="32" r="27" filter={`url(#${g('pit')})`} opacity="0.5" />
-      <path d="M 55 38 A 24 24 0 0 1 38 55" fill="none" stroke="rgba(30,32,20,0.35)" strokeWidth="6" strokeLinecap="round" />
-      {/* bezel sheen: bright arc top-left, dark arc bottom-right */}
-      <path d="M 9 26 A 24 24 0 0 1 26 9" fill="none" stroke="rgba(255,236,200,0.55)" strokeWidth="2.4" strokeLinecap="round" />
+      {/* bezel pitting + verdigris tarnish toward the unlit side */}
+      <circle cx="32" cy="32" r="27" filter={`url(#${g('pit')})`} opacity="0.9" />
+      <circle cx="32" cy="32" r="27" filter={`url(#${g('verd')})`} mask={`url(#${g('verdMask')})`} opacity="0.85" />
+      {/* bezel sheen: broken into worn segments, eaten by the pitting */}
+      <path d="M 9 26 A 24 24 0 0 1 14.5 16.5" fill="none" stroke="rgba(255,236,200,0.5)" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M 17 13.6 A 24 24 0 0 1 21 10.9" fill="none" stroke="rgba(255,236,200,0.35)" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M 23.5 9.7 A 24 24 0 0 1 26 9" fill="none" stroke="rgba(255,236,200,0.45)" strokeWidth="2" strokeLinecap="round" />
       <path d="M 55 38 A 24 24 0 0 1 38 55" fill="none" stroke="rgba(20,12,4,0.5)" strokeWidth="2.6" strokeLinecap="round" />
       {/* inner groove between bezel and enamel */}
       <circle cx="32" cy="32" r="21.8" fill="#160f08" />
@@ -128,8 +142,9 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
       <circle cx="32" cy="32" r="19.2" fill="none" stroke="rgba(18,10,4,0.55)" strokeWidth="2.2" />
       <circle cx="32" cy="32" r="20" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="1.4" />
       <path d="M 14 24 A 19.4 19.4 0 0 1 25 13.4" fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="2.2" strokeLinecap="round" />
-      {/* enamel is glossier than brass: one tight specular, top-left */}
-      <ellipse cx="25" cy="23" rx="5.5" ry="3.5" fill="rgba(255,255,255,0.13)" transform="rotate(-28 25 23)" />
+      {/* enamel is glossier than brass: broken specular arc, top-left */}
+      <path d="M 20 26 A 13 13 0 0 1 26 19.5" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M 28.5 18.3 A 13 13 0 0 1 31 17.8" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1.6" strokeLinecap="round" />
 
       {glow > 0 && (
         <circle

@@ -1,5 +1,13 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useId, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+/** Stable per-instance texture offset so no two plates share a weathering crop. */
+export function textureOffset(key: string): CSSProperties {
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0
+  h = h >>> 0
+  return { ['--tx' as string]: `${h % 512}px`, ['--ty' as string]: `${(h * 7) % 512}px` }
+}
 
 /** Four corner rivets for a plate. */
 export function CornerRivets() {
@@ -47,8 +55,9 @@ export function Plate({
   onClick?: () => void
   style?: CSSProperties
 }) {
+  const uid = useId()
   return (
-    <div className={`plate-shadow ${className}`} style={style}>
+    <div className={`plate-shadow ${className}`} style={{ ...textureOffset(uid), ...style }}>
       <div
         className={`plate grain h-full p-[9px] ${frameClassName}`}
         onClick={onClick}
