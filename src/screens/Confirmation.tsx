@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../data/store'
 import { isReversed, teamTotals } from '../data/derive'
-import TeamCrest, { teamColor } from '../components/TeamCrest'
+import TeamCrest from '../components/TeamCrest'
 import { ArcBolt, ContactPost, usePrefersReducedMotion } from '../fx/Arc'
 
 const UNDO_WINDOW_MS = 60_000
@@ -126,7 +126,6 @@ export default function Confirmation() {
   }
 
   const team = teams.find((t) => t.id === event.teamId)!
-  const color = teamColor(team.id)
   const eventCampers = campers.filter((c) => event.camperIds.includes(c.id))
   const total = teamTotals(events, teams.map((t) => t.id)).find((t) => t.teamId === team.id)?.points ?? 0
   const totalPoints = event.points * event.camperIds.length

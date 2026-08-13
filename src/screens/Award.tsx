@@ -74,7 +74,7 @@ export default function Award() {
 
       {/* camper chips 3×4 */}
       <div className="mt-3 grid flex-1 auto-rows-fr grid-cols-3 gap-2.5">
-        {roster.map((camper, i) => {
+        {roster.map((camper) => {
           const on = selected.has(camper.id)
           return (
             <button
