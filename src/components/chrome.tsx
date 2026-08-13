@@ -57,7 +57,7 @@ export function Plate({
         onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
       >
         <CornerScrews />
-        <div className={`plate-inner rust-creep h-full ${innerClassName}`}>{children}</div>
+        <div className={`plate-inner grain rust-creep h-full ${innerClassName}`}>{children}</div>
       </div>
     </div>
   )

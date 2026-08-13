@@ -72,6 +72,16 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
           <stop offset="50%" stopColor="#4e3818" />
           <stop offset="100%" stopColor="#1d1206" />
         </linearGradient>
+        {/* cast-brass pitting on the bezel */}
+        <filter id={g('pit')}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="5" stitchTiles="stitch" />
+          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0" />
+        </filter>
+        {/* fine enamel speckle */}
+        <filter id={g('spk')}>
+          <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="8" stitchTiles="stitch" />
+          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.2 0" />
+        </filter>
         <radialGradient id={g('enamel')} cx="0.42" cy="0.38" r="0.95">
           <stop offset="0%" stopColor={shade(hex, -0.08)} />
           <stop offset="55%" stopColor={shade(hex, -0.2)} />
@@ -87,6 +97,9 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
       <circle cx="32" cy="32" r="29" fill={`url(#${g('rimDark')})`} />
       {/* main brass bezel */}
       <circle cx="32" cy="32" r="27" fill={`url(#${g('rim')})`} />
+      {/* bezel pitting + tarnish toward the unlit side */}
+      <circle cx="32" cy="32" r="27" filter={`url(#${g('pit')})`} opacity="0.5" />
+      <path d="M 55 38 A 24 24 0 0 1 38 55" fill="none" stroke="rgba(30,32,20,0.35)" strokeWidth="6" strokeLinecap="round" />
       {/* bezel sheen: bright arc top-left, dark arc bottom-right */}
       <path d="M 9 26 A 24 24 0 0 1 26 9" fill="none" stroke="rgba(255,236,200,0.55)" strokeWidth="2.4" strokeLinecap="round" />
       <path d="M 55 38 A 24 24 0 0 1 38 55" fill="none" stroke="rgba(20,12,4,0.5)" strokeWidth="2.6" strokeLinecap="round" />
@@ -109,12 +122,14 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
       <circle cx="32.6" cy="32.8" r="20.3" fill="rgba(0,0,0,0.5)" />
       {/* matte enamel disc, recessed: inner shadow darkest at the top-left lip */}
       <circle cx="32" cy="32" r="20" fill={`url(#${g('enamel')})`} />
-      {/* faint radial brushing on the enamel */}
-      {Array.from({ length: 3 }, (_, i) => (
-        <circle key={i} cx="32" cy="32" r={7 + i * 5} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.7" />
-      ))}
+      {/* enamel micro-speckle */}
+      <circle cx="32" cy="32" r="20" filter={`url(#${g('spk')})`} opacity="0.55" />
+      {/* grime settled in the seat where the disc meets the bezel */}
+      <circle cx="32" cy="32" r="19.2" fill="none" stroke="rgba(18,10,4,0.55)" strokeWidth="2.2" />
       <circle cx="32" cy="32" r="20" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="1.4" />
       <path d="M 14 24 A 19.4 19.4 0 0 1 25 13.4" fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="2.2" strokeLinecap="round" />
+      {/* enamel is glossier than brass: one tight specular, top-left */}
+      <ellipse cx="25" cy="23" rx="5.5" ry="3.5" fill="rgba(255,255,255,0.13)" transform="rotate(-28 25 23)" />
 
       {glow > 0 && (
         <circle
