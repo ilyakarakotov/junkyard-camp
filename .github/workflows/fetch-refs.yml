@@ -1,0 +1,36 @@
+name: Fetch design reference images
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download reference images
+        run: |
+          mkdir -p design/reference
+          cd design/reference
+          base="https://d8j0ntlcm91z4.cloudfront.net/user_3H0RJjt1boGPu88T63Vrs6xEDbz"
+          curl -sfO "$base/hf_20260813_013456_6d9c6ba9-30f1-4b9d-a433-ba361e99c3b6.png"
+          curl -sfO "$base/hf_20260813_013456_b94e909b-d34a-45d0-81e0-ed5ed34f645e.png"
+          curl -sfO "$base/hf_20260813_013649_74952ee6-8fc7-4af4-a646-2b40a8d9c28e.png"
+          curl -sfO "$base/hf_20260813_013456_fa9ba799-fe59-4b0d-bb62-cd050f574662.png"
+          curl -sfO "$base/hf_20260813_013456_4926ec7a-0246-4b64-8621-d9d31f393f28.png"
+          curl -sfO "$base/hf_20260813_013456_9bcf42df-29c0-4952-850e-e333f3652467.png"
+          mv hf_20260813_013456_6d9c6ba9-30f1-4b9d-a433-ba361e99c3b6.png 01-team-select.png
+          mv hf_20260813_013456_b94e909b-d34a-45d0-81e0-ed5ed34f645e.png 02-award-rest.png
+          mv hf_20260813_013649_74952ee6-8fc7-4af4-a646-2b40a8d9c28e.png 03-award-pulled.png
+          mv hf_20260813_013456_fa9ba799-fe59-4b0d-bb62-cd050f574662.png 04-confirmation.png
+          mv hf_20260813_013456_4926ec7a-0246-4b64-8621-d9d31f393f28.png 05-standings.png
+          mv hf_20260813_013456_9bcf42df-29c0-4952-850e-e333f3652467.png 06-big-screen.png
+      - name: Commit images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add design/reference
+          git commit -m "Add design reference images"
+          git push
