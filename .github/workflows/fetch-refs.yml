@@ -1,6 +1,9 @@
 name: Fetch design reference images
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/new-session-k83dh8]
+    paths: ['.github/workflows/fetch-refs.yml']
 
 permissions:
   contents: write
@@ -11,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download reference images
+        if: hashFiles('design/reference/01-team-select.png') == ''
         run: |
           mkdir -p design/reference
           cd design/reference
@@ -32,5 +36,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add design/reference
-          git commit -m "Add design reference images"
-          git push
+          git diff --cached --quiet || (git commit -m "Add design reference images" && git push)
