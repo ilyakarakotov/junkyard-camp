@@ -99,8 +99,8 @@ function GaugeColumn({
           {/* leader posts on the frame's top corners + arcs down the sides */}
           {lead && (
             <svg className="absolute -top-2 left-0 z-10 w-full" style={{ overflow: 'visible', height: frameH + 8 }} aria-hidden>
-              <ArcBolt x1={4} y1={8} x2={4} y2={frameH - 6} seed={51} intensity={0.85} chaos={1.1} active={!reduced} weight={1.1} />
-              <ArcBolt x1={64} y1={8} x2={64} y2={frameH - 6} seed={53} intensity={0.8} chaos={1.1} active={!reduced} weight={1.1} />
+              <ArcBolt x1={4} y1={8} x2={4} y2={frameH - 6} seed={51} intensity={0.85} chaos={1.1} active={!reduced} weight={1.1} strands={2} />
+              <ArcBolt x1={64} y1={8} x2={64} y2={frameH - 6} seed={53} intensity={0.8} chaos={1.1} active={!reduced} weight={1.1} strands={2} />
               {[
                 [4, 8],
                 [64, 8],

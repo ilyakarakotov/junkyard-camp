@@ -81,8 +81,8 @@ function Medallion({ points }: { points: number }) {
         <circle cx={c} cy={c} r={ringR} fill="none" stroke="#eafffd" strokeWidth="0.9" opacity="0.8" />
 
         {/* crackle between the four posts */}
-        <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[1].x} y2={posts[1].y} seed={41} intensity={0.85} chaos={1.3} weight={1.4} active={!reduced} />
-        <ArcBolt x1={posts[2].x} y1={posts[2].y} x2={posts[3].x} y2={posts[3].y} seed={43} intensity={0.85} chaos={1.3} weight={1.4} active={!reduced} />
+        <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[1].x} y2={posts[1].y} seed={41} intensity={0.85} chaos={1.3} weight={1.4} strands={2} active={!reduced} />
+        <ArcBolt x1={posts[2].x} y1={posts[2].y} x2={posts[3].x} y2={posts[3].y} seed={43} intensity={0.85} chaos={1.3} weight={1.4} strands={2} active={!reduced} />
         {reduced && (
           <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[3].x} y2={posts[3].y} seed={45} intensity={0.5} chaos={1} weight={1.2} active />
         )}

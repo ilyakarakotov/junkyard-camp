@@ -127,7 +127,7 @@ export default function TeamSelect() {
                     }}
                   />
                   {/* the arc rides the rail, jumping post to post */}
-                  <ArcGap width={200} height={26} seed={4} intensity={1} postR={5} className="absolute -top-[14px] left-1/2 z-30 -translate-x-1/2" />
+                  <ArcGap width={200} height={26} seed={4} intensity={1} postR={5} chaos={1.2} strands={2} className="absolute -top-[14px] left-1/2 z-30 -translate-x-1/2" />
                   <div className="absolute top-[7px] left-1/2 z-20 -translate-x-1/2" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.7))' }}>
                     <div
                       className="relative px-3.5 py-[4px]"

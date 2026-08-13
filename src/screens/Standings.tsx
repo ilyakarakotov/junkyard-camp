@@ -63,7 +63,7 @@ function GaugeTube({ hex, frac, lead }: { hex: string; frac: number; lead: boole
       {/* leader: arc rides the tube between two posts */}
       {lead && (
         <svg className="absolute -top-3 left-0 h-8 w-full" style={{ overflow: 'visible', zIndex: 3 }} aria-hidden>
-          <ArcBolt x1={4} y1={14} x2={w - 4} y2={14} seed={17} intensity={0.8} chaos={0.9} active={!reduced} weight={0.8} />
+          <ArcBolt x1={4} y1={14} x2={w - 4} y2={14} seed={17} intensity={0.8} chaos={0.9} active={!reduced} weight={0.8} strands={2} />
           <ContactPost cx={4} cy={14} r={3.5} />
           <ContactPost cx={w - 4} cy={14} r={3.5} />
         </svg>

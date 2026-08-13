@@ -38,6 +38,12 @@ export interface ArcBoltProps {
   chaos?: number
   /** Core/glow stroke width scale. */
   weight?: number
+  /**
+   * Simultaneous independent discharge paths between the same two posts.
+   * 1 = a single bolt; 2–3 = the reference's full-storm look where current
+   * splits into parallel strands. Each strand has its own geometry set.
+   */
+  strands?: number
   /** When false renders nothing (keeps hooks stable). */
   active?: boolean
 }
@@ -51,14 +57,19 @@ export function ArcBolt({
   intensity = 1,
   chaos = 1,
   weight = 1,
+  strands = 1,
   active = true,
 }: ArcBoltProps) {
   const reduced = usePrefersReducedMotion()
-  const variants = useMemo(
-    () => generateArcVariants(x1, y1, x2, y2, seed, { chaos }),
-    [x1, y1, x2, y2, seed, chaos],
+  const n = Math.max(1, Math.min(3, Math.round(strands)))
+  const strandSets = useMemo(
+    () =>
+      Array.from({ length: n }, (_, s) =>
+        generateArcVariants(x1, y1, x2, y2, seed + s * 977, { chaos: s === 0 ? chaos : chaos * 1.15 }),
+      ),
+    [x1, y1, x2, y2, seed, chaos, n],
   )
-  const [frame, setFrame] = useState({ v: 0, glow: 1 })
+  const [frame, setFrame] = useState({ v: [0, 2, 4], glow: 1 })
   const frameRef = useRef(frame)
   frameRef.current = frame
 
@@ -68,7 +79,8 @@ export function ArcBolt({
     let timer: ReturnType<typeof setTimeout>
     const tick = () => {
       if (!alive) return
-      const v = Math.floor(Math.random() * variants.length)
+      const count = strandSets[0].length
+      const v = [0, 1, 2].map(() => Math.floor(Math.random() * count))
       // Stochastic brightness: mostly bright, occasional partial dropout.
       const glow = Math.random() < 0.12 ? 0.55 : 0.82 + Math.random() * 0.18
       setFrame({ v, glow })
@@ -79,23 +91,32 @@ export function ArcBolt({
       alive = false
       clearTimeout(timer)
     }
-  }, [reduced, active, variants.length])
+  }, [reduced, active, strandSets])
 
   if (!active) return null
-  const { d, branches } = variants[frame.v % variants.length]
   const a = (reduced ? 0.8 : frame.glow) * intensity
 
   return (
     <g style={{ opacity: a }}>
-      {/* wide faint halo */}
-      <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.2} strokeWidth={9 * weight} strokeLinejoin="round" strokeLinecap="round" />
-      {/* teal glow body */}
-      <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.6} strokeWidth={3.4 * weight} strokeLinejoin="round" strokeLinecap="round" />
-      {branches.map((b, i) => (
-        <path key={i} d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.45} strokeWidth={1.2 * weight} strokeLinecap="round" />
-      ))}
-      {/* white-hot core */}
-      <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.97} strokeWidth={2.1 * weight} strokeLinejoin="round" strokeLinecap="round" />
+      {strandSets.map((variants, s) => {
+        const { d, branches } = variants[frame.v[s] % variants.length]
+        // Primary strand carries the current; secondaries are thinner echoes.
+        const sw = s === 0 ? 1 : s === 1 ? 0.72 : 0.55
+        const so = s === 0 ? 1 : s === 1 ? 0.8 : 0.62
+        return (
+          <g key={s}>
+            {/* wide faint halo */}
+            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.2 * so} strokeWidth={9 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* teal glow body */}
+            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.6 * so} strokeWidth={3.4 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {branches.map((b, i) => (
+              <path key={i} d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.45 * so} strokeWidth={1.2 * weight * sw} strokeLinecap="round" />
+            ))}
+            {/* white-hot core */}
+            <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.97 * so} strokeWidth={2.1 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+          </g>
+        )
+      })}
     </g>
   )
 }
@@ -145,6 +166,8 @@ export function ArcGap({
   seed = 1,
   intensity = 0.9,
   postR = 5,
+  chaos = 1,
+  strands = 1,
   className,
   active = true,
 }: {
@@ -153,6 +176,8 @@ export function ArcGap({
   seed?: number
   intensity?: number
   postR?: number
+  chaos?: number
+  strands?: number
   className?: string
   active?: boolean
 }) {
@@ -173,7 +198,7 @@ export function ArcGap({
           }}
         />
         <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }} aria-hidden>
-          <ArcBolt x1={postR + 2} y1={y} x2={width - postR - 2} y2={y} seed={seed} intensity={intensity} active={active} />
+          <ArcBolt x1={postR + 2} y1={y} x2={width - postR - 2} y2={y} seed={seed} intensity={intensity} chaos={chaos} strands={strands} active={active} />
           {/* corona blooms at the contact points — brightest where current lands */}
           {active &&
             [postR + 2, width - postR - 2].map((cx) => (

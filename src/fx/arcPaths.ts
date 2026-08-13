@@ -84,14 +84,24 @@ export function generateArcVariants(
     const rand = mulberry32(seed * 7919 + v * 104729 + 13)
     const { pts, path } = buildBolt({ x: x1, y: y1 }, { x: x2, y: y2 }, rand, chaos)
     const branches: string[] = []
-    // 0–2 fine offshoots per variant, splitting from a mid vertex.
-    const branchCount = rand() < branchChance ? (rand() < 0.4 ? 2 : 1) : 0
+    // 0–3 fine offshoots per variant, splitting from a mid vertex.
+    const branchCount = rand() < branchChance ? (rand() < 0.3 ? 3 : rand() < 0.55 ? 2 : 1) : 0
     for (let bi = 0; bi < branchCount; bi++) {
       const at = pts[2 + Math.floor(rand() * Math.max(1, pts.length - 4))]
-      const angle = Math.atan2(y2 - y1, x2 - x1) + (rand() - 0.5) * 2.2
-      const blen = 8 + rand() * Math.min(22, Math.hypot(x2 - x1, y2 - y1) * 0.2)
+      const angle = Math.atan2(y2 - y1, x2 - x1) + (rand() - 0.5) * 2.4
+      const blen = 9 + rand() * Math.min(30, Math.hypot(x2 - x1, y2 - y1) * 0.26)
       const end: Pt = { x: at.x + Math.cos(angle) * blen, y: at.y + Math.sin(angle) * blen }
-      branches.push(buildBolt(at, end, rand, chaos * 0.8).path)
+      const branch = buildBolt(at, end, rand, chaos * 0.85)
+      branches.push(branch.path)
+      // Occasionally the branch itself forks once — reads as real discharge.
+      if (rand() < 0.3) {
+        const fat = branch.pts[Math.max(1, Math.floor(branch.pts.length * 0.6))]
+        const fang = angle + (rand() - 0.5) * 1.6
+        const flen = blen * (0.35 + rand() * 0.3)
+        branches.push(
+          buildBolt(fat, { x: fat.x + Math.cos(fang) * flen, y: fat.y + Math.sin(fang) * flen }, rand, chaos * 0.7).path,
+        )
+      }
     }
     variants.push({ d: path, branches })
   }
