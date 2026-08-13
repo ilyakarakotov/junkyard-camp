@@ -19,7 +19,7 @@ for (const name of ['Jude', 'Ava', 'Silas']) {
 }
 await page.waitForTimeout(200)
 
-if (mode === 'pull' || mode === 'fire') {
+if (mode === 'pull' || mode === 'fire' || mode === 'confirm') {
   const grip = page.locator('[role="slider"]').first()
   const box = await grip.boundingBox()
   const cx = box.x + box.width / 2
@@ -28,9 +28,13 @@ if (mode === 'pull' || mode === 'fire') {
   await page.mouse.down()
   for (let i = 1; i <= 6; i++) await page.mouse.move(cx, cy + (118 * 0.85 * i) / 6)
   await page.waitForTimeout(250)
-  if (mode === 'fire') {
+  if (mode === 'fire' || mode === 'confirm') {
     await page.mouse.up()
     await page.waitForTimeout(120) // catch the discharge + token flight
+  }
+  if (mode === 'confirm') {
+    await page.waitForURL(/confirm/, { timeout: 5000 })
+    await page.waitForTimeout(400)
   }
 }
 

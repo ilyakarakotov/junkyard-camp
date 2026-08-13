@@ -104,5 +104,16 @@ export function seedEvents(deviceId: string): AwardEvent[] {
       n++
     }
   }
+
+  // Interleave teams in time (deterministic shuffle by id hash), so the
+  // activity feed shows a realistic mix instead of one team's run.
+  const hash = (s: string) => {
+    let h = 0
+    for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0
+    return h >>> 0
+  }
   return events
+    .map((e) => ({ e, key: hash(e.id) }))
+    .sort((a, b) => a.key - b.key)
+    .map(({ e }, idx) => ({ ...e, occurredAt: new Date(start + idx * 7 * 60_000).toISOString() }))
 }
