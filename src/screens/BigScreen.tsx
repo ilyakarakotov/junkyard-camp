@@ -57,7 +57,7 @@ function GaugeColumn({
         {/* framed tube with head/foot castings */}
         <div
           ref={frameRef}
-          className="relative h-full w-[68px] shrink-0 rounded-[6px] px-[7px] py-[10px]"
+          className="grain relative h-full w-[68px] shrink-0 rounded-[6px] px-[7px] py-[10px]"
           style={{
             background: 'linear-gradient(135deg, #7d5f30 0%, #4a3418 30%, #33230d 70%, #221606 100%)',
             boxShadow: `inset 2px 2px 0 rgba(255,232,190,0.35), inset -2px -2px 0 rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3)${lead ? `, 0 0 26px ${hex}33` : ''}`,
@@ -150,7 +150,7 @@ function GaugeColumn({
       {/* name + score plates */}
       <div className="z-10 mt-2.5 flex w-full max-w-[150px] flex-col items-stretch gap-1.5">
         <div
-          className="flex h-9 items-center justify-center rounded-[3px]"
+          className="grain relative flex h-9 items-center justify-center rounded-[3px]"
           style={{
             background: 'linear-gradient(180deg, #2c231b 0%, #241c16 60%, #1c1510 100%)',
             boxShadow: 'inset 1px 1px 0 rgba(255,236,205,0.14), inset -1px -1px 0 rgba(0,0,0,0.6), 0 3px 5px rgba(0,0,0,0.55)',
@@ -161,7 +161,7 @@ function GaugeColumn({
           </span>
         </div>
         <div
-          className="flex h-11 items-center justify-center rounded-[3px]"
+          className="grain relative flex h-11 items-center justify-center rounded-[3px]"
           style={{
             background: 'linear-gradient(180deg, #1b140f 0%, #120d08 100%)',
             boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.8), inset -1px -1px 0 rgba(255,236,205,0.05), 0 2px 4px rgba(0,0,0,0.5)',
