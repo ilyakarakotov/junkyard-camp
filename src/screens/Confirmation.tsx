@@ -65,8 +65,9 @@ function Medallion({ points }: { points: number }) {
           )
         })}
         <circle cx={c} cy={c} r={112} fill="#171008" />
-        {/* dark metal face */}
+        {/* dark metal face, recessed: inner shadow heaviest at the top-left lip */}
         <circle cx={c} cy={c} r={109} fill="url(#med-face)" />
+        <path d={`M ${c - 90} ${c - 58} A 107 107 0 0 1 ${c - 55} ${c - 91}`} fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="6" strokeLinecap="round" opacity="0.8" />
         {/* rim specular top-left */}
         <path d={`M ${c - 93} ${c - 62} A 112 112 0 0 1 ${c - 60} ${c - 94}`} fill="none" stroke="rgba(255,244,214,0.4)" strokeWidth="2.5" strokeLinecap="round" />
 
@@ -153,7 +154,7 @@ export default function Confirmation() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-dvh max-w-[440px] flex-col px-5 pb-5 pt-4">
+    <div className="grain relative mx-auto flex min-h-dvh max-w-[440px] flex-col px-5 pb-5 pt-4">
       {/* console panel frame */}
       <div
         aria-hidden

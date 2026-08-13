@@ -52,7 +52,7 @@
      */
     background:
       radial-gradient(120% 90% at 50% 30%, transparent 52%, rgba(0, 0, 0, 0.55) 100%),
-      radial-gradient(110% 70% at 22% 0%, rgba(150, 106, 58, 0.22) 0%, transparent 55%),
+      radial-gradient(110% 70% at 22% 0%, rgba(150, 106, 58, 0.15) 0%, transparent 55%),
       radial-gradient(60% 40% at 78% 40%, rgba(138, 82, 48, 0.1) 0%, transparent 65%),
       radial-gradient(80% 50% at 20% 95%, rgba(138, 82, 48, 0.12) 0%, transparent 60%),
       linear-gradient(180deg, #241a11 0%, #1e150e 55%, #191009 100%);

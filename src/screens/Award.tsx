@@ -102,7 +102,7 @@ export default function Award() {
                   className="font-display text-[17px] font-semibold uppercase leading-none"
                   style={
                     on
-                      ? { color: 'var(--color-accent)', letterSpacing: '0.08em', textShadow: '0 0 2px currentColor, 0 0 10px rgba(47,217,208,0.55)' }
+                      ? { color: 'var(--color-accent)', letterSpacing: '0.08em', textShadow: '0 0 2px currentColor, 0 0 6px rgba(47,217,208,0.45)' }
                       : { color: 'var(--color-text-dim)', letterSpacing: '0.08em', textShadow: '0 1px 0 rgba(0,0,0,0.7), 0 -1px 0 rgba(255,230,180,0.06)' }
                   }
                 >
