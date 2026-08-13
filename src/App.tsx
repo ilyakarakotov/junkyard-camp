@@ -5,6 +5,7 @@ import Award from './screens/Award'
 import Confirmation from './screens/Confirmation'
 import Standings from './screens/Standings'
 import BigScreen from './screens/BigScreen'
+import Lab from './screens/Lab'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/confirm/:eventId" element={<Confirmation />} />
           <Route path="/standings" element={<Standings />} />
           <Route path="/display" element={<BigScreen />} />
+          <Route path="/lab" element={<Lab />} />
         </Routes>
       </HashRouter>
     </StoreProvider>
