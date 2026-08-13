@@ -82,7 +82,7 @@ export function ArcBolt({
       const count = strandSets[0].length
       const v = [0, 1, 2].map(() => Math.floor(Math.random() * count))
       // Stochastic brightness: mostly bright, occasional partial dropout.
-      const glow = Math.random() < 0.12 ? 0.55 : 0.82 + Math.random() * 0.18
+      const glow = Math.random() < 0.12 ? 0.65 : 0.88 + Math.random() * 0.12
       setFrame({ v, glow })
       timer = setTimeout(tick, 83 + Math.random() * 42) // 8–12fps
     }
@@ -105,15 +105,21 @@ export function ArcBolt({
         const so = s === 0 ? 1 : s === 1 ? 0.8 : 0.62
         return (
           <g key={s}>
-            {/* wide faint halo */}
-            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.2 * so} strokeWidth={9 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
-            {/* teal glow body */}
-            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.6 * so} strokeWidth={3.4 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* outer bloom — wide soft light thrown onto the metal */}
+            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.13 * so} strokeWidth={18 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* wide halo */}
+            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.32 * so} strokeWidth={10 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* teal glow body — the bolt reads cyan; white is only the core filament */}
+            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.85 * so} strokeWidth={5.4 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* branches carry current too: teal glow + white core */}
             {branches.map((b, i) => (
-              <path key={i} d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.45 * so} strokeWidth={1.2 * weight * sw} strokeLinecap="round" />
+              <g key={i}>
+                <path d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.55 * so} strokeWidth={3.2 * weight * sw} strokeLinecap="round" />
+                <path d={b} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.72 * so} strokeWidth={1 * weight * sw} strokeLinecap="round" />
+              </g>
             ))}
-            {/* white-hot core */}
-            <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.97 * so} strokeWidth={2.1 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* white-hot core filament */}
+            <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={1 * so} strokeWidth={2 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
           </g>
         )
       })}

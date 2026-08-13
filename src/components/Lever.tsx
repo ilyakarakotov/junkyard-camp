@@ -174,13 +174,25 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
       {/* ---- tracks ---- */}
       {(['left', 'right'] as const).map((side) => (
         <div key={side} className="absolute" style={{ [side]: 20, top: TRACK_TOP, width: 26, height: TRACK_H } as React.CSSProperties}>
-          {/* recessed channel */}
-          <div className="recess absolute inset-x-1.5 inset-y-0 rounded-full" />
+          {/* machined channel: brass lips catch the key light, floor stays warm-dark */}
+          <div
+            className="absolute inset-x-0 inset-y-0 rounded-full"
+            style={{
+              background: 'linear-gradient(90deg, #3d2d16 0%, #6b5227 14%, #1a1206 30%, #120c05 70%, #4a3719 88%, #241a0b 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,232,190,0.16), 0 1px 0 rgba(255,232,190,0.06)',
+            }}
+          />
+          <div
+            className="recess absolute inset-x-1 inset-y-[3px] rounded-full"
+            style={{ background: 'linear-gradient(180deg, #120c06 0%, #1d1409 45%, #130d06 100%)' }}
+          />
           {/* teal charge wash inside the slot as the pull deepens */}
           <div
-            className="absolute inset-x-1.5 inset-y-0 rounded-full"
+            className="absolute inset-x-1 inset-y-[3px] rounded-full"
             style={{
-              background: 'linear-gradient(180deg, rgba(47,217,208,0.05) 0%, rgba(47,217,208,0.3) 70%, rgba(47,217,208,0.45) 100%)',
+              background:
+                'linear-gradient(180deg, transparent 0%, rgba(47,217,208,0.14) 18%, rgba(47,217,208,0.26) 62%, rgba(47,217,208,0.34) 92%, transparent 100%)',
+              boxShadow: 'inset 0 0 6px rgba(47,217,208,0.35)',
               opacity: reduced ? (glow > 0.6 ? 0.7 : 0) : glow,
               transition: dragging ? 'none' : 'opacity 300ms ease-out',
             }}
@@ -413,6 +425,22 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
               <stop offset="72%" stopColor="#5d431c" />
               <stop offset="100%" stopColor="#241505" />
             </linearGradient>
+            {/* cross-section shading for a horizontal cast bar: lit along the top */}
+            <linearGradient id="lv-arm" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2a1c0a" />
+              <stop offset="22%" stopColor="#8a6a32" />
+              <stop offset="40%" stopColor="#c49a54" />
+              <stop offset="66%" stopColor="#6d5228" />
+              <stop offset="100%" stopColor="#1a1005" />
+            </linearGradient>
+            {/* carriage block: brighter than the arm so it reads against the dark channel */}
+            <linearGradient id="lv-carriage" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#3a2a12" />
+              <stop offset="24%" stopColor="#b58d4c" />
+              <stop offset="46%" stopColor="#e6c689" />
+              <stop offset="72%" stopColor="#7a5a26" />
+              <stop offset="100%" stopColor="#1d1206" />
+            </linearGradient>
             <radialGradient id="lv-boss" cx="0.32" cy="0.28" r="0.95">
               <stop offset="0%" stopColor="#ecd39c" />
               <stop offset="45%" stopColor="#a67c3c" />
@@ -428,18 +456,33 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
           {([-1, 1] as const).map((s) => {
             const cx = s === -1 ? yokeL : yokeR
             const axisY = HANDLE_H / 2
+            // The arm reaches out of the roller boss and into the track slot,
+            // ending in a carriage that rides the channel. Angle/length are
+            // derived so the arm always lands dead-centre in the slot.
+            const carX = s === -1 ? trackCx : width - trackCx
+            const carY = axisY + 8
+            const armLen = Math.hypot(carX - cx, carY - axisY)
+            const armDeg = (Math.atan2(carY - axisY, carX - cx) * 180) / Math.PI
             return (
               <g key={s}>
                 {/* occlusion where the boss sits over the dome cap */}
                 <circle cx={cx + 2} cy={axisY + 3} r={14} fill="rgba(0,0,0,0.4)" />
-                {/* strap: leans slightly outboard on its way down to the foot */}
-                <g transform={`rotate(${s * 6} ${cx} ${axisY})`}>
-                  <rect x={cx - 8} y={axisY - 4} width={16} height={56} rx={7.5} fill="url(#lv-yoke)" stroke="#120a03" strokeWidth="0.8" />
-                  {/* cast edge highlight along the lit side */}
-                  <rect x={cx - 5.5} y={axisY} width={2} height={46} rx={1} fill="rgba(255,232,190,0.24)" />
+                {/* cast arm: roller boss → slot carriage */}
+                <g transform={`rotate(${armDeg} ${cx} ${axisY})`}>
+                  <rect x={cx} y={axisY - 8} width={armLen} height={16} rx={8} fill="url(#lv-arm)" stroke="#120a03" strokeWidth="0.8" />
+                  {/* cast edge highlight along the lit (upper) face */}
+                  <rect x={cx + 4} y={axisY - 5.5} width={armLen - 8} height={2} rx={1} fill="rgba(255,232,190,0.26)" />
                 </g>
-                {/* foot bolt at the strap's lower end */}
-                <circle cx={cx + s * 5} cy={axisY + 47} r={4.6} fill="url(#lv-bolt)" stroke="#120a03" strokeWidth="0.7" />
+                {/* carriage seated inside the channel — its shadow falls in the slot */}
+                <ellipse cx={carX + 1.5} cy={carY + 3} rx={9} ry={16} fill="rgba(0,0,0,0.65)" />
+                <rect x={carX - 6.5} y={carY - 13} width={13} height={26} rx={4.5} fill="url(#lv-carriage)" stroke="#0b0602" strokeWidth="1" />
+                <rect x={carX - 4.6} y={carY - 10} width={2} height={20} rx={1} fill="rgba(255,240,205,0.5)" />
+                <rect x={carX + 2.9} y={carY - 10} width={1.5} height={20} rx={0.8} fill="rgba(0,0,0,0.5)" />
+                {/* wear polish where the carriage rubs the channel walls */}
+                <rect x={carX - 6.5} y={carY - 2} width={13} height={4} fill="rgba(255,236,200,0.14)" />
+                {/* retaining bolt through the carriage */}
+                <circle cx={carX} cy={carY} r={4.2} fill="url(#lv-bolt)" stroke="#0b0602" strokeWidth="0.8" />
+                <circle cx={carX - 1.2} cy={carY - 1.3} r={1.2} fill="#fff3d8" opacity="0.7" />
                 {/* top boss with pivot screw, clamping the dome cap */}
                 <circle cx={cx} cy={axisY} r={12.5} fill="url(#lv-boss)" stroke="#120a03" strokeWidth="0.9" />
                 <circle cx={cx} cy={axisY} r={12.5} fill="none" stroke="rgba(255,232,190,0.28)" strokeWidth="0.8" strokeDasharray="8 30" strokeDashoffset={s === -1 ? 24 : 4} />
