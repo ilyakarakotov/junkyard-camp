@@ -103,8 +103,9 @@ export default function Standings() {
                   <div className="display-title text-[16.5px] font-bold leading-tight" style={{ letterSpacing: '0.04em' }}>
                     {team.name}
                   </div>
+                  {/* scores share one right column edge, tabular */}
                   <div
-                    className="numeral text-[17px] font-bold leading-tight"
+                    className="numeral pr-1 text-right text-[17px] font-bold leading-tight"
                     style={{ color: teamColor(team.id), textShadow: `0 0 2px ${hex}88, 0 0 8px ${hex}44` }}
                   >
                     {fmt.format(t.points)}
