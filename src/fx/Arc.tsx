@@ -69,8 +69,8 @@ export function ArcBolt({
     const tick = () => {
       if (!alive) return
       const v = Math.floor(Math.random() * variants.length)
-      // Stochastic brightness: mostly bright, occasional dropout.
-      const glow = Math.random() < 0.15 ? 0.35 : 0.7 + Math.random() * 0.3
+      // Stochastic brightness: mostly bright, occasional partial dropout.
+      const glow = Math.random() < 0.12 ? 0.55 : 0.82 + Math.random() * 0.18
       setFrame({ v, glow })
       timer = setTimeout(tick, 83 + Math.random() * 42) // 8–12fps
     }
@@ -88,14 +88,14 @@ export function ArcBolt({
   return (
     <g style={{ opacity: a }}>
       {/* wide faint halo */}
-      <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.16} strokeWidth={7 * weight} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.2} strokeWidth={9 * weight} strokeLinejoin="round" strokeLinecap="round" />
       {/* teal glow body */}
-      <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.55} strokeWidth={2.6 * weight} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.6} strokeWidth={3.4 * weight} strokeLinejoin="round" strokeLinecap="round" />
       {branches.map((b, i) => (
-        <path key={i} d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.4} strokeWidth={1.1 * weight} strokeLinecap="round" />
+        <path key={i} d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.45} strokeWidth={1.2 * weight} strokeLinecap="round" />
       ))}
       {/* white-hot core */}
-      <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.92} strokeWidth={1.1 * weight} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.95} strokeWidth={1.5 * weight} strokeLinejoin="round" strokeLinecap="round" />
     </g>
   )
 }

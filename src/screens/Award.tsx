@@ -17,6 +17,7 @@ export default function Award() {
   const reduced = usePrefersReducedMotion()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [fired, setFired] = useState(false)
+  const [armed, setArmed] = useState(false)
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const team = teams.find((t) => t.id === teamId)
@@ -81,7 +82,7 @@ export default function Award() {
               key={camper.id}
               onClick={() => toggle(camper.id)}
               aria-pressed={on}
-              className="plate-shadow relative min-h-[52px]"
+              className="plate-shadow relative min-h-[46px]"
             >
               <span
                 className="plate grain flex h-full items-center justify-center px-1"
@@ -98,7 +99,7 @@ export default function Award() {
                 }}
               >
                 <span
-                  className="font-display text-[15px] font-semibold uppercase leading-none"
+                  className="font-display text-[17px] font-semibold uppercase leading-none"
                   style={
                     on
                       ? { color: 'var(--color-accent)', letterSpacing: '0.08em', textShadow: '0 0 2px currentColor, 0 0 10px rgba(47,217,208,0.55)' }
@@ -115,6 +116,24 @@ export default function Award() {
                   className="pointer-events-none absolute -inset-1.5"
                   style={{ background: 'radial-gradient(60% 70% at 50% 50%, rgba(47,217,208,0.14) 0%, transparent 70%)' }}
                 />
+              )}
+              {/* armed: a +1 tab rises from behind the chip's top edge */}
+              {on && (
+                <span
+                  aria-hidden
+                  className="numeral absolute right-2 top-0 rounded-t-[3px] px-1.5 text-[12px] font-bold"
+                  style={{
+                    color: 'var(--color-accent)',
+                    background: '#141a18',
+                    boxShadow: 'inset 0 0 0 1px rgba(47,217,208,0.4), 0 -1px 2px rgba(0,0,0,0.5)',
+                    transform: armed || fired ? 'translateY(-15px)' : 'translateY(0)',
+                    opacity: armed || fired ? 1 : 0,
+                    transition: 'transform 180ms ease-out, opacity 140ms ease-out',
+                    zIndex: -1,
+                  }}
+                >
+                  +{POINTS_PER_PULL}
+                </span>
               )}
               {/* +1 token flight on fire */}
               {fired && on && !reduced && (
@@ -138,6 +157,7 @@ export default function Award() {
           armedLabel="Release to confirm"
           disabled={selected.size === 0}
           onFire={onFire}
+          onArmedChange={setArmed}
         />
       </div>
     </div>

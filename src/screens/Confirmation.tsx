@@ -42,9 +42,13 @@ function Medallion({ points }: { points: number }) {
           </radialGradient>
         </defs>
 
+        {/* recessed well behind the medallion */}
+        <circle cx={c} cy={c} r={142} fill="rgba(0,0,0,0.35)" />
         {/* seat shadow + brass rim */}
         <circle cx={c} cy={c + 3} r={132} fill="rgba(0,0,0,0.55)" />
         <circle cx={c} cy={c} r={132} fill="url(#med-rim)" />
+        {/* bottom-right occlusion on the rim */}
+        <path d={`M ${c + 95} ${c + 60} A 112 112 0 0 1 ${c + 58} ${c + 96}`} fill="none" stroke="rgba(20,12,4,0.55)" strokeWidth="7" strokeLinecap="round" />
         {/* rim tick engravings */}
         {Array.from({ length: 24 }, (_, i) => {
           const a = (i * Math.PI) / 12
@@ -66,34 +70,43 @@ function Medallion({ points }: { points: number }) {
         {/* rim specular top-left */}
         <path d={`M ${c - 93} ${c - 62} A 112 112 0 0 1 ${c - 60} ${c - 94}`} fill="none" stroke="rgba(255,244,214,0.4)" strokeWidth="2.5" strokeLinecap="round" />
 
+        {/* recessed channel the neon tube sits in */}
+        <circle cx={c} cy={c} r={ringR} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="12" />
+        {/* teal wash the tube throws onto its housing */}
+        <circle cx={c} cy={c} r={ringR} fill="none" stroke="rgba(47,217,208,0.14)" strokeWidth="22" />
         {/* neon ring — the emitting source */}
-        <circle cx={c} cy={c} r={ringR} fill="none" stroke="rgba(47,217,208,0.16)" strokeWidth="9" />
+        <circle cx={c} cy={c} r={ringR} fill="none" stroke="rgba(47,217,208,0.28)" strokeWidth="8" />
         <circle cx={c} cy={c} r={ringR} fill="none" stroke="var(--color-accent)" strokeWidth="2.6" style={{ filter: 'drop-shadow(0 0 5px rgba(47,217,208,0.9))' }} />
         <circle cx={c} cy={c} r={ringR} fill="none" stroke="#eafffd" strokeWidth="0.9" opacity="0.8" />
 
         {/* crackle between the four posts */}
-        <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[1].x} y2={posts[1].y} seed={41} intensity={0.75} chaos={1.3} active={!reduced} />
-        <ArcBolt x1={posts[2].x} y1={posts[2].y} x2={posts[3].x} y2={posts[3].y} seed={43} intensity={0.75} chaos={1.3} active={!reduced} />
+        <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[1].x} y2={posts[1].y} seed={41} intensity={0.85} chaos={1.3} weight={1.4} active={!reduced} />
+        <ArcBolt x1={posts[2].x} y1={posts[2].y} x2={posts[3].x} y2={posts[3].y} seed={43} intensity={0.85} chaos={1.3} weight={1.4} active={!reduced} />
         {reduced && (
-          <>
-            <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[3].x} y2={posts[3].y} seed={45} intensity={0.5} chaos={1} active />
-          </>
+          <ArcBolt x1={posts[0].x} y1={posts[0].y} x2={posts[3].x} y2={posts[3].y} seed={45} intensity={0.5} chaos={1} weight={1.2} active />
         )}
 
-        {/* contact posts mounted on the ring */}
+        {/* contact posts mounted on the ring, corona where current lands */}
         {posts.map((p, i) => (
-          <ContactPost key={i} cx={p.x} cy={p.y} r={6} />
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={17} fill="var(--color-accent)" opacity={0.12} />
+            <circle cx={p.x} cy={p.y} r={10} fill="var(--color-accent)" opacity={0.2} />
+            <ContactPost cx={p.x} cy={p.y} r={8.5} />
+          </g>
         ))}
       </svg>
 
       {/* the +N slab numeral */}
       <div className="absolute inset-0 flex items-center justify-center">
         <span
-          className="numeral text-[104px] font-bold leading-none"
+          className="numeral text-[118px] font-bold leading-none"
           style={{
-            color: 'var(--color-accent)',
-            textShadow:
-              '0 0 3px rgba(47,217,208,0.7), 0 0 18px rgba(47,217,208,0.45), 2px 3px 0 rgba(0,0,0,0.55), 3px 5px 6px rgba(0,0,0,0.5)',
+            background: 'linear-gradient(160deg, #a7f5ef 0%, #2fd9d0 42%, #1ba39b 90%)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+            filter:
+              'drop-shadow(0 0 2px rgba(47,217,208,0.7)) drop-shadow(0 0 12px rgba(47,217,208,0.35)) drop-shadow(2px 4px 1px rgba(0,0,0,0.55))',
             letterSpacing: '0.02em',
           }}
         >
@@ -141,21 +154,36 @@ export default function Confirmation() {
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-[440px] flex-col px-5 pb-5 pt-4">
+      {/* console panel frame */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-2 rounded-[5px]"
+        style={{
+          boxShadow:
+            'inset 0 0 0 2px rgba(74,59,46,0.5), inset 0 0 0 3px rgba(0,0,0,0.5), inset 2px 2px 1px rgba(255,236,205,0.07), inset -2px -2px 1px rgba(0,0,0,0.4)',
+        }}
+      />
+      {(['left-3 top-3', 'right-3 top-3 rotate-90', 'right-3 bottom-3 rotate-180', 'left-3 bottom-3 -rotate-90'] as const).map((pos) => (
+        <svg key={pos} className={`absolute ${pos} opacity-60`} width="18" height="18" aria-hidden>
+          <path d="M2 9 L2 2 L9 2" fill="none" stroke="rgba(192,138,62,0.6)" strokeWidth="2" />
+        </svg>
+      ))}
+
       {/* corner tech labels */}
-      <div className="tech-label absolute left-4 top-3">
+      <div className="tech-label absolute left-6 top-5">
         SYS-7A
         <br />
         Award Protocol
         <br />
         v.12.4.07
       </div>
-      <div className="tech-label absolute right-4 top-3 text-right">
+      <div className="tech-label absolute right-6 top-5 text-right">
         // Confirm
         <br />
         SEQ: {event.id.slice(0, 4).toUpperCase()}.{event.id.slice(4, 6).toUpperCase()}
       </div>
 
-      <div className="mt-14">
+      <div className="mt-12">
         <Medallion points={totalPoints} />
       </div>
 
@@ -183,8 +211,9 @@ export default function Confirmation() {
                   color: 'var(--color-accent)',
                   background: 'linear-gradient(180deg, #221a13 0%, #1a130d 100%)',
                   borderRadius: 3,
+                  border: '1px solid rgba(169,126,60,0.55)',
                   boxShadow:
-                    'inset 0 0 0 1px rgba(47,217,208,0.5), inset 0 0 8px rgba(47,217,208,0.18), inset 0 2px 3px rgba(0,0,0,0.6), 0 2px 3px rgba(0,0,0,0.5)',
+                    'inset 0 0 0 2px rgba(0,0,0,0.5), inset 0 0 0 3px rgba(47,217,208,0.45), inset 0 0 9px rgba(47,217,208,0.22), inset 0 2px 3px rgba(0,0,0,0.5), 0 2px 3px rgba(0,0,0,0.55), 0 1px 0 rgba(255,236,205,0.08)',
                   textShadow: '0 0 6px rgba(47,217,208,0.5)',
                 }}
               >
@@ -195,8 +224,8 @@ export default function Confirmation() {
         </div>
       </div>
 
-      {/* team total in a drafted bracket */}
-      <div className="relative mx-2 mt-7 py-3.5" aria-hidden={false}>
+      {/* team total in a drafted corner-bracket frame */}
+      <div className="relative mx-4 mt-5 py-3.5" aria-hidden={false}>
         {(['top', 'bottom'] as const).map((edge) => (
           <div key={edge} className={`absolute inset-x-0 ${edge === 'top' ? 'top-0' : 'bottom-0'}`}>
             <div className="hairline" />
@@ -204,8 +233,10 @@ export default function Confirmation() {
         ))}
         {(['left', 'right'] as const).map((side) => (
           <div key={side}>
-            <div className={`absolute ${side}-[8%] top-0 h-2.5 w-px bg-[rgba(192,138,62,0.45)]`} />
-            <div className={`absolute ${side}-[8%] bottom-0 h-2.5 w-px bg-[rgba(192,138,62,0.45)]`} />
+            <div className={`absolute ${side}-0 top-0 h-3 w-px bg-[rgba(192,138,62,0.5)]`} />
+            <div className={`absolute ${side}-0 top-0 h-px w-3 bg-[rgba(192,138,62,0.5)]`} />
+            <div className={`absolute ${side}-0 bottom-0 h-3 w-px bg-[rgba(192,138,62,0.5)]`} />
+            <div className={`absolute ${side}-0 bottom-0 h-px w-3 bg-[rgba(192,138,62,0.5)]`} />
           </div>
         ))}
         <div className="flex items-baseline justify-center gap-5">
@@ -226,20 +257,29 @@ export default function Confirmation() {
               Undo
             </span>
             {canUndo && (
-              <span className="tech-label absolute bottom-1 right-2 text-[8px] opacity-60">{undoLeft}s</span>
+              <span className="tech-label absolute bottom-[5px] right-2 text-[8px] opacity-70">[ T-{undoLeft}s ]</span>
             )}
           </span>
         </button>
-        <button onClick={() => navigate('/')} className="plate-shadow h-[62px] flex-1">
+        {/* DONE: brass-framed plate with an emissive backlit face */}
+        <button onClick={() => navigate('/')} className="h-[62px] flex-1" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.6)) drop-shadow(0 0 12px rgba(47,217,208,0.3))' }}>
           <span
-            className="plate flex h-full items-center justify-center"
+            className="plate flex h-full items-center justify-center p-[4px]"
             style={{
-              background: 'linear-gradient(180deg, #43d6cd 0%, #2fb8b0 45%, #1e8a84 100%)',
-              boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -3px 4px rgba(0,40,38,0.55), inset 0 0 14px rgba(255,255,255,0.25)',
+              background: 'linear-gradient(135deg, #a97e3c 0%, #6d4e20 50%, #33230d 100%)',
+              boxShadow: 'inset 1px 1px 0 rgba(255,232,190,0.5), inset -1px -1px 0 rgba(0,0,0,0.6)',
             }}
           >
-            <span className="display-title text-[20px] font-bold" style={{ letterSpacing: '0.18em', color: '#08302d', textShadow: '0 1px 0 rgba(255,255,255,0.35)' }}>
-              Done
+            <span
+              className="flex h-full w-full items-center justify-center rounded-[2px]"
+              style={{
+                background: 'radial-gradient(80% 90% at 45% 40%, #7ff0e8 0%, #2fd9d0 55%, #1a9c95 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -3px 5px rgba(0,40,38,0.5)',
+              }}
+            >
+              <span className="display-title text-[20px] font-bold" style={{ letterSpacing: '0.18em', color: '#08302d', textShadow: '0 1px 0 rgba(255,255,255,0.35)' }}>
+                Done
+              </span>
             </span>
           </span>
         </button>

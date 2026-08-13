@@ -41,28 +41,40 @@ function GaugeColumn({
             const y = 100 - (v / SCALE_MAX) * 100
             return (
               <div key={v} className="absolute right-0 flex translate-y-[-50%] items-center gap-1" style={{ top: `${y}%` }}>
-                <span className="numeral text-[10px] leading-none" style={{ color: 'var(--color-text-dim)', fontVariantNumeric: 'tabular-nums' }}>
+                <span className="numeral text-[11px] leading-none" style={{ color: 'var(--color-text-dim)', fontVariantNumeric: 'tabular-nums' }}>
                   {fmt.format(v)}
                 </span>
-                <span className="h-px w-2" style={{ background: 'rgba(138,122,104,0.6)' }} />
+                <span className="h-[2px] w-3" style={{ background: 'rgba(138,122,104,0.75)' }} />
               </div>
             )
           })}
-          {/* fine ticks */}
+          {/* minor ticks every 100 units */}
           {Array.from({ length: 31 }, (_, i) => (
-            <span key={i} className="absolute right-0 h-px w-1" style={{ top: `${(i / 30) * 100}%`, background: 'rgba(138,122,104,0.28)' }} />
+            <span key={i} className="absolute right-0 h-px w-1.5" style={{ top: `${(i / 30) * 100}%`, background: 'rgba(138,122,104,0.45)' }} />
           ))}
         </div>
 
-        {/* framed tube */}
+        {/* framed tube with head/foot castings */}
         <div
           ref={frameRef}
-          className="relative h-full w-[64px] shrink-0 rounded-[6px] p-[5px]"
+          className="relative h-full w-[68px] shrink-0 rounded-[6px] px-[7px] py-[10px]"
           style={{
-            background: 'linear-gradient(135deg, #6d5228 0%, #4a3418 30%, #33230d 70%, #241708 100%)',
-            boxShadow: 'inset 1px 1px 0 rgba(255,232,190,0.35), inset -1px -1px 0 rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3)',
+            background: 'linear-gradient(135deg, #7d5f30 0%, #4a3418 30%, #33230d 70%, #221606 100%)',
+            boxShadow: `inset 2px 2px 0 rgba(255,232,190,0.35), inset -2px -2px 0 rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3)${lead ? `, 0 0 26px ${hex}33` : ''}`,
           }}
         >
+          {/* head + foot castings */}
+          {(['top', 'bottom'] as const).map((edge) => (
+            <div
+              key={edge}
+              className="absolute inset-x-[-4px] h-[9px] rounded-[3px]"
+              style={{
+                [edge]: -2,
+                background: 'linear-gradient(180deg, #b98d4a 0%, #7a5622 55%, #3a2810 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,232,190,0.5), 0 2px 3px rgba(0,0,0,0.6)',
+              } as React.CSSProperties}
+            />
+          ))}
           {/* LEADING plate rides the top of the leader's tube frame */}
           {lead && (
             <div className="absolute -top-9 left-1/2 z-20 -translate-x-1/2" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.7))' }}>
@@ -87,12 +99,19 @@ function GaugeColumn({
           {/* leader posts on the frame's top corners + arcs down the sides */}
           {lead && (
             <svg className="absolute -top-2 left-0 z-10 w-full" style={{ overflow: 'visible', height: frameH + 8 }} aria-hidden>
-              <ArcBolt x1={4} y1={6} x2={4} y2={frameH - 4} seed={51} intensity={0.75} chaos={1.1} active={!reduced} weight={0.85} />
-              <ArcBolt x1={60} y1={6} x2={60} y2={frameH * 0.7} seed={53} intensity={0.7} chaos={1.1} active={!reduced} weight={0.85} />
-              <ContactPost cx={4} cy={6} r={4.5} />
-              <ContactPost cx={60} cy={6} r={4.5} />
-              <ContactPost cx={4} cy={frameH - 4} r={4} />
-              <ContactPost cx={60} cy={frameH * 0.7} r={4} />
+              <ArcBolt x1={4} y1={8} x2={4} y2={frameH - 6} seed={51} intensity={0.85} chaos={1.1} active={!reduced} weight={1.1} />
+              <ArcBolt x1={64} y1={8} x2={64} y2={frameH - 6} seed={53} intensity={0.8} chaos={1.1} active={!reduced} weight={1.1} />
+              {[
+                [4, 8],
+                [64, 8],
+                [4, frameH - 6],
+                [64, frameH - 6],
+              ].map(([cx, cy]) => (
+                <g key={`${cx}-${cy}`}>
+                  <circle cx={cx} cy={cy} r={13} fill="var(--color-accent)" opacity={0.12} />
+                  <ContactPost cx={cx} cy={cy} r={6} />
+                </g>
+              ))}
             </svg>
           )}
           {/* glass interior */}
@@ -103,27 +122,27 @@ function GaugeColumn({
               boxShadow: 'inset 0 3px 8px rgba(0,0,0,0.9), inset 0 -1px 0 rgba(255,236,205,0.05)',
             }}
           >
-            {/* emissive liquid */}
+            {/* emissive liquid — spills onto the rails, strongest near the meniscus */}
             <div
               className="absolute inset-x-[3px] bottom-[3px] rounded-[2px]"
               style={{
                 height: `calc(${frac * 100}% - 3px)`,
                 background: `linear-gradient(90deg, ${hex}66 0%, ${hex} 30%, ${hex}ee 55%, ${hex}77 100%)`,
-                boxShadow: `0 0 18px ${hex}88, inset 0 0 12px rgba(255,255,255,0.18)`,
+                boxShadow: `0 0 22px ${hex}${lead ? 'cc' : '88'}, 0 -6px 18px ${hex}55, inset 0 0 12px rgba(255,255,255,0.18)`,
               }}
             />
-            {/* meniscus */}
+            {/* meniscus: near-white core wrapped in team-color bloom */}
             <div
-              className="absolute inset-x-[2px] h-[3px] rounded-full"
+              className="absolute inset-x-[2px] h-[2px] rounded-full"
               style={{
-                bottom: `calc(${frac * 100}% - 2px)`,
-                background: '#ffffff',
-                opacity: 0.9,
-                boxShadow: `0 0 8px ${hex}, 0 0 18px ${hex}`,
+                bottom: `calc(${frac * 100}% - 1px)`,
+                background: `linear-gradient(90deg, ${hex} 0%, #ffffff 30%, #ffffff 70%, ${hex} 100%)`,
+                opacity: 0.95,
+                boxShadow: `0 0 6px ${hex}, 0 0 16px ${hex}, 0 0 30px ${hex}66`,
               }}
             />
             {/* glass reflections */}
-            <div className="absolute inset-y-2 left-[4px] w-[5px] rounded-full" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.16), transparent)' }} />
+            <div className="absolute inset-y-2 left-[4px] w-[4px] rounded-full" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.18), transparent)' }} />
           </div>
         </div>
       </div>
@@ -205,20 +224,30 @@ export default function BigScreen() {
 
       <div className="hairline mx-1 mb-1 mt-3" />
 
-      {/* side rail labels */}
-      <div className="tech-label absolute left-4 top-[38%] leading-relaxed">
-        MTRX
-        <br />
-        SOL-07
-        <br />
-        Group C
+      {/* side rail labels in recessed service panels */}
+      <div
+        className="absolute left-4 top-[38%] rounded-[3px] px-2 py-1.5"
+        style={{ background: 'rgba(0,0,0,0.35)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.7), inset -1px -1px 0 rgba(255,236,205,0.05)' }}
+      >
+        <div className="tech-label leading-relaxed">
+          MTRX
+          <br />
+          SOL-07
+          <br />
+          Group C
+        </div>
       </div>
-      <div className="tech-label absolute right-4 top-[40%] text-right leading-relaxed">
-        Standings
-        <br />
-        Update
-        <br />
-        18:00 SOL
+      <div
+        className="absolute right-4 top-[40%] rounded-[3px] px-2 py-1.5 text-right"
+        style={{ background: 'rgba(0,0,0,0.35)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.7), inset -1px -1px 0 rgba(255,236,205,0.05)' }}
+      >
+        <div className="tech-label leading-relaxed">
+          Standings
+          <br />
+          Update
+          <br />
+          18:00 SOL
+        </div>
       </div>
 
       {/* gauge columns */}

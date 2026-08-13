@@ -22,11 +22,13 @@ export interface LeverProps {
   armedLabel?: string
   disabled?: boolean
   onFire: () => void
+  /** Fires when the 60% arm threshold is crossed either way. */
+  onArmedChange?: (armed: boolean) => void
 }
 
 type Phase = 'idle' | 'drag' | 'fire'
 
-export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabled, onFire }: LeverProps) {
+export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabled, onFire, onArmedChange }: LeverProps) {
   const reduced = usePrefersReducedMotion()
   const [travel, setTravel] = useState(0) // 0..1
   const [phase, setPhase] = useState<Phase>('idle')
@@ -49,9 +51,12 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
   const armed = travel >= 0.6
 
   useEffect(() => {
-    if (armed && !wasArmed.current) navigator.vibrate?.(20)
+    if (armed !== wasArmed.current) {
+      if (armed) navigator.vibrate?.(20)
+      onArmedChange?.(armed)
+    }
     wasArmed.current = armed
-  }, [armed])
+  }, [armed, onArmedChange])
 
   useEffect(() => () => fireTimers.current.forEach(clearTimeout), [])
 
@@ -105,10 +110,11 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
     >
       {/* machined inner border */}
       <div className="pointer-events-none absolute inset-2 rounded-sm" style={{ boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,236,205,0.05)' }} />
-      <div className="rivet absolute left-2.5 top-2.5" />
-      <div className="rivet absolute right-2.5 top-2.5" />
-      <div className="rivet absolute bottom-2.5 left-2.5" />
-      <div className="rivet absolute bottom-2.5 right-2.5" />
+      <span className="screw left-[7px] top-[7px]" style={{ ['--slot' as string]: '52deg' }} />
+      <span className="screw right-[7px] top-[7px]" style={{ ['--slot' as string]: '-15deg' }} />
+      <span className="screw bottom-[7px] left-[7px]" style={{ ['--slot' as string]: '8deg' }} />
+      <span className="screw bottom-[7px] right-[7px]" style={{ ['--slot' as string]: '77deg' }} />
+      <span className="tech-label absolute right-6 top-2 text-[8px] opacity-50">CH-01 / +1 Unit</span>
 
       {/* ---- tracks ---- */}
       {(['left', 'right'] as const).map((side) => (
@@ -146,7 +152,7 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
           right: '10%',
           top: 90,
           height: 150,
-          background: 'radial-gradient(50% 55% at 50% 50%, rgba(47,217,208,0.28) 0%, rgba(47,217,208,0.08) 50%, transparent 78%)',
+          background: 'radial-gradient(50% 55% at 43% 46%, rgba(47,217,208,0.28) 0%, rgba(47,217,208,0.08) 50%, transparent 78%)',
           opacity: reduced ? (glow > 0.6 ? 0.8 : glow * 0.5) : glow * (firing ? 1 : 0.75),
           transition: firing ? 'opacity 400ms ease-out 80ms' : dragging ? 'none' : 'opacity 300ms ease-out',
         }}
@@ -201,20 +207,37 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
       {/* ---- discharge arcs (posts at track tops + bottom rail) ---- */}
       <svg className="pointer-events-none absolute inset-0 h-full w-full" style={{ overflow: 'visible' }} aria-hidden>
         {/* idle arc across the bottom gap — always between its two posts */}
-        <ArcBolt x1={38} y1={H - 52} x2={width - 38} y2={H - 52} seed={11} intensity={firing ? 1 : reduced ? 0.45 : 0.4} chaos={firing ? 1.4 : 1} active={!disabled && (!reduced || !firing)} />
-        {/* eruption along both tracks while firing */}
-        {firing && !reduced && (
+        <ArcBolt
+          x1={38}
+          y1={H - 52}
+          x2={width - 38}
+          y2={H - 52}
+          seed={11}
+          intensity={firing ? 1 : armed ? 0.9 : reduced ? 0.6 : 0.62}
+          chaos={firing ? 1.4 : armed ? 1.2 : 1}
+          active={!disabled && (!reduced || !firing)}
+        />
+        {/* corona at the bottom posts — brightest where current lands */}
+        {!disabled &&
+          [38, width - 38].map((cx) => (
+            <g key={cx} opacity={firing ? 1 : armed ? 0.85 : 0.55}>
+              <circle cx={cx} cy={H - 52} r={15} fill="var(--color-accent)" opacity={0.1} />
+              <circle cx={cx} cy={H - 52} r={9} fill="var(--color-accent)" opacity={0.2} />
+            </g>
+          ))}
+        {/* eruption along both tracks once armed, full discharge on fire */}
+        {(firing || (armed && dragging)) && !reduced && (
           <>
-            <ArcBolt x1={31} y1={40} x2={38} y2={H - 52} seed={23} intensity={0.9} chaos={1.6} />
-            <ArcBolt x1={width - 31} y1={40} x2={width - 38} y2={H - 52} seed={31} intensity={0.9} chaos={1.6} />
+            <ArcBolt x1={31} y1={40} x2={38} y2={H - 52} seed={23} intensity={firing ? 0.95 : 0.55 + travel * 0.3} chaos={1.6} />
+            <ArcBolt x1={width - 31} y1={40} x2={width - 38} y2={H - 52} seed={31} intensity={firing ? 0.95 : 0.55 + travel * 0.3} chaos={1.6} />
           </>
         )}
         {/* track-top posts (arc endpoints during discharge) */}
-        <ContactPost cx={31} cy={40} r={4} />
-        <ContactPost cx={width - 31} cy={40} r={4} />
+        <ContactPost cx={31} cy={40} r={5} />
+        <ContactPost cx={width - 31} cy={40} r={5} />
         {/* bottom contact posts */}
-        <ContactPost cx={38} cy={H - 52} r={5.5} />
-        <ContactPost cx={width - 38} cy={H - 52} r={5.5} />
+        <ContactPost cx={38} cy={H - 52} r={7} />
+        <ContactPost cx={width - 38} cy={H - 52} r={7} />
       </svg>
 
       {/* ---- grip (draggable) ---- */}
@@ -238,17 +261,25 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
-        {/* clevis arms reaching into the tracks */}
+        {/* brass yoke arms with pivot screws, reaching into the tracks */}
         {(['left', 'right'] as const).map((side) => (
           <div
             key={side}
-            className="absolute top-3 h-14 w-3.5 rounded-sm"
+            className="absolute top-2 h-[60px] w-[18px] rounded-[3px]"
             style={{
-              [side]: 24,
-              background: 'linear-gradient(90deg, #2c2014 0%, #6d5228 30%, #a67c3c 50%, #4a3418 80%, #1e1408 100%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,220,160,0.35), 0 3px 4px rgba(0,0,0,0.55)',
+              [side]: 21,
+              background: 'linear-gradient(90deg, #1e1408 0%, #6d5228 26%, #a67c3c 44%, #6d5228 68%, #2c2014 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,220,160,0.4), inset 0 -2px 3px rgba(0,0,0,0.55), 0 4px 6px rgba(0,0,0,0.55)',
             } as React.CSSProperties}
-          />
+          >
+            <span
+              className="absolute left-1/2 top-[9px] h-[7px] w-[7px] -translate-x-1/2 rounded-full"
+              style={{
+                background: 'radial-gradient(circle at 32% 28%, #e8cf96 0%, #8a6d3e 45%, #33230d 100%)',
+                boxShadow: '0 1px 1px rgba(0,0,0,0.7)',
+              }}
+            />
+          </div>
         ))}
         {/* knurled brass bar */}
         <div
@@ -257,7 +288,7 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
             background:
               'repeating-linear-gradient(65deg, transparent 0px, transparent 2px, rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 3px),' +
               'repeating-linear-gradient(-65deg, transparent 0px, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px),' +
-              'linear-gradient(180deg, #4a3416 0%, #a67c3e 22%, #cfa668 38%, #96702f 55%, #46320f 85%, #241808 100%)',
+              'linear-gradient(178deg, #42300f 0%, #97713a 24%, #c09a5c 36%, #8a6428 56%, #42300f 85%, #221606 100%)',
             boxShadow:
               'inset 0 2px 2px rgba(255,232,190,0.5), inset 0 -3px 5px rgba(0,0,0,0.55), 0 5px 8px rgba(0,0,0,0.6), 0 12px 18px rgba(0,0,0,0.35)',
           }}
@@ -277,9 +308,16 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
         </div>
       </div>
 
-      {/* ---- caption ---- */}
+      {/* ---- caption: engraved, never glowing (glow is for emitters) ---- */}
       <div className="absolute inset-x-0 bottom-2.5 text-center">
-        <span className="font-display text-[12px] font-medium uppercase" style={{ letterSpacing: '0.32em', color: armed || firing ? 'var(--color-accent)' : 'var(--color-text-dim)' }}>
+        <span
+          className="font-display text-[12px] font-medium uppercase"
+          style={{
+            letterSpacing: '0.32em',
+            color: armed || firing ? 'var(--color-text)' : 'var(--color-text-dim)',
+            textShadow: '0 1px 0 rgba(0,0,0,0.7), 0 -1px 0 rgba(255,230,180,0.07)',
+          }}
+        >
           {'[ '}
           {armed || firing ? armedLabel : label}
           {' ]'}
