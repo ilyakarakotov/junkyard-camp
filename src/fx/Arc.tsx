@@ -158,24 +158,35 @@ export function ArcGap({
 }) {
   const y = height * 0.42
   return (
-    <div className={className} style={{ position: 'relative', width, height }}>
-      {/* light spill onto surrounding metal — tight physical falloff */}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: `-${height * 0.6}px -12px`,
-          background:
-            'radial-gradient(50% 60% at 50% 50%, rgba(47,217,208,0.16) 0%, rgba(47,217,208,0.05) 45%, transparent 75%)',
-          opacity: active ? intensity : 0,
-          pointerEvents: 'none',
-        }}
-      />
-      <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }} aria-hidden>
-        <ArcBolt x1={postR + 2} y1={y} x2={width - postR - 2} y2={y} seed={seed} intensity={intensity} active={active} />
-        <ContactPost cx={postR + 2} cy={y} r={postR} />
-        <ContactPost cx={width - postR - 2} cy={y} r={postR} />
-      </svg>
+    <div className={className} style={{ width, height }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {/* light spill onto surrounding metal — tight physical falloff */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: `-${height * 0.6}px -12px`,
+            background:
+              'radial-gradient(50% 60% at 50% 50%, rgba(47,217,208,0.16) 0%, rgba(47,217,208,0.05) 45%, transparent 75%)',
+            opacity: active ? intensity : 0,
+            pointerEvents: 'none',
+          }}
+        />
+        <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }} aria-hidden>
+          <ArcBolt x1={postR + 2} y1={y} x2={width - postR - 2} y2={y} seed={seed} intensity={intensity} active={active} />
+          {/* corona blooms at the contact points — brightest where current lands */}
+          {active &&
+            [postR + 2, width - postR - 2].map((cx) => (
+              <g key={cx}>
+                <circle cx={cx} cy={y} r={postR * 2.6} fill="var(--color-accent)" opacity={0.1 * intensity} />
+                <circle cx={cx} cy={y} r={postR * 1.6} fill="var(--color-accent)" opacity={0.22 * intensity} />
+                <circle cx={cx} cy={y - 1} r={postR * 0.55} fill="#eafffd" opacity={0.75 * intensity} />
+              </g>
+            ))}
+          <ContactPost cx={postR + 2} cy={y} r={postR} />
+          <ContactPost cx={width - postR - 2} cy={y} r={postR} />
+        </svg>
+      </div>
     </div>
   )
 }

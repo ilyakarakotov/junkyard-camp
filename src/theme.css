@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme {
+@theme static {
   /* Wipe the default palette — no stock Tailwind color is reachable. */
   --color-*: initial;
 
@@ -44,11 +44,30 @@
 
   #root {
     min-height: 100dvh;
-    /* Subtle warm vignette toward screen edges + faint large-scale mottling. */
+    position: relative;
+    /*
+     * The wall behind the plates: warmer and lighter than the plate
+     * interiors so the layering reads. Key light top-left, vignette at the
+     * edges, rust mottling in patches.
+     */
     background:
-      radial-gradient(120% 90% at 50% 30%, transparent 55%, rgba(0, 0, 0, 0.5) 100%),
-      radial-gradient(80% 50% at 20% 85%, rgba(138, 82, 48, 0.05) 0%, transparent 60%),
-      var(--color-bg);
+      radial-gradient(120% 90% at 50% 30%, transparent 52%, rgba(0, 0, 0, 0.55) 100%),
+      radial-gradient(110% 70% at 22% 0%, rgba(150, 106, 58, 0.22) 0%, transparent 55%),
+      radial-gradient(60% 40% at 78% 40%, rgba(138, 82, 48, 0.1) 0%, transparent 65%),
+      radial-gradient(80% 50% at 20% 95%, rgba(138, 82, 48, 0.12) 0%, transparent 60%),
+      linear-gradient(180deg, #241a11 0%, #1e150e 55%, #191009 100%);
+  }
+
+  /* wall grime */
+  #root::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.36 0 0 0 0 0.2 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    opacity: 0.3;
+    mix-blend-mode: overlay;
   }
 }
 
@@ -139,6 +158,107 @@
   .hairline {
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(192, 138, 62, 0.4) 12%, rgba(192, 138, 62, 0.4) 88%, transparent);
+  }
+
+  /* Fine grain/oxidation overlay — apply to plate faces, never the whole page. */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.42 0 0 0 0 0.28 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+    opacity: 0.24;
+    mix-blend-mode: overlay;
+  }
+
+  /* Machined plate: chamfered-corner steel frame. Pair with .plate-shadow wrapper. */
+  .plate {
+    position: relative;
+    clip-path: polygon(
+      10px 0, calc(100% - 10px) 0, 100% 10px,
+      100% calc(100% - 10px), calc(100% - 10px) 100%,
+      10px 100%, 0 calc(100% - 10px), 0 10px
+    );
+    background:
+      repeating-linear-gradient(0deg, rgba(255, 244, 224, 0.015) 0 1px, transparent 1px 2px),
+      linear-gradient(135deg, rgba(255, 236, 205, 0.1) 0%, transparent 18%),
+      linear-gradient(315deg, rgba(0, 0, 0, 0.35) 0%, transparent 20%),
+      linear-gradient(180deg, #2c231b 0%, #241c16 55%, #1e1712 100%);
+    box-shadow:
+      inset 2px 2px 0 rgba(255, 236, 205, 0.16),
+      inset 3px 3px 2px rgba(255, 236, 205, 0.05),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.65),
+      inset -3px -3px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Drop/contact shadow that survives clip-path (goes on a wrapper). */
+  .plate-shadow {
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)) drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+  }
+
+  /* Recessed inner panel of a plate; rust creeps in along the lower edge. */
+  .plate-inner {
+    position: relative;
+    border-radius: 2px;
+    background:
+      linear-gradient(0deg, rgba(138, 82, 48, 0.14) 0%, transparent 22%),
+      radial-gradient(140% 100% at 30% 0%, rgba(74, 59, 46, 0.35) 0%, transparent 55%),
+      linear-gradient(180deg, #1b140f 0%, #201914 60%, #17110c 100%);
+    box-shadow:
+      inset 2px 3px 7px rgba(0, 0, 0, 0.7),
+      inset 0 0 16px rgba(138, 82, 48, 0.12),
+      inset -1px -1px 0 rgba(255, 236, 205, 0.05),
+      0 1px 0 rgba(255, 236, 205, 0.06);
+  }
+
+  /* Slotted screw head seated in a washer. Sits above the inner panel. */
+  .screw {
+    position: absolute;
+    z-index: 2;
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 32% 28%, #d9b878 0%, #8a6d3e 38%, #4a3824 72%, #241a0e 100%);
+    box-shadow:
+      0 0 0 1.5px rgba(14, 9, 4, 0.7),
+      0 0 0 2.5px rgba(126, 96, 54, 0.28),
+      1px 2px 2px rgba(0, 0, 0, 0.7),
+      inset 0 -1px 1px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 232, 190, 0.35);
+  }
+
+  /* +1 token flight: rises and fades over 600ms, transform/opacity only. */
+  .token-rise {
+    opacity: 0;
+    animation: token-rise 600ms cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+  }
+
+  @keyframes token-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    18% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-26px);
+    }
+  }
+
+  .screw::after {
+    content: "";
+    position: absolute;
+    left: 1.5px;
+    right: 1.5px;
+    top: 50%;
+    height: 1.2px;
+    transform: translateY(-50%) rotate(var(--slot, 38deg));
+    background: rgba(20, 12, 4, 0.85);
+    box-shadow: 0 0.8px 0 rgba(255, 232, 190, 0.25);
   }
 
   /* Heavy condensed uppercase display text. */
