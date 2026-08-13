@@ -286,9 +286,11 @@ export default function Lever({ label, armedLabel = 'RELEASE TO CONFIRM', disabl
           className="absolute inset-x-10 top-0 h-12 rounded-full"
           style={{
             background:
-              'repeating-linear-gradient(65deg, transparent 0px, transparent 2px, rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 3px),' +
-              'repeating-linear-gradient(-65deg, transparent 0px, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px),' +
-              'linear-gradient(178deg, #42300f 0%, #97713a 24%, #c09a5c 36%, #8a6428 56%, #42300f 85%, #221606 100%)',
+              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='48'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.22' numOctaves='2' seed='6' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.06 0 0 0 0 0.02 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='120' height='48' filter='url(%23k)'/%3E%3C/svg%3E\")," +
+              'linear-gradient(115deg, transparent 26%, rgba(255,240,205,0.32) 33%, transparent 42%),' +
+              'repeating-linear-gradient(65deg, transparent 0px, transparent 2px, rgba(0,0,0,0.42) 2px, rgba(0,0,0,0.42) 3px),' +
+              'repeating-linear-gradient(-65deg, transparent 0px, transparent 2px, rgba(0,0,0,0.36) 2px, rgba(0,0,0,0.36) 3px),' +
+              'linear-gradient(178deg, #34250b 0%, #8a6428 24%, #b58e50 36%, #7a5622 56%, #34250b 85%, #180f04 100%)',
             boxShadow:
               'inset 0 2px 2px rgba(255,232,190,0.5), inset 0 -3px 5px rgba(0,0,0,0.55), 0 5px 8px rgba(0,0,0,0.6), 0 12px 18px rgba(0,0,0,0.35)',
           }}

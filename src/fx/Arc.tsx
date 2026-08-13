@@ -95,7 +95,7 @@ export function ArcBolt({
         <path key={i} d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.45} strokeWidth={1.2 * weight} strokeLinecap="round" />
       ))}
       {/* white-hot core */}
-      <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.95} strokeWidth={1.5 * weight} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.97} strokeWidth={2.1 * weight} strokeLinejoin="round" strokeLinecap="round" />
     </g>
   )
 }
