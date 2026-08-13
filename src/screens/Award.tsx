@@ -74,7 +74,17 @@ export default function Award() {
       </Plate>
 
       {/* camper chips 3×4 */}
-      <div className="mt-3 grid flex-1 auto-rows-fr grid-cols-3 gap-2.5">
+      <div className="relative mt-3 grid flex-1 auto-rows-fr grid-cols-3 gap-2.5">
+      {/* scene light: single key light falling off across the panel grid */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-20"
+        style={{
+          mixBlendMode: 'multiply',
+          background: 'radial-gradient(150% 115% at 18% 0%, #ffffff 0%, #f2ece3 38%, #d9cfc2 70%, #c4b8a9 100%)',
+        }}
+      />
+
         {roster.map((camper) => {
           const on = selected.has(camper.id)
           return (

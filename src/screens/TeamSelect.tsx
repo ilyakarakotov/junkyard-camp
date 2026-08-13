@@ -48,7 +48,17 @@ export default function TeamSelect() {
       </div>
 
       {/* 2×3 team grid */}
-      <div className="grid flex-1 grid-cols-2 gap-3">
+      <div className="relative grid flex-1 grid-cols-2 gap-3">
+      {/* scene light: single key light falling off across the panel grid */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-20"
+        style={{
+          mixBlendMode: 'multiply',
+          background: 'radial-gradient(150% 115% at 18% 0%, #ffffff 0%, #f2ece3 38%, #d9cfc2 70%, #c4b8a9 100%)',
+        }}
+      />
+
         {teams.map((team, idx) => {
           const t = byTeam.get(team.id)!
           const leader = t.rank === 1

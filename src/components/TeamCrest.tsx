@@ -62,10 +62,10 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden style={{ display: 'block' }}>
       <defs>
         <linearGradient id={g('rim')} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#eccf95" />
-          <stop offset="28%" stopColor="#b3823c" />
-          <stop offset="60%" stopColor="#6d4e20" />
-          <stop offset="100%" stopColor="#33230d" />
+          <stop offset="0%" stopColor="#f2dca6" />
+          <stop offset="26%" stopColor="#a97e3c" />
+          <stop offset="58%" stopColor="#5c421c" />
+          <stop offset="100%" stopColor="#241708" />
         </linearGradient>
         <linearGradient id={g('rimDark')} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#7d5c28" />
@@ -76,11 +76,13 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
         <filter id={g('pit')}>
           <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="3" seed="5" stitchTiles="stitch" />
           <feColorMatrix values="0 0 0 0 0.06  0 0 0 0 0.055  0 0 0 0 0.02  0 0 0 0.72 0" />
+          <feComposite operator="in" in2="SourceGraphic" />
         </filter>
         {/* verdigris tarnish, pooling toward the unlit lower-right */}
         <filter id={g('verd')}>
           <feTurbulence type="fractalNoise" baseFrequency="0.12" numOctaves="3" seed="29" stitchTiles="stitch" />
           <feColorMatrix values="0 0 0 0 0.18  0 0 0 0 0.22  0 0 0 0 0.13  0 0 0 0.45 0" />
+          <feComposite operator="in" in2="SourceGraphic" />
         </filter>
         <linearGradient id={g('verdMaskG')} x1="0" y1="0" x2="1" y2="1">
           <stop offset="35%" stopColor="#000" />
@@ -93,12 +95,13 @@ export default function TeamCrest({ teamId, size = 64, glow = 0 }: TeamCrestProp
         <filter id={g('spk')}>
           <feTurbulence type="fractalNoise" baseFrequency="0.52" numOctaves="3" seed="8" stitchTiles="stitch" />
           <feColorMatrix values="0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0 0.09  0 0 0 0.42 0" />
+          <feComposite operator="in" in2="SourceGraphic" />
         </filter>
         <radialGradient id={g('enamel')} cx="0.42" cy="0.38" r="0.95">
-          <stop offset="0%" stopColor={shade(hex, -0.08)} />
-          <stop offset="55%" stopColor={shade(hex, -0.2)} />
-          <stop offset="85%" stopColor={shade(hex, -0.48)} />
-          <stop offset="100%" stopColor={shade(hex, -0.64)} />
+          <stop offset="0%" stopColor={shade(hex, -0.18)} />
+          <stop offset="55%" stopColor={shade(hex, -0.3)} />
+          <stop offset="85%" stopColor={shade(hex, -0.54)} />
+          <stop offset="100%" stopColor={shade(hex, -0.68)} />
         </radialGradient>
       </defs>
 

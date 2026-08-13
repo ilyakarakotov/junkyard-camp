@@ -102,8 +102,9 @@
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='240'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.34' numOctaves='3' seed='26' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.93 0 0 0 0 0.78 0 0 0 0.14 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.6' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='600' height='240' filter='url(%23l)'/%3E%3C/svg%3E"),
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='240'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.3' numOctaves='4' seed='33' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.05 0 0 0 0 0.03 0 0 0 0 0.02 0 0 0 0.45 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.5' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='600' height='240' filter='url(%23d)'/%3E%3C/svg%3E"),
       linear-gradient(180deg, rgba(255, 236, 205, 0.07) 0%, transparent 24%, transparent 70%, rgba(0, 0, 0, 0.3) 100%),
+      linear-gradient(180deg, rgba(10, 6, 3, 0.3) 0%, rgba(10, 6, 3, 0.42) 100%),
       var(--color-panel-raised);
-    background-size: 600px 240px, 600px 240px, 600px 240px, auto, auto;
+    background-size: 600px 240px, 600px 240px, 600px 240px, auto, auto, auto;
     background-position: var(--tx, 0px) var(--ty, 0px), calc(var(--tx, 0px) + 271px) calc(var(--ty, 0px) + 97px), calc(var(--tx, 0px) + 401px) calc(var(--ty, 0px) + 173px), 0 0, 0 0;
   }
 
@@ -195,11 +196,16 @@
     pointer-events: none;
     border-radius: inherit;
     background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.3' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.44 0 0 0 0 0.3 0 0 0 0.34 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.4' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23g)'/%3E%3C/svg%3E"),
+      /* fine per-pixel speckle, light + dark, ~1.6 CSS px cells */
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='f1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='1' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.5 0 0 0 0 0.36 0 0 0 0.5 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='2.2' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23f1)'/%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='f2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='1' seed='19' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.03 0 0 0 0 0.02 0 0 0 0 0.01 0 0 0 0.6 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='2' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23f2)'/%3E%3C/svg%3E"),
+      /* horizontal brushing on the plate face itself */
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='120'%3E%3Cfilter id='hb'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.85' numOctaves='2' seed='12' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.76 0 0 0 0 0.6 0 0 0 0.3 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='2' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='400' height='120' filter='url(%23hb)'/%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.3' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.44 0 0 0 0 0.3 0 0 0 0.28 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.4' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23g)'/%3E%3C/svg%3E"),
       /* sparse long scratches, ~18deg off horizontal */
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='sc'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.5' numOctaves='2' seed='17' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.75 0 0 0 0 0.66 0 0 0 0 0.5 0 0 0 0.55 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='0 0 0 0 0 0 0 0.35'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cg transform='rotate(18 300 300)'%3E%3Crect x='-300' y='-300' width='1200' height='1200' filter='url(%23sc)'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: 320px 320px, 600px 600px;
-    background-position: var(--tx, 0px) var(--ty, 0px), calc(var(--tx, 0px) + 211px) calc(var(--ty, 0px) + 89px);
+    background-size: 200px 200px, 200px 200px, 400px 120px, 320px 320px, 600px 600px;
+    background-position: var(--tx, 0px) var(--ty, 0px), calc(var(--tx, 0px) + 67px) calc(var(--ty, 0px) + 131px), calc(var(--tx, 0px) + 29px) calc(var(--ty, 0px) + 53px), calc(var(--tx, 0px) + 157px) calc(var(--ty, 0px) + 7px), calc(var(--tx, 0px) + 211px) calc(var(--ty, 0px) + 89px);
     opacity: 1;
     -webkit-mask-image:
       linear-gradient(135deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.7) 45%, rgba(0, 0, 0, 0.35) 100%),
@@ -250,6 +256,10 @@
     background-image:
       /* contact shadow: the lower edge sits in shadow, agreeing with grime */
       linear-gradient(0deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.18) 26%, transparent 50%),
+      /* rust blooms pinned to the lower corners and a bolt seat */
+      radial-gradient(40% 22% at 12% 96%, hsl(20 74% 26% / 0.5), transparent 70%),
+      radial-gradient(26% 30% at 88% 98%, hsl(16 70% 23% / 0.45), transparent 72%),
+      radial-gradient(9% 9% at 6% 7%, hsl(22 76% 28% / 0.4), transparent 68%),
       /* warm oxide — composited normally so it survives dark bases */
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.055 0.09' numOctaves='4' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.48 0 0 0 0 0.22 0 0 0 0 0.07 0 0 0 0.85 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.7' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23r)'/%3E%3C/svg%3E"),
       /* darker brown-black oxide bloom on a different phase — hue variation */
@@ -259,8 +269,11 @@
       /* mid mottle + macro grime folded in (this pseudo replaces .grain::before here) */
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.09' numOctaves='3' seed='23' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.05 0 0 0 0 0.035 0 0 0 0 0.02 0 0 0 0.9 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.25' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23m)'/%3E%3C/svg%3E"),
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.07 0 0 0 0 0.05 0 0 0 0 0.03 0 0 0 0.85 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='1' exponent='1.5' offset='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23b)'/%3E%3C/svg%3E");
-    background-size: auto, 260px 260px, 300px 300px, 180px 180px, 220px 220px, 512px 512px;
+    background-size: auto, auto, auto, auto, 260px 260px, 300px 300px, 180px 180px, 220px 220px, 512px 512px;
     background-position:
+      0 0,
+      0 0,
+      0 0,
       0 0,
       var(--tx, 0px) var(--ty, 0px),
       calc(var(--tx, 0px) + 149px) calc(var(--ty, 0px) + 71px),
@@ -344,7 +357,7 @@
     width: 10px;
     height: 10px;
     border-radius: 9999px;
-    background: radial-gradient(circle at 32% 28%, #d9b878 0%, #8a6d3e 38%, #4a3824 72%, #241a0e 100%);
+    background: radial-gradient(circle at 32% 28%, #c9a257 0%, #7a5e34 40%, #3e2e1c 74%, #1d1408 100%);
     box-shadow:
       0 0 0 1.5px rgba(14, 9, 4, 0.7),
       0 0 0 2.5px rgba(126, 96, 54, 0.28),
