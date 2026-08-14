@@ -16,7 +16,7 @@ import {
   standings,
 } from './derive'
 import type { CategoryId, Day, ScoreEvent, Team, TeamId } from './types'
-import { CATEGORIES, DAYS, TEAMS } from './seed'
+import { CATEGORIES, DAYS, TEAMS, nearestActivity, resolveActiveDay } from './seed'
 
 let n = 0
 const ev = (
@@ -313,3 +313,55 @@ describe('roster and categories', () => {
 import { ACTIVITIES } from './seed'
 const DAYS_ACTIVITY_COUNT = (dayId: string) =>
   ACTIVITIES.filter((a) => a.dayId === dayId && a.scoresPunctuality).length
+
+describe('clock-driven selection', () => {
+  const day1 = DAYS[1]
+  const acts = ACTIVITIES.filter((a) => a.dayId === day1.id)
+  const at = (h: number, m: number) => {
+    const d = new Date(2026, 7, 20, h, m, 0)
+    return d
+  }
+
+  it('picks "Morning line up · 9:45" when opened at 9:47', () => {
+    const a = nearestActivity(acts, at(9, 47))
+    expect(a?.time).toBe('09:45')
+    expect(a?.label).toBe('Morning line up')
+  })
+
+  it('picks the nearest activity either side of the clock', () => {
+    expect(nearestActivity(acts, at(8, 20))?.time).toBe('08:30') // before the first
+    expect(nearestActivity(acts, at(8, 50))?.time).toBe('09:00')
+    expect(nearestActivity(acts, at(11, 0))?.time).toBe('10:15') // closer than 13:00
+    expect(nearestActivity(acts, at(12, 0))?.time).toBe('13:00') // now 13:00 is closer
+    expect(nearestActivity(acts, at(23, 30))?.time).toBe('19:30') // after the last
+  })
+
+  it('returns nothing for a day with no scoring activities', () => {
+    const arrival = ACTIVITIES.filter((a) => a.dayId === DAYS[0].id)
+    expect(arrival.length).toBeGreaterThan(0)
+    expect(nearestActivity(arrival, at(19, 0))).toBeUndefined()
+  })
+})
+
+describe('day rail resolution', () => {
+  const on = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12, 0, 0)
+
+  it('selects today during camp', () => {
+    expect(resolveActiveDay(DAYS, on(2026, 8, 21)).id).toBe('day-2')
+    expect(resolveActiveDay(DAYS, on(2026, 8, 23)).id).toBe('day-4')
+  })
+
+  it('selects Arrival on Arrival, even though it does not score', () => {
+    const d = resolveActiveDay(DAYS, on(2026, 8, 19))
+    expect(d.name).toBe('Arrival')
+    expect(d.scored).toBe(false)
+  })
+
+  it('falls back to the first scoring day before camp', () => {
+    expect(resolveActiveDay(DAYS, on(2026, 8, 14)).id).toBe('day-1')
+  })
+
+  it('falls back to the last scoring day after camp', () => {
+    expect(resolveActiveDay(DAYS, on(2026, 9, 1)).id).toBe('day-4')
+  })
+})
