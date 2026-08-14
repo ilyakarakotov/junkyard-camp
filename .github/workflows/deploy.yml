@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [claude/new-session-k83dh8, main]
+    branches: [claude/new-session-nom1rf, claude/new-session-k83dh8, main]
     paths-ignore: ['design/**', 'shots/**']
   workflow_dispatch:
 
