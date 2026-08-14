@@ -197,7 +197,8 @@ export default function KeyCeremony() {
         ) : (
           <>
             <p className="mb-3 text-center text-[13px]" style={{ color: 'var(--color-key)' }}>
-              Key №{number} awarded to {team.name}.
+              {/* No trailing full stop: "Rust Revival Co." already ends in one. */}
+              Key №{number} awarded to {team.name}
             </p>
             <button
               onClick={() => navigate(`/team/${team.id}`)}
