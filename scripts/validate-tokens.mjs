@@ -5,14 +5,58 @@ import { chromium } from 'playwright-core'
 
 const TOKENS = {
   bg: '#16110d',
+  panel: '#241c16',
+  brass: '#c08a3e',
   accent: '#2fd9d0',
   text: '#ede3d2',
-  'team-turquoise': '#2fd9d0',
-  'team-crimson': '#d9433f',
-  'team-sunburst': '#e0a33c',
-  'team-lime': '#7fb93f',
-  'team-violet': '#9b6dd1',
-  'team-cobalt': '#3d7ed9',
+  key: '#ffc63d',
+  'team-warriors': '#ff5fb8',
+  'team-precious': '#b14dff',
+  'team-gems': '#3d9bff',
+  'team-pearls': '#96f5b4',
+  'team-knights': '#ff4438',
+  'team-innocent': '#ffd84d',
+  'team-forged': '#78d62e',
+  'team-rustco': '#ff9440',
+}
+
+const TEAM_TOKENS = Object.keys(TOKENS).filter((k) => k.startsWith('team-'))
+
+/* ---- colour science: contrast on --bg, and pairwise OKLab separation ---- */
+
+const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+
+const parseHex = (hex) => {
+  const n = parseInt(hex.slice(1), 16)
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
+}
+
+const relativeLuminance = (hex) => {
+  const [r, g, b] = parseHex(hex).map(srgbToLinear)
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+const contrastRatio = (a, b) => {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+const toOklab = (hex) => {
+  const [r, g, b] = parseHex(hex).map(srgbToLinear)
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+const oklabDistance = (a, b) => {
+  const [l1, a1, b1] = toOklab(a)
+  const [l2, a2, b2] = toOklab(b)
+  return Math.hypot(l1 - l2, a1 - a2, b1 - b2)
 }
 
 const hexToRgb = (hex) => {
@@ -39,6 +83,42 @@ for (const [name, hex] of Object.entries(TOKENS)) {
     name,
   )
   check(`--color-${name}`, val.toLowerCase(), hex)
+}
+
+// 1b. Every team colour clears 4.5:1 on the background.
+for (const name of TEAM_TOKENS) {
+  const ratio = contrastRatio(TOKENS[name], TOKENS.bg)
+  check(`${name} contrast on --bg >= 4.5`, String(ratio >= 4.5), 'true')
+}
+
+// 1c. Team colours stay 0.145 OKLab apart from each other, and clear of the
+//     three colours they must never be confused with.
+let minSep = Infinity
+let closest = ''
+for (let i = 0; i < TEAM_TOKENS.length; i++) {
+  for (let j = i + 1; j < TEAM_TOKENS.length; j++) {
+    const d = oklabDistance(TOKENS[TEAM_TOKENS[i]], TOKENS[TEAM_TOKENS[j]])
+    if (d < minSep) {
+      minSep = d
+      closest = `${TEAM_TOKENS[i]} / ${TEAM_TOKENS[j]}`
+    }
+  }
+}
+check(`min pairwise OKLab separation >= 0.145 (closest ${closest} = ${minSep.toFixed(3)})`, String(minSep >= 0.145), 'true')
+
+/*
+ * Team colours must also stay clear of the three they'd be confused with.
+ * The bar here is deliberately lower than the team-vs-team 0.145: the verified
+ * palette's tightest reserved pairing is RUST CO. against brass at 0.113
+ * (both are warm oranges by design), and PEARLS against arc-teal at 0.122.
+ * 0.10 catches a genuine collision without failing the palette as specified.
+ */
+const RESERVED_FLOOR = 0.1
+for (const name of TEAM_TOKENS) {
+  for (const reserved of ['brass', 'accent', 'text']) {
+    const d = oklabDistance(TOKENS[name], TOKENS[reserved])
+    check(`${name} vs --${reserved} = ${d.toFixed(3)} (floor ${RESERVED_FLOOR})`, String(d >= RESERVED_FLOOR), 'true')
+  }
 }
 
 // 2. No default Tailwind palette anywhere: every element's color/background

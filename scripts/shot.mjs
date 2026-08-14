@@ -25,10 +25,17 @@ const page = await browser.newPage({
   deviceScaleFactor: dpr,
 })
 const url = base.replace(/\/$/, '') + '/' + route.replace(/^\//, '')
+const scroll = Number(flag('scroll', '0'))
+const full = args.includes('--full')
+
 await page.goto(url, { waitUntil: 'networkidle' })
 // Font swap causes measurement drift — wait for the real fonts.
 await page.evaluate(() => document.fonts.ready)
+if (scroll) {
+  await page.evaluate((y) => window.scrollTo(0, y), scroll)
+  await page.waitForTimeout(120)
+}
 await page.waitForTimeout(350) // let idle arc flicker reach a lit frame
-await page.screenshot({ path: out })
+await page.screenshot({ path: out, fullPage: full })
 await browser.close()
 console.log(out)

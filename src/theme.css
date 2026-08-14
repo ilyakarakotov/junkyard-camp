@@ -15,12 +15,23 @@
   --color-text: #ede3d2;
   --color-text-dim: #8a7a68;
 
-  --color-team-turquoise: #2fd9d0;
-  --color-team-crimson: #d9433f;
-  --color-team-sunburst: #e0a33c;
-  --color-team-lime: #7fb93f;
-  --color-team-violet: #9b6dd1;
-  --color-team-cobalt: #3d7ed9;
+  /*
+   * Eight teams. Machine-verified: all clear 4.5:1 on --bg, minimum pairwise
+   * separation 0.145 OKLab, none collides with brass, arc-teal or body text.
+   * Re-run scripts/validate-tokens.mjs rather than nudging one by eye.
+   */
+  --color-team-warriors: #ff5fb8;
+  --color-team-precious: #b14dff;
+  --color-team-gems: #3d9bff;
+  --color-team-pearls: #96f5b4;
+  --color-team-knights: #ff4438;
+  --color-team-innocent: #ffd84d;
+  --color-team-forged: #78d62e;
+  --color-team-rustco: #ff9440;
+
+  /* Golden key: the one place gold replaces teal as the emitting color. */
+  --color-key: #ffc63d;
+  --color-key-hot: #fff4d0;
 
   --font-*: initial;
   --font-display: "Oswald", "Arial Narrow", sans-serif;
@@ -397,6 +408,70 @@
     transform: translateY(-50%) rotate(var(--slot, 38deg));
     background: rgba(20, 12, 4, 0.85);
     box-shadow: 0 0.8px 0 rgba(255, 232, 190, 0.25);
+  }
+
+  /*
+   * The cliff pulse on the seventh punctuality socket. Opacity only — this
+   * runs on eight rows at once on the board.
+   */
+  .pulse-rim {
+    animation: pulse-rim 1400ms ease-in-out infinite;
+  }
+
+  @keyframes pulse-rim {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  /* One-shot white-hot flash when the seventh check-in lands. */
+  .surge-flash {
+    opacity: 0;
+    animation: surge-flash 620ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  }
+
+  @keyframes surge-flash {
+    0% {
+      opacity: 0;
+    }
+    12% {
+      opacity: 0.95;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* A newly placed key glows hot and cools to match the older ones over ~2s. */
+  .key-cool {
+    animation: key-cool 2000ms ease-out forwards;
+  }
+
+  @keyframes key-cool {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* State changes and tube ignition stay; arcs and flight do not. */
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-rim,
+    .surge-flash,
+    .key-cool,
+    .token-rise {
+      animation: none;
+    }
+    .surge-flash,
+    .key-cool {
+      opacity: 0;
+    }
   }
 
   /* Heavy condensed uppercase display text. */

@@ -5,12 +5,14 @@ export const teamColor = (id: TeamId) => `var(--color-team-${id})`
 
 /** Team hexes mirror theme.css tokens (validated by scripts/validate-tokens.mjs). */
 export const TEAM_HEX: Record<TeamId, string> = {
-  turquoise: '#2fd9d0',
-  crimson: '#d9433f',
-  sunburst: '#e0a33c',
-  lime: '#7fb93f',
-  violet: '#9b6dd1',
-  cobalt: '#3d7ed9',
+  warriors: '#ff5fb8',
+  precious: '#b14dff',
+  gems: '#3d9bff',
+  pearls: '#96f5b4',
+  knights: '#ff4438',
+  innocent: '#ffd84d',
+  forged: '#78d62e',
+  rustco: '#ff9440',
 }
 
 function shade(hex: string, f: number): string {
@@ -24,27 +26,57 @@ function shade(hex: string, f: number): string {
   return `rgb(${ch(16)} ${ch(8)} ${ch(0)})`
 }
 
+/** Ring of `n` gear teeth between two radii, centred on the 48×48 box. */
+function cogTeeth(n: number, rInner: number, rOuter: number, halfIn: number, halfOut: number): string {
+  return Array.from({ length: n }, (_, i) => {
+    const a = (i * 2 * Math.PI) / n
+    const p = (r: number, off: number) =>
+      `${(24 + Math.cos(a + off) * r).toFixed(1)} ${(24 + Math.sin(a + off) * r).toFixed(1)}`
+    return `M${p(rInner, -halfIn)} L${p(rOuter, -halfOut)} L${p(rOuter, halfOut)} L${p(rInner, halfIn)} Z`
+  }).join(' ')
+}
+
+/** Circle as a path, so emblems stay one flat `d` string under evenodd fill. */
+const circle = (cx: number, cy: number, r: number) =>
+  `M${cx} ${cy - r} A${r} ${r} 0 1 1 ${cx - 0.1} ${cy - r} Z`
+
 /**
  * Bold geometric emblems, one per team, embossed into a colored enamel disc.
- * Paths live in a 48×48 box.
+ * Paths live in a 48×48 box and are filled `evenodd`, so a shape drawn inside
+ * another cuts a hole — that is how the interior facets and grooves are made.
+ *
+ * Each reads at 26px on the board row, which is the real constraint: anything
+ * needing fine detail to be identifiable is the wrong emblem.
  */
 const EMBLEMS: Record<TeamId, string> = {
-  turquoise:
-    'M24 7 L29 18 L26.5 18 L26.5 30 L21.5 30 L21.5 18 L19 18 Z M13 14 L18.5 22 L15.5 30 L11 22 Z M35 14 L29.5 22 L32.5 30 L37 22 Z M18 33 L30 33 L24 41 Z',
-  crimson: 'M10 12 L20 12 L24 22 L28 12 L38 12 L27 36 L21 36 Z M20.5 40 L27.5 40 L24 33 Z',
-  sunburst:
-    'M24 16.5 A7.5 7.5 0 1 1 23.9 16.5 Z ' +
-    Array.from({ length: 12 }, (_, i) => {
-      const a = (i * Math.PI) / 6
-      const x = (r: number) => 24 + Math.cos(a) * r
-      const y = (r: number) => 24 + Math.sin(a) * r
-      const b = a + 0.16
-      const c = a - 0.16
-      return `M${(24 + Math.cos(c) * 9).toFixed(1)} ${(24 + Math.sin(c) * 9).toFixed(1)} L${x(19).toFixed(1)} ${y(19).toFixed(1)} L${(24 + Math.cos(b) * 9).toFixed(1)} ${(24 + Math.sin(b) * 9).toFixed(1)} Z`
-    }).join(' '),
-  lime: 'M24 8 L40 38 L8 38 Z M24 17 L33.5 34.5 L14.5 34.5 Z M24 24 L29 33 L19 33 Z',
-  violet: 'M24 6 L37 22 L24 38 L11 22 Z M24 13 L31.5 22 L24 31 L16.5 22 Z M24 34 L30 41 L24 47 L18 41 Z',
-  cobalt: 'M24 8 L37 21 L30.5 21 L24 14.5 L17.5 21 L11 21 Z M24 20 L37 33 L30.5 33 L24 26.5 L17.5 33 L11 33 Z M24 32 L31 39 L24 46 L17 39 Z',
+  // Crossed blades over a central boss (the boss re-fills the crossing).
+  warriors:
+    'M12.8 9.2 L38.8 35.2 L35.2 38.8 L9.2 12.8 Z ' +
+    'M38.8 12.8 L12.8 38.8 L9.2 35.2 L35.2 9.2 Z ' +
+    'M24 18 L30 24 L24 30 L18 24 Z',
+  // Tall kite-cut gem: crown facet cut out, core left proud.
+  precious:
+    'M24 5 L38 20 L24 43 L10 20 Z M24 11 L32.5 20 L24 34 L15.5 20 Z M24 16 L28.5 20.5 L24 27 L19.5 20.5 Z',
+  // Round brilliant, wider and shallower than PRECIOUS so the two never blur.
+  gems: 'M15 10 L33 10 L42 20 L24 42 L6 20 Z M19 15 L29 15 L34.5 20.5 L24 33 L13.5 20.5 Z M21.5 19 L26.5 19 L28.5 22 L24 27.5 L19.5 22 Z',
+  // Pearl seated in an open shell.
+  pearls:
+    circle(24, 16, 7.5) +
+    ' M6 28 A18 18 0 0 0 42 28 Z' +
+    ' M22.6 29.5 L25.4 29.5 L26.2 41.2 L21.8 41.2 Z',
+  // Flame with an inner flame cut out of it.
+  knights:
+    'M24 4 L30 14 L33.5 11.5 L36 25 A12 12 0 1 1 12 25 L14.5 11.5 L18 14 Z ' +
+    'M24 17 L28 24 A4.6 4.6 0 1 1 20 24 Z',
+  // Heart, cut with an inner heart.
+  innocent:
+    'M24 41 L9 25.5 A8.6 8.6 0 0 1 24 14.5 A8.6 8.6 0 0 1 39 25.5 Z ' +
+    'M24 33.5 L15 24.6 A4.6 4.6 0 0 1 24 20.4 A4.6 4.6 0 0 1 33 24.6 Z',
+  // Anvil: horn left, waisted body, splayed foot.
+  forged:
+    'M6 22 L15 17.5 L42 17.5 L42 25 L30.5 25 L30.5 31 L34.5 31 L37 41.5 L11 41.5 L13.5 31 L17.5 31 L17.5 25 L6 25 Z',
+  // Cog with a bored centre.
+  rustco: circle(24, 24, 15.5) + ' ' + cogTeeth(10, 14, 21, 0.2, 0.13) + ' ' + circle(24, 24, 6.2),
 }
 
 export interface TeamCrestProps {
