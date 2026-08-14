@@ -84,8 +84,8 @@ export default function ChargeTrack({ ticks, width = 60, surging = false }: Char
             {/* spill onto the surrounding metal, only from an emitting socket */}
             {lit && (
               <>
-                <circle cx={cx} cy={CY} r={SMALL_R * 2.6} fill="var(--color-accent)" opacity={full ? 0.2 : 0.13} />
-                <circle cx={cx} cy={CY} r={SMALL_R * 1.7} fill="var(--color-accent)" opacity={full ? 0.34 : 0.24} />
+                <circle cx={cx} cy={CY} r={SMALL_R * 1.85} fill="var(--color-accent)" opacity={full ? 0.16 : 0.1} />
+                <circle cx={cx} cy={CY} r={SMALL_R * 1.32} fill="var(--color-accent)" opacity={full ? 0.28 : 0.19} />
               </>
             )}
             {/* rim: brass ring catching the key light top-left */}
@@ -128,9 +128,9 @@ export default function ChargeTrack({ ticks, width = 60, surging = false }: Char
       <g>
         {full && (
           <>
-            <circle cx={BIG_CX} cy={CY} r={BIG_R * 2.9} fill="var(--color-accent)" opacity="0.2" />
-            <circle cx={BIG_CX} cy={CY} r={BIG_R * 1.9} fill="var(--color-accent)" opacity="0.3" />
-            <circle cx={BIG_CX} cy={CY} r={BIG_R * 1.25} fill="#eafffd" opacity="0.28" />
+            <circle cx={BIG_CX} cy={CY} r={BIG_R * 2.1} fill="var(--color-accent)" opacity="0.16" />
+            <circle cx={BIG_CX} cy={CY} r={BIG_R * 1.55} fill="var(--color-accent)" opacity="0.24" />
+            <circle cx={BIG_CX} cy={CY} r={BIG_R * 1.18} fill="#eafffd" opacity="0.22" />
           </>
         )}
         {/* heavy brass bezel */}

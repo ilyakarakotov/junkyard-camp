@@ -80,8 +80,8 @@ export default function Breaker({ on, color, size = 22, glyph, title }: BreakerP
       {/* light thrown onto the surrounding metal — tight falloff, only when emitting */}
       {on && (
         <g opacity="0.9">
-          <rect x={-5} y={paddleY - 6} width={VB_W + 10} height={paddleH + 12} rx={7} fill={color} opacity="0.1" />
-          <rect x={-2} y={paddleY - 3} width={VB_W + 4} height={paddleH + 6} rx={5} fill={color} opacity="0.16" />
+          <rect x={-2.5} y={paddleY - 3.5} width={VB_W + 5} height={paddleH + 7} rx={5} fill={color} opacity="0.075" />
+          <rect x={0.5} y={paddleY - 1.5} width={VB_W - 1} height={paddleH + 3} rx={3.5} fill={color} opacity="0.13" />
         </g>
       )}
 

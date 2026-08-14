@@ -188,6 +188,18 @@
    * Frequency bands (CSS px features at DPR3): grit ~3px (bf .30),
    * mid mottle ~11px (bf .09), macro blotch ~55px (bf .018).
    */
+  /*
+   * The weathering pseudo-elements are `position: absolute; inset: 0`, so the
+   * element carrying .grain / .rust-creep MUST establish a containing block.
+   * Without this, the overlay escapes to the nearest positioned ancestor and
+   * washes out the entire screen — which is exactly what happened on the team
+   * sheet, where the panels were unpositioned <button>s.
+   */
+  .grain,
+  .rust-creep {
+    position: relative;
+  }
+
   .grain > * {
     position: relative;
     z-index: 1;

@@ -27,6 +27,20 @@ const page = await browser.newPage({
 const url = base.replace(/\/$/, '') + '/' + route.replace(/^\//, '')
 const scroll = Number(flag('scroll', '0'))
 const full = args.includes('--full')
+// --set key=value seeds localStorage before the app boots (e.g. director mode).
+const sets = args.reduce((acc, a, i) => (a === '--set' ? [...acc, args[i + 1]] : acc), [])
+
+// Seed BEFORE the document runs. Setting localStorage after a load is too
+// late: the store has already read its settings, and a gated route (the key
+// ceremony) will have redirected away before any reload can help.
+if (sets.length) {
+  await page.addInitScript((pairs) => {
+    for (const p of pairs) {
+      const i = p.indexOf('=')
+      localStorage.setItem(p.slice(0, i), p.slice(i + 1))
+    }
+  }, sets)
+}
 
 await page.goto(url, { waitUntil: 'networkidle' })
 // Font swap causes measurement drift — wait for the real fonts.

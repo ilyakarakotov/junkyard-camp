@@ -46,6 +46,14 @@ export interface ArcBoltProps {
   strands?: number
   /** When false renders nothing (keeps hooks stable). */
   active?: boolean
+  /**
+   * Glow colour. Defaults to arc-teal. The golden key ceremony is the one
+   * screen allowed to override this — see the gold exception in CLAUDE.md.
+   * Nowhere else may pass gold.
+   */
+  color?: string
+  /** Core filament colour. */
+  coreColor?: string
 }
 
 export function ArcBolt({
@@ -59,6 +67,8 @@ export function ArcBolt({
   weight = 1,
   strands = 1,
   active = true,
+  color = 'var(--color-accent)',
+  coreColor = 'var(--color-accent-hot)',
 }: ArcBoltProps) {
   const reduced = usePrefersReducedMotion()
   const n = Math.max(1, Math.min(3, Math.round(strands)))
@@ -106,20 +116,20 @@ export function ArcBolt({
         return (
           <g key={s}>
             {/* outer bloom — wide soft light thrown onto the metal */}
-            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.13 * so} strokeWidth={18 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={d} fill="none" stroke={color} strokeOpacity={0.13 * so} strokeWidth={18 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
             {/* wide halo */}
-            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.32 * so} strokeWidth={10 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={d} fill="none" stroke={color} strokeOpacity={0.32 * so} strokeWidth={10 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
             {/* teal glow body — the bolt reads cyan; white is only the core filament */}
-            <path d={d} fill="none" stroke="var(--color-accent)" strokeOpacity={0.85 * so} strokeWidth={5.4 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={d} fill="none" stroke={color} strokeOpacity={0.85 * so} strokeWidth={5.4 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
             {/* branches carry current too: teal glow + white core */}
             {branches.map((b, i) => (
               <g key={i}>
-                <path d={b} fill="none" stroke="var(--color-accent)" strokeOpacity={0.55 * so} strokeWidth={3.2 * weight * sw} strokeLinecap="round" />
-                <path d={b} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={0.72 * so} strokeWidth={1 * weight * sw} strokeLinecap="round" />
+                <path d={b} fill="none" stroke={color} strokeOpacity={0.55 * so} strokeWidth={3.2 * weight * sw} strokeLinecap="round" />
+                <path d={b} fill="none" stroke={coreColor} strokeOpacity={0.72 * so} strokeWidth={1 * weight * sw} strokeLinecap="round" />
               </g>
             ))}
             {/* white-hot core filament */}
-            <path d={d} fill="none" stroke="var(--color-accent-hot)" strokeOpacity={1 * so} strokeWidth={2 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={d} fill="none" stroke={coreColor} strokeOpacity={1 * so} strokeWidth={2 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
           </g>
         )
       })}

@@ -28,6 +28,9 @@ const PITCH = 15
 const VB_H = 36
 const RAIL_Y = 4
 const KEY_TOP = 9
+/* The first hook is inset so the leftmost key's glow does not spill outside
+ * the panel that contains the rail — the svg is overflow:visible by design. */
+const EDGE = 11
 
 /** One key: bow, shaft, bit. Drawn hanging from the hook at `cx`. */
 function KeyBody({ cx, lit, uid }: { cx: number; lit: boolean; uid: string }) {
@@ -38,9 +41,9 @@ function KeyBody({ cx, lit, uid }: { cx: number; lit: boolean; uid: string }) {
       {/* light thrown onto the rail and the metal behind — only when emitting */}
       {lit && (
         <g>
-          <circle cx={cx} cy={bowCy + 6} r={13} fill="var(--color-key)" opacity="0.1" />
-          <circle cx={cx} cy={bowCy + 3} r={8} fill="var(--color-key)" opacity="0.16" />
-          <circle cx={cx} cy={bowCy} r={5.4} fill="var(--color-key-hot)" opacity="0.22" />
+          <circle cx={cx} cy={bowCy + 5} r={10} fill="var(--color-key)" opacity="0.11" />
+          <circle cx={cx} cy={bowCy + 2} r={6.6} fill="var(--color-key)" opacity="0.16" />
+          <circle cx={cx} cy={bowCy} r={4.8} fill="var(--color-key-hot)" opacity="0.2" />
         </g>
       )}
       {/* contact shadow, consistent with the top-left key light */}
@@ -80,7 +83,7 @@ export default function KeyRail({ keys, capacity = 4, width = 68, justAdded = fa
   // Hooks shown: earned keys, then empty capacity, but never past `capacity`.
   const hooks = Math.max(capacity, drawn)
   const slots = overflow > 0 ? drawn : hooks
-  const vbW = slots * PITCH + (overflow > 0 ? 22 : 0) + 6
+  const vbW = (slots - 1) * PITCH + EDGE * 2 + (overflow > 0 ? 22 : 0)
   const height = (width * VB_H) / vbW
 
   return (
@@ -126,7 +129,7 @@ export default function KeyRail({ keys, capacity = 4, width = 68, justAdded = fa
 
       {/* ---- hooks and keys ---- */}
       {Array.from({ length: slots }, (_, i) => {
-        const cx = 6 + i * PITCH
+        const cx = EDGE + i * PITCH
         const lit = i < drawn
         return (
           <g key={i}>
@@ -182,7 +185,7 @@ export default function KeyRail({ keys, capacity = 4, width = 68, justAdded = fa
       {/* ---- overflow beyond three, as a plain count. Never a multiplier. ---- */}
       {overflow > 0 && (
         <text
-          x={slots * PITCH + 4}
+          x={(slots - 1) * PITCH + EDGE + 8}
           y={KEY_TOP + 15}
           fontFamily="var(--font-display)"
           fontSize="13"
