@@ -32,7 +32,7 @@ export default function Standings() {
   const scoredCount = days.filter((d) => d.scored).length
 
   return (
-    <div className="min-h-dvh pb-8">
+    <div className="min-h-dvh" style={{ paddingBottom: "calc(32px + env(safe-area-inset-bottom))" }}>
       <ScreenHeader title="Standings" back />
 
       <div className="flex items-center justify-between px-5 pb-3">
@@ -68,33 +68,47 @@ export default function Standings() {
             </span>
             <span className="tech-label mt-[2px] block text-[8px]">Unlocks the golden key ceremony</span>
           </span>
-          {/* a real toggle: paddle up and emitting, or down and dark */}
+          {/*
+           * A two-position industrial switch, not a platform pill: recessed
+           * brass track with true inner shadow, a knurled lever that slides,
+           * and engraved OFF / ON ticks.
+           */}
           <span
-            className="relative shrink-0 rounded-full"
+            className="relative shrink-0 rounded-[3px]"
             style={{
-              width: 46,
-              height: 24,
-              background: directorMode
-                ? 'linear-gradient(180deg, #6b4a1d 0%, #3a2a12 100%)'
-                : 'linear-gradient(180deg, #16110d 0%, #221a12 100%)',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.8), inset 0 -1px 0 rgba(255,236,205,0.08)',
+              width: 58,
+              height: 28,
+              background: 'linear-gradient(180deg, #120c06 0%, #1d1409 55%, #130d06 100%)',
+              boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.9), inset 0 -1px 0 rgba(255,236,205,0.08)',
             }}
           >
             <span
-              className="absolute top-[3px] rounded-full"
+              className="tech-label absolute left-[5px] top-1/2 text-[7px]"
+              style={{ transform: 'translateY(-50%)', opacity: directorMode ? 0.35 : 0.8 }}
+            >
+              OFF
+            </span>
+            <span
+              className="tech-label absolute right-[6px] top-1/2 text-[7px]"
+              style={{ transform: 'translateY(-50%)', opacity: directorMode ? 0.9 : 0.35, color: directorMode ? 'var(--color-key)' : undefined }}
+            >
+              ON
+            </span>
+            <span
+              className="absolute top-[3px] rounded-[2px]"
               style={{
                 left: 3,
-                // translateX, not an animated `left` — only transform and
-                // opacity may animate.
-                transform: `translateX(${directorMode ? 22 : 0}px)`,
-                width: 18,
-                height: 18,
-                background: directorMode
-                  ? 'linear-gradient(180deg, #ffe9a8 0%, #ffc63d 45%, #a86b12 100%)'
-                  : 'linear-gradient(180deg, #4a3b2e 0%, #241c16 100%)',
+                transform: `translateX(${directorMode ? 29 : 0}px)`,
+                width: 26,
+                height: 22,
+                background:
+                  'repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0 1px, transparent 1px 4px),' +
+                  (directorMode
+                    ? 'linear-gradient(180deg, #ffe9a8 0%, #d9a842 32%, #8a5606 100%)'
+                    : 'linear-gradient(180deg, #6d5a45 0%, #3a2d1e 40%, #1a120a 100%)'),
                 boxShadow: directorMode
-                  ? 'inset 0 1px 0 rgba(255,252,238,0.8), 0 0 8px rgba(255,198,61,0.6)'
-                  : 'inset 0 1px 0 rgba(255,236,205,0.25), 0 1px 2px rgba(0,0,0,0.7)',
+                  ? 'inset 0 1px 0 rgba(255,252,238,0.85), inset 0 -2px 3px rgba(60,34,2,0.6), 0 2px 4px rgba(0,0,0,0.7), 0 0 10px rgba(255,198,61,0.45)'
+                  : 'inset 0 1px 0 rgba(255,236,205,0.3), inset 0 -2px 3px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.7)',
                 transition: 'transform 180ms cubic-bezier(0.3, 0.9, 0.4, 1)',
               }}
             />

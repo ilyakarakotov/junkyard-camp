@@ -28,8 +28,9 @@ const BRICK_GAP = 6
  * of foot for crest + name + total. The foot has to be counted in explicitly —
  * left implicit, the totals fall off the bottom of the design box.
  */
-const STACK_BOTTOM = 900
+const STACK_BOTTOM = 876
 const STACK_TOP = 330
+const BASE_H = 16
 const STACK_H = STACK_BOTTOM - STACK_TOP
 
 export default function BigScreen() {
@@ -131,8 +132,8 @@ export default function BigScreen() {
             position: 'absolute',
             left: 0,
             right: 0,
-            top: STACK_BOTTOM + 2,
-            height: 6,
+            top: STACK_BOTTOM + BASE_H + 2,
+            height: 5,
             background: 'linear-gradient(180deg, rgba(192,138,62,0.5) 0%, rgba(60,42,20,0.6) 40%, transparent 100%)',
           }}
         />
@@ -188,6 +189,24 @@ function Column({ row, team, x, brickH }: { row: Standing; team: Team; x: number
         )
       })}
 
+      {/* base plate: the column stands on something, so bricks can be counted
+          from a visible baseline instead of running under the label band */}
+      <div
+        style={{
+          position: 'absolute',
+          left: x - 8,
+          top: STACK_BOTTOM + 2,
+          width: COL_W + 16,
+          height: BASE_H,
+          borderRadius: 3,
+          background:
+            'repeating-linear-gradient(90deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 9px),' +
+            'linear-gradient(180deg, #e2c383 0%, #b3823c 24%, #6b4a1d 70%, #2a1c0a 100%)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,244,214,0.65), inset 0 -2px 3px rgba(0,0,0,0.6), 0 4px 7px rgba(0,0,0,0.6)',
+        }}
+      />
+
       {/* empty capacity above the stack, so a short column still reads as a column */}
       <div
         style={{
@@ -222,7 +241,7 @@ function Column({ row, team, x, brickH }: { row: Standing; team: Team; x: number
       )}
 
       {/* ---- foot: crest, name, total ---- */}
-      <div style={{ position: 'absolute', left: x, top: STACK_BOTTOM + 14, width: COL_W, textAlign: 'center' }}>
+      <div style={{ position: 'absolute', left: x, top: STACK_BOTTOM + BASE_H + 12, width: COL_W, textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <TeamCrest teamId={team.id} size={42} glow={isLeader ? 1 : 0} />
         </div>
@@ -255,11 +274,11 @@ function Column({ row, team, x, brickH }: { row: Standing; team: Team; x: number
 function KeyHanger({ x, keys }: { x: number; keys: number }) {
   const drawn = Math.min(keys, 4)
   const overflow = keys - drawn
-  const pitch = 30
-  const railY = STACK_TOP - 74
+  const pitch = 44
+  const railY = STACK_TOP - 96
   return (
     <svg
-      style={{ position: 'absolute', left: x - 10, top: railY - 10, width: COL_W + 20, height: 92, overflow: 'visible' }}
+      style={{ position: 'absolute', left: x - 10, top: railY - 16, width: COL_W + 20, height: 112, overflow: 'visible' }}
       aria-hidden
     >
       <defs>
@@ -277,12 +296,13 @@ function KeyHanger({ x, keys }: { x: number; keys: number }) {
         </linearGradient>
       </defs>
       {/* the rail */}
-      <rect x={4} y={10} width={COL_W + 12} height={7} rx={2.5} fill={`url(#bs-rail-${x})`} />
-      <rect x={4} y={10} width={COL_W + 12} height={1.8} fill="rgba(255,244,214,0.6)" />
+      <rect x={0} y={9} width={COL_W + 20} height={11} rx={3.5} fill={`url(#bs-rail-${x})`} />
+      <rect x={0} y={9} width={COL_W + 20} height={2.4} fill="rgba(255,244,214,0.7)" />
+      <rect x={0} y={19} width={COL_W + 20} height={2} fill="rgba(0,0,0,0.45)" />
       {Array.from({ length: drawn }, (_, i) => {
         const kx = COL_W / 2 + 10 + (i - (drawn - 1) / 2) * pitch
         return (
-          <g key={i} transform={`translate(${kx} 17) scale(1.5)`}>
+          <g key={i} transform={`translate(${kx} 15) scale(2.3)`}>
             {/* gold spilling onto the rail and the metal behind it */}
             <circle cx="0" cy="9" r="15" fill="var(--color-key)" opacity="0.12" />
             <circle cx="0" cy="6" r="9" fill="var(--color-key)" opacity="0.16" />
@@ -304,7 +324,7 @@ function KeyHanger({ x, keys }: { x: number; keys: number }) {
           y={38}
           className="numeral"
           fontFamily="var(--font-display)"
-          fontSize="26"
+          fontSize="34"
           fontWeight="600"
           fill="var(--color-key)"
           style={{ fontVariantNumeric: 'tabular-nums' }}

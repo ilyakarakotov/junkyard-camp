@@ -72,7 +72,10 @@ export default function KeyCeremony() {
       }}
     >
       <div className="w-full px-5 pt-4">
-        <button className="tech-label text-[9px]" onClick={() => navigate(`/team/${team.id}`)}>
+        <button
+          className="tech-label flex h-11 items-center text-[10px]"
+          onClick={() => navigate(`/team/${team.id}`)}
+        >
           ← BACK
         </button>
       </div>
@@ -115,12 +118,20 @@ export default function KeyCeremony() {
           </linearGradient>
         </defs>
 
-        {/* gold light thrown onto the surrounding metal, tight falloff */}
-        <g opacity={live ? 1 : 0.45}>
-          <circle cx={cx} cy={postY + 78} r={168} fill={GOLD} opacity="0.07" />
-          <circle cx={cx} cy={postY + 78} r={112} fill={GOLD} opacity="0.09" />
-          <circle cx={cx} cy={postY + 78} r={62} fill={GOLD_HOT} opacity="0.12" />
-        </g>
+        {/*
+         * One smooth pool of light from the key itself. Stacked circles read as
+         * concentric rings — glowing outlines that emit nothing, which is the
+         * decorative-glow tell the rule exists to prevent.
+         */}
+        <defs>
+          <radialGradient id="kc-spill" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stopColor="#fff4d0" stopOpacity={live ? 0.3 : 0.16} />
+            <stop offset="34%" stopColor="#ffc63d" stopOpacity={live ? 0.16 : 0.08} />
+            <stop offset="70%" stopColor="#ffc63d" stopOpacity={live ? 0.05 : 0.025} />
+            <stop offset="100%" stopColor="#ffc63d" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx={cx} cy={postY + 96} r={210} fill="url(#kc-spill)" />
 
         {/* the discharge: always between two visible brass posts, never gold-on-nothing */}
         <ArcBolt
@@ -152,11 +163,7 @@ export default function KeyCeremony() {
         ))}
 
         {/* the key itself — big, emitting, unmistakably the object of the screen */}
-        <g transform={`translate(${cx} ${postY + 78}) scale(3.5)`}>
-          <g opacity={live ? 0.85 : 0.35}>
-            <circle cx="0" cy="0" r="26" fill={GOLD} opacity="0.1" />
-            <circle cx="0" cy="0" r="15" fill={GOLD} opacity="0.14" />
-          </g>
+        <g transform={`translate(${cx} ${postY + 74}) scale(4.6)`}>
           <g transform="translate(0.8 1)" opacity="0.65">
             <circle cx="0" cy="0" r="9" fill="rgba(0,0,0,0.7)" />
             <rect x="-2.4" y="6" width="4.8" height="30" fill="rgba(0,0,0,0.7)" />
@@ -185,10 +192,12 @@ export default function KeyCeremony() {
               className="font-display h-14 w-full rounded text-[15px] font-semibold uppercase"
               style={{
                 letterSpacing: '0.2em',
-                color: '#2a1a03',
-                background: 'linear-gradient(180deg, #ffe9a8 0%, #ffc63d 42%, #c98a12 78%, #8a5606 100%)',
+                color: 'var(--color-key)',
+                // Recessed brass plate with a dark face: present, pressable,
+                // and deliberately quieter than the key it awards.
+                background: 'linear-gradient(180deg, #3a2c17 0%, #241a0d 55%, #170f06 100%)',
                 boxShadow:
-                  'inset 0 2px 0 rgba(255,252,238,0.8), inset 0 -3px 5px rgba(90,54,6,0.6), 0 3px 6px rgba(0,0,0,0.65), 0 0 22px rgba(255,198,61,0.35)',
+                  'inset 1px 1px 0 rgba(255,236,205,0.28), inset -1px -1px 0 rgba(0,0,0,0.7), inset 0 0 0 1px rgba(192,138,62,0.5), 0 3px 6px rgba(0,0,0,0.65)',
               }}
             >
               Award the key

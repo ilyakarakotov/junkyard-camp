@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Breaker from '../components/Breaker'
-import ChargeTrack, { ChargeReadout } from '../components/ChargeTrack'
+import ChargeTrack, { ChargeReadout, SOCKET_CENTER_PCT } from '../components/ChargeTrack'
 import DayRail from '../components/DayRail'
 import KeyRail from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
@@ -144,37 +144,47 @@ export default function TeamSheet() {
             </span>
             <ChargeReadout ticks={score.ticks} size={14} />
           </div>
-          <div className="mt-2 flex justify-center">
-            <ChargeTrack ticks={score.ticks} width={300} />
-          </div>
-          {/* per-activity check-ins — this is where a wrong one gets walked back */}
-          <div className="mt-3 flex gap-[4px]">
-            {dayActivities.map((a) => {
-              const on = checkedIn.has(a.id)
-              return (
-                <button
-                  key={a.id}
-                  disabled={locked}
-                  onClick={() => setCheckIn(activeDay.id, team.id, a.id, !on)}
-                  className="flex-1 rounded-[2px] py-[6px]"
-                  style={{
-                    background: on
-                      ? 'linear-gradient(180deg, #3d3226 0%, #241c14 100%)'
-                      : 'linear-gradient(180deg, #1e1710 0%, #150f0a 100%)',
-                    boxShadow: on
-                      ? 'inset 0 1px 0 rgba(255,236,205,0.24), inset 0 0 0 1px rgba(47,217,208,0.35)'
-                      : 'inset 0 1px 2px rgba(0,0,0,0.7)',
-                  }}
-                >
-                  <span
-                    className="numeral block text-[9px] leading-none"
-                    style={{ color: on ? 'var(--color-accent)' : 'var(--color-text-dim)' }}
+          {/*
+           * The track and its labels share one box, and each chip is centred on
+           * its socket's actual centre. The seventh socket sits off the six's
+           * rhythm by design, so an evenly-spaced row underneath would not line
+           * up with the thing it labels.
+           */}
+          <div className="relative mt-2">
+            <ChargeTrack ticks={score.ticks} width={318} />
+            <div className="relative mt-3" style={{ height: 32 }}>
+              {dayActivities.map((a, i) => {
+                const on = checkedIn.has(a.id)
+                const pct = SOCKET_CENTER_PCT[i] ?? 0
+                return (
+                  <button
+                    key={a.id}
+                    disabled={locked}
+                    onClick={() => setCheckIn(activeDay.id, team.id, a.id, !on)}
+                    className="absolute rounded-[2px]"
+                    style={{
+                      left: `${pct}%`,
+                      transform: 'translateX(-50%)',
+                      width: 42,
+                      height: 32,
+                      background: on
+                        ? 'linear-gradient(180deg, #3d3226 0%, #241c14 100%)'
+                        : 'linear-gradient(180deg, #1e1710 0%, #150f0a 100%)',
+                      boxShadow: on
+                        ? 'inset 1px 1px 0 rgba(255,236,205,0.26), inset -1px -1px 0 rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.5)'
+                        : 'inset 1px 1px 2px rgba(0,0,0,0.75), inset -1px -1px 0 rgba(255,236,205,0.07)',
+                    }}
                   >
-                    {a.time.replace(/^0/, '')}
-                  </span>
-                </button>
-              )
-            })}
+                    <span
+                      className="numeral block text-[10px] leading-none"
+                      style={{ color: on ? 'var(--color-accent)' : 'var(--color-text-dim)' }}
+                    >
+                      {a.time.replace(/^0/, '')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 

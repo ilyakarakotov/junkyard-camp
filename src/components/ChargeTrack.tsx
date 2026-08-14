@@ -30,6 +30,14 @@ const BIG_R = 4.8
 const BIG_CX = 53.5
 const SMALL_CX = [4, 11.4, 18.8, 26.2, 33.6, 41]
 
+/**
+ * Socket centres as a percentage of the track's width, so a label row can sit
+ * on the same centres. The seventh is deliberately off the six's rhythm, so a
+ * plain 7-column grid underneath does NOT line up — anything labelling this
+ * track has to read its geometry from here.
+ */
+export const SOCKET_CENTER_PCT = [...SMALL_CX, BIG_CX].map((cx) => (cx / VB_W) * 100)
+
 export default function ChargeTrack({ ticks, width = 60, surging = false }: ChargeTrackProps) {
   const uid = useId()
   const g = (n: string) => `${n}-${uid}`
