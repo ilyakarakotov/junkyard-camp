@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Breaker from '../components/Breaker'
+import Lever from '../components/Lever'
 import ChargeTrack, { ChargeReadout } from '../components/ChargeTrack'
 import KeyRail, { KeyCount } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
@@ -24,10 +25,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function Lab() {
   const [ticks, setTicks] = useState(6)
   const [keys, setKeys] = useState(2)
+  const [fired, setFired] = useState(0)
 
   return (
     <div className="min-h-dvh px-4 py-5" style={{ maxWidth: 390, margin: '0 auto' }}>
       <h1 className="display-title mb-4 text-[22px]">Component bench</h1>
+
+      <Section title={`Lever · commit stroke · fired ${fired}×`}>
+        <Lever pendingCount={5} onFire={() => setFired((n) => n + 1)} />
+      </Section>
+
+      <Section title="Lever · disabled (nothing selected)">
+        <Lever pendingCount={0} onFire={() => {}} />
+      </Section>
 
       <Section title="Breaker · unearned / earned · board size 22px">
         <div className="flex items-center justify-between px-1">
