@@ -83,7 +83,10 @@ export default function Standings() {
             <span
               className="absolute top-[3px] rounded-full"
               style={{
-                left: directorMode ? 25 : 3,
+                left: 3,
+                // translateX, not an animated `left` — only transform and
+                // opacity may animate.
+                transform: `translateX(${directorMode ? 22 : 0}px)`,
                 width: 18,
                 height: 18,
                 background: directorMode
@@ -92,7 +95,7 @@ export default function Standings() {
                 boxShadow: directorMode
                   ? 'inset 0 1px 0 rgba(255,252,238,0.8), 0 0 8px rgba(255,198,61,0.6)'
                   : 'inset 0 1px 0 rgba(255,236,205,0.25), 0 1px 2px rgba(0,0,0,0.7)',
-                transition: 'left 180ms cubic-bezier(0.3, 0.9, 0.4, 1)',
+                transition: 'transform 180ms cubic-bezier(0.3, 0.9, 0.4, 1)',
               }}
             />
           </span>

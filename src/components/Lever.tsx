@@ -247,12 +247,20 @@ export default function Lever({
             className="absolute inset-x-[5px] rounded-full"
             style={{
               top: 4,
-              height: `calc(${Math.max(0, travel) * 100}% - 8px)`,
+              bottom: 4,
+              /*
+               * scaleY from the top rather than an animated height: height is
+               * a layout-triggering property and the motion spec is transform
+               * and opacity only. The gradient's hot end rides the bottom of
+               * the scaled box, which is exactly where the carriage is.
+               */
+              transformOrigin: 'top',
+              transform: `scaleY(${Math.max(0, travel)})`,
               background:
                 'linear-gradient(180deg, rgba(47,217,208,0.05) 0%, rgba(47,217,208,0.16) 45%, rgba(47,217,208,0.5) 92%, rgba(180,255,250,0.7) 100%)',
               boxShadow: 'inset 0 0 5px rgba(47,217,208,0.3)',
               opacity: dead ? 0 : reduced ? (travel > 0.6 ? 0.6 : 0) : 0.85,
-              transition: dragging ? 'none' : `height ${RETURN_MS}ms ease-out, opacity 300ms ease-out`,
+              transition: dragging ? 'none' : `transform ${RETURN_MS}ms ease-out, opacity 300ms ease-out`,
             }}
           />
         </div>

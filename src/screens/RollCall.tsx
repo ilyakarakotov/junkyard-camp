@@ -281,24 +281,30 @@ export default function RollCall() {
                 </span>
               )}
 
-              {/* engraved indicator lamp: dark metal until selected, then emitting */}
-              <span
-                aria-hidden
-                className="relative shrink-0 rounded-full"
-                style={{
-                  width: 13,
-                  height: 13,
-                  background: on || done || lit ? color : 'linear-gradient(180deg, #2b2118 0%, #140d07 100%)',
-                  boxShadow:
-                    on || lit
-                      ? `0 0 6px ${color}, 0 0 12px ${color}, inset 0 1px 0 rgba(255,255,255,0.6)`
-                      : done
-                        ? `inset 0 1px 0 rgba(255,255,255,0.35)`
-                        : 'inset 0 1px 1px rgba(0,0,0,0.9), inset 0 -1px 0 rgba(255,236,205,0.12)',
-                  opacity: done && !on ? 0.5 : 1,
-                  transition: 'box-shadow 200ms ease-out, background 200ms ease-out',
-                }}
-              />
+              {/*
+               * Indicator lamp. The dark glass is always present and the
+               * filament fades in over it — transitioning background and
+               * box-shadow instead would repaint every frame, and the motion
+               * contract is transform and opacity only.
+               */}
+              <span aria-hidden className="relative shrink-0" style={{ width: 13, height: 13 }}>
+                <span
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: 'linear-gradient(180deg, #2b2118 0%, #140d07 100%)',
+                    boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.9), inset 0 -1px 0 rgba(255,236,205,0.12)',
+                  }}
+                />
+                <span
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: color,
+                    boxShadow: `0 0 6px ${color}, 0 0 12px ${color}, inset 0 1px 0 rgba(255,255,255,0.6)`,
+                    opacity: on || lit ? 1 : done ? 0.55 : 0,
+                    transition: 'opacity 200ms ease-out',
+                  }}
+                />
+              </span>
             </button>
           )
         })}
