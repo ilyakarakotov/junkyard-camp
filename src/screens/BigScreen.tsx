@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import TeamCrest from '../components/TeamCrest'
 import { BrassRail, KeyGlyph, Plate, Screw, Well } from '../components/chrome'
-import { ArcBolt, ContactPost } from '../fx/Arc'
+import { ArcBolt } from '../fx/Arc'
 import { dayScores } from '../data/derive'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
@@ -802,8 +802,8 @@ function Column({
  *
  *   · a vertical brass mounting rail hard against the column's own edge;
  *   · a two-screw contact bracket at the TOP of that rail and another at the
- *     BOTTOM — the arc's two endpoints are the same hardware the cable hangs
- *     off, not a separate set of caps;
+ *     BOTTOM — the arc's two endpoints, painted over the bolt's ends so the
+ *     filament goes behind the brass, with no separate cap on top;
  *   · a heavier stand-off bracket further out, high and low, with the dark
  *     rubber cable looping between the lower pair down to the footing;
  *   · the bolt running the rail's full height between the two contact posts.
@@ -817,10 +817,12 @@ function LeaderRig({ x, w }: { x: number; w: number }) {
     { cx: x - 5, seed: 21, dir: -1 },
     { cx: x + w + 5, seed: 61, dir: 1 },
   ]
-  const railTop = 404
-  const railBottom = 892
   const topY = 432 // upper contact post — level with the score
   const botY = 826 // lower contact post — level with the last slot
+  // the rail runs between the two contact brackets and dies into them; a stub
+  // poking past the lower one read as a dangling offcut against the wall
+  const railTop = topY - 28
+  const railBottom = botY + 20
   const standHi = 540
   const standLo = 862
   return (
@@ -869,15 +871,12 @@ function LeaderRig({ x, w }: { x: number; w: number }) {
             }}
           />
 
-          {/* the two contact brackets the bolt terminates on */}
-          <Bracket cx={cx} top={topY - 20} w={34} h={46} />
-          <Bracket cx={cx} top={botY - 26} w={34} h={46} />
-
-          {/* the two stand-off brackets the cable is bolted between */}
-          <Bracket cx={cx + dir * 44} top={standHi} w={46} h={118} />
-          <Bracket cx={cx + dir * 44} top={standLo} w={46} h={46} />
-
-          {/* dark rubber cable looping out and down between the stand-offs */}
+          {/*
+           * Dark rubber cable looping out and down between the stand-offs,
+           * painted FIRST so both ends tuck under the brackets it is bolted
+           * between — the reference's loops disappear into the hardware, they
+           * don't lie on its face.
+           */}
           <svg
             style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, overflow: 'visible' }}
           >
@@ -899,6 +898,10 @@ function LeaderRig({ x, w }: { x: number; w: number }) {
               />
             ))}
           </svg>
+
+          {/* the two stand-off brackets the cable is bolted between */}
+          <Bracket cx={cx + dir * 44} top={standHi} w={46} h={118} />
+          <Bracket cx={cx + dir * 44} top={standLo} w={46} h={46} />
 
           {/*
            * The bolt's light landing on the metal it crosses. Wide and soft:
@@ -961,9 +964,17 @@ function LeaderRig({ x, w }: { x: number; w: number }) {
                 coreColor="#a6fcf7"
               />
             ))}
-            <ContactPost cx={60} cy={20} r={8} />
-            <ContactPost cx={66} cy={botY - topY + 20} r={8} />
           </svg>
+
+          {/*
+           * The two contact brackets the bolt terminates on, painted OVER the
+           * arc's ends: the filament strikes the bracket's own edge and goes
+           * behind the brass — the same read the ceremony's handle posts make.
+           * No dome on top: the bracket IS the post; a bead on its face reads
+           * as a push-pin and covers the screws.
+           */}
+          <Bracket cx={cx} top={topY - 20} w={34} h={46} />
+          <Bracket cx={cx} top={botY - 26} w={34} h={46} />
         </div>
         )
       })}
