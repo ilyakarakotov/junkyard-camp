@@ -25,8 +25,8 @@ node scripts/check-motion.mjs   transform/opacity only
 node scripts/validate-tokens.mjs all passed
 ```
 
-`npm run verify` runs the lot. Nothing is committed — 27 files modified, 20 new.
-Diff is large because this was a material rebuild, not a tweak.
+`npm run verify` runs the lot. Landed as `98884aa` (the material rebuild) and
+`008a5c5` (the big-screen bracket fix), both deployed to Pages.
 
 Measured against the art (`warmth / medianL / midtone% / specular%`):
 
@@ -54,23 +54,27 @@ Both are now written into `CLAUDE.md` and `design/REFERENCE-SPEC.md`.
 
 ## What is actually left
 
-**One unrun confirmation pass.** Five agents reworked five shared files in
-parallel (`TeamCrest`, `chrome`, `src/fx`, `theme.css`, `DayRail`). Three
-reported; two (`TeamCrest`, `chrome`) wrote their work to disk but hit a session
-limit before reporting, and the end-to-end reviewer never ran. So: **the shared
-rework is in the tree and passes every gate, but nobody has checked it for
-cross-file regressions.** That is the next job, and it is small.
+**Nothing known.** The confirmation pass that was outstanding here has run: five
+agents had reworked five shared files in parallel (`TeamCrest`, `chrome`,
+`src/fx`, `theme.css`, `DayRail`) and two of them died before reporting, so the
+rework sat in the tree unchecked for cross-file regressions. It has now been
+shot against all six renders, all eight crests checked at both board and seal
+size, and `npm run verify` is green.
 
-Known open items, all cosmetic, all in shared files:
+The four items that were open all closed:
 
-1. `chrome.tsx` `CogKnob` — reviewer says our outer silhouette is a black
-   gear-tooth ring; the reference's is two concentric brass rings.
-2. `chrome.tsx` `KeyGlyph` — bow is a constant-width annulus; the reference's is
-   turned. Matters most at 112px on the ceremony.
-3. `TeamCrest` seal legend sizing — was ~40% of the reference's cap height; the
-   crest agent was mid-fix when it was cut off. Verify at all 8 team names,
-   `PINK JUNKYARD WARRIORS` being the worst case.
-4. Big screen — one z-order muddle in the leader's contact brackets.
+1. `chrome.tsx` `CogKnob` — was already correct in the tree: two concentric
+   brass bands, scalloped collar, sunk face.
+2. `chrome.tsx` `KeyGlyph` — already correct: turned bow with a pierced bore,
+   ogee shoulder, tapered shank, ward cuts.
+3. `TeamCrest` seal legend sizing — already correct. `legSize` is driven by
+   character count against the arc length, capped at 7.8, so the worst case
+   (`PINK JUNKYARD WARRIORS`) shrinks to ~8% of coin diameter and clears the
+   emblem. The reference sits at ~9.6%.
+4. Big screen leader contact brackets — the one real defect, and the only code
+   change. Fixed in `008a5c5`: the arc filament now strikes the bracket edge and
+   passes behind it, the push-pin domes are gone, cable ends tuck under the
+   stand-offs, and the rail dies into the lower bracket.
 
 ## Gotchas that cost real time — don't rediscover them
 
@@ -128,6 +132,7 @@ you can now avoid:
 - `scripts/measure-material.mjs` — material stats for any image
 - `scripts/material-stats.mjs` — the bands, and how they were derived
 - `scripts/check-material.mjs` — the gate
-- Scratchpad (session-local, will not survive):
-  `critiques.json`, `round2.json`…`round5.json` hold every finding from every
-  round with its evidence. Worth copying somewhere durable if you want them.
+- `design/findings/round1-critiques.json`…`round5.json` — every finding from
+  every round with the measurement that backs it. These started life in the
+  session scratchpad and were moved here before it evaporated; don't go looking
+  for them in `/private/tmp`.
