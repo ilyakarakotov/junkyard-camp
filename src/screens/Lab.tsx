@@ -17,7 +17,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="mb-5">
       <div className="tech-label mb-2 px-1">{title}</div>
-      <Plate innerClassName="p-3">{children}</Plate>
+      <Plate screws>
+        <div className="p-3 pt-5">{children}</div>
+      </Plate>
     </section>
   )
 }

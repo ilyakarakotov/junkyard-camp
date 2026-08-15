@@ -1,6 +1,7 @@
 // Screenshot the Award screen with chips selected; optionally pull the lever.
 // Usage: node scripts/award-shot.mjs shots/award.png [pull|fire]
 import { chromium } from 'playwright-core'
+import { chromiumPath } from './chromium.mjs'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
@@ -8,7 +9,7 @@ const out = resolve(process.argv[2] ?? 'shots/award.png')
 const mode = process.argv[3] ?? 'rest'
 mkdirSync(dirname(out), { recursive: true })
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 })
 await page.goto('http://localhost:5173/junkyard-camp/#/award/turquoise', { waitUntil: 'networkidle' })
 await page.evaluate(() => document.fonts.ready)

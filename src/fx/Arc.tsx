@@ -3,12 +3,19 @@ import { generateArcVariants } from './arcPaths'
 
 /**
  * Electrical arc between two points inside an existing <svg>.
- * Two stacked layers: thick teal glow beneath, thin white-hot core on top —
- * plus even wider, fainter halo stroke standing in for blur (feGaussianBlur
- * is too expensive on mobile).
+ *
+ * Two stacked layers, as the design system requires: a thicker coloured glow
+ * beneath, a thin white-hot core on top. Both are **filled tapering outlines**
+ * generated in `arcPaths.ts`, not constant-width strokes — the references draw
+ * a filament that is fullest mid-span and narrows onto each contact, with
+ * offshoots that come to a point. Only the two soft bloom layers underneath
+ * are still strokes: they stand in for a Gaussian blur (feGaussianBlur is too
+ * expensive to run on four continuous bolts at 1920×1080), and a blur has no
+ * silhouette to taper.
  *
  * Flicker runs at 8–12fps, stochastic: variant hopping + brightness jumps.
- * `prefers-reduced-motion` gets a single static frame.
+ * Geometry is never re-randomised — five variants are pre-generated per strand
+ * and cycled. `prefers-reduced-motion` gets a single static frame.
  */
 
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
@@ -72,12 +79,21 @@ export function ArcBolt({
 }: ArcBoltProps) {
   const reduced = usePrefersReducedMotion()
   const n = Math.max(1, Math.min(3, Math.round(strands)))
+  // Secondary strands are thinner echoes of the primary: their weight is
+  // folded into the geometry here because the taper is baked into the path.
+  // The references pair one dominant filament with hair-thin companions, not
+  // two ropes of the same gauge, so the falloff is steep.
+  const strandScale = (s: number) => (s === 0 ? 1 : s === 1 ? 0.52 : 0.34)
   const strandSets = useMemo(
     () =>
       Array.from({ length: n }, (_, s) =>
-        generateArcVariants(x1, y1, x2, y2, seed + s * 977, { chaos: s === 0 ? chaos : chaos * 1.15 }),
+        generateArcVariants(x1, y1, x2, y2, seed + s * 977, {
+          chaos: s === 0 ? chaos : chaos * 1.15,
+          weight: weight * strandScale(s),
+        }),
       ),
-    [x1, y1, x2, y2, seed, chaos, n],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [x1, y1, x2, y2, seed, chaos, weight, n],
   )
   const [frame, setFrame] = useState({ v: [0, 2, 4], glow: 1 })
   const frameRef = useRef(frame)
@@ -109,27 +125,30 @@ export function ArcBolt({
   return (
     <g style={{ opacity: a }}>
       {strandSets.map((variants, s) => {
-        const { d, branches } = variants[frame.v[s] % variants.length]
-        // Primary strand carries the current; secondaries are thinner echoes.
-        const sw = s === 0 ? 1 : s === 1 ? 0.72 : 0.55
+        const { spine, branchGlow, body, core } = variants[frame.v[s] % variants.length]
+        const sw = strandScale(s)
         const so = s === 0 ? 1 : s === 1 ? 0.8 : 0.62
         return (
           <g key={s}>
-            {/* outer bloom — wide soft light thrown onto the metal */}
-            <path d={d} fill="none" stroke={color} strokeOpacity={0.13 * so} strokeWidth={18 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
-            {/* wide halo */}
-            <path d={d} fill="none" stroke={color} strokeOpacity={0.32 * so} strokeWidth={10 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
-            {/* teal glow body — the bolt reads cyan; white is only the core filament */}
-            <path d={d} fill="none" stroke={color} strokeOpacity={0.85 * so} strokeWidth={5.4 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
-            {/* branches carry current too: teal glow + white core */}
-            {branches.map((b, i) => (
-              <g key={i}>
-                <path d={b} fill="none" stroke={color} strokeOpacity={0.55 * so} strokeWidth={3.2 * weight * sw} strokeLinecap="round" />
-                <path d={b} fill="none" stroke={coreColor} strokeOpacity={0.72 * so} strokeWidth={1 * weight * sw} strokeLinecap="round" />
-              </g>
-            ))}
-            {/* white-hot core filament */}
-            <path d={d} fill="none" stroke={coreColor} strokeOpacity={1 * so} strokeWidth={2 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* outer bloom — the light this filament throws onto the metal.
+                Tight: the halo hugs the core instead of blooming into a blob. */}
+            <path d={spine} fill="none" stroke={color} strokeOpacity={0.11 * so} strokeWidth={10.5 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={spine} fill="none" stroke={color} strokeOpacity={0.28 * so} strokeWidth={5.2 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+            {/* branches glow too — three stacked strokes, each shorter and
+                wider than the last, so the spill tapers with the filament
+                instead of ending in a round cap the width of the fork */}
+            {branchGlow[0] &&
+              ([
+                [2, 1.25, 0.13],
+                [1, 0.72, 0.11],
+                [0, 0.34, 0.1],
+              ] as const).map(([k, mul, op]) => (
+                <path key={k} d={branchGlow[k]} fill="none" stroke={color} strokeOpacity={op * so} strokeWidth={mul * 3.2 * weight * sw} strokeLinejoin="round" strokeLinecap="round" />
+              ))}
+            {/* coloured body — trunk and branches in one tapering silhouette */}
+            <path d={body} fill={color} fillOpacity={0.9 * so} />
+            {/* white-hot core filament, same silhouette narrowed */}
+            <path d={core} fill={coreColor} fillOpacity={1 * so} />
           </g>
         )
       })}

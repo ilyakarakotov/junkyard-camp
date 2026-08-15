@@ -5,6 +5,7 @@
 // the one that matters: the grip must be BELOW the emitter tube and sitting on
 // the base contact block, with empty rail above it.
 import { chromium } from 'playwright-core'
+import { chromiumPath } from './chromium.mjs'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
@@ -13,7 +14,7 @@ const stem = resolve(process.argv[3] ?? 'shots/lever')
 const travel = Number(process.argv[4] ?? '176')
 mkdirSync(dirname(stem), { recursive: true })
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 })
 await page.goto('http://localhost:5173/junkyard-camp/' + route.replace(/^\//, ''), { waitUntil: 'networkidle' })
 await page.evaluate(() => document.fonts.ready)

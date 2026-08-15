@@ -1,0 +1,722 @@
+[
+  {
+    "screen": "Standings (/#/standings)",
+    "deltas": [
+      {
+        "severity": "blocking",
+        "what": "RECENT ACTIVITY section",
+        "reference_says": "Below the plate stack: a hairline with a small centred ‖ mark, then `R E C E N T   A C T I V I T Y` in letterspaced brass mono flanked by long arrow rules, then a recessed list of three rows separated by hairlines. Each row: a glowing lamp dot in the team colour, the team name in cream caps, the delta, a vertical hairline, then what it was for.",
+        "build_does": "Absent entirely. The stack ends at RUST CO. and the next element is the DIRECTOR MODE button (Standings.tsx:56-117). No activity view is rendered anywhere.",
+        "fix": "After the rows div in Standings.tsx add: `<BracketRule/>`, a centred `tech-label` \"RECENT ACTIVITY\" at 9px / 0.3em tracking in `var(--color-brass)`, then a `<Well radius={3}>` (chrome.tsx:175) holding `recentActivity(events, 5)` — already exported from src/data/derive.ts:224, returns `{event, reversed}[]`. Pull `categories` and `activities` off `useStore()` (both already on the store, store.tsx:31-32). Each item is a fixed 32px-tall `grid` with `grid-template-columns: 14px 1fr 46px 2px 1fr`, rows separated by `.hairline`: (a) `<Lamp on size={10} color={teamColor} />` — the emitter, its spill motivating the only team colour here; (b) `team.shortName` in cream `font-display` 13px; (c) `{event.deltaDeci > 0 ? '+' : '−'}{formatDeci(Math.abs(event.deltaDeci))}` in `.numeral tabular-nums` cream, right-aligned so all deltas share a column edge; (d) `.engraved-v`; (e) `categories.find(c => c.id === event.categoryId)?.label`, plus the matching `activities` label+time when `event.activityId` is set, in `var(--color-text-dim)` 12px `font-body`. When `reversed` is true drop the whole row to opacity 0.45. Team name and delta stay cream."
+      },
+      {
+        "severity": "blocking",
+        "what": "STANDINGS title block",
+        "reference_says": "The title sits inside a wide bracketed box: an L-shaped corner bracket at each of the four corners, a hairline rule along the top and along the bottom, a tiny mono technical stamp at the top-left inside the bracket, and a small centred ‖ mark on the lower rule. Cap height ~26 CSS px (≈34px Oswald).",
+        "build_does": "`<ScreenHeader title=\"Standings\" back />` (Standings.tsx:36) puts a bare 26px title straight on the wall. Nothing occupies that band, so the only thing behind the type is theme.css's warm radial wash (theme.css:104) — which reads as atmospheric haze precisely because there is no hardware in front of it.",
+        "fix": "Replace ScreenHeader with a local header block in Standings.tsx: a 72px-tall box at `mx-3`, `.hairline` at top and bottom, and four 14px L brackets built from 1px `rgba(192,138,62,0.55)` divs pinned to its corners. `STANDINGS` centred in `.display-title on-metal` at 34px, `letterSpacing: '0.14em'`. A `tech-label` at 7px reading `STD-05 / CUM` inset 6px from the top-left inside the bracket. Back arrow as an absolutely-positioned 44px hit target at the left, reusing the same `<svg>` path as chrome.tsx:582-593. Use `BracketRule` (chrome.tsx:609) for the two rules."
+      },
+      {
+        "severity": "blocking",
+        "what": "rank well",
+        "reference_says": "Each row opens with a LARGE circular recessed well ~36px across cut into the plate: dark interior, inner shadow heaviest at the top-left lip, one hairline of reflected light along the bottom-right, a thin brass rim, and the rank numeral inside in bright cream/brass at ~20px.",
+        "build_does": "Standings.tsx:142-147 renders the rank as a bare 15px `.numeral` in a 16px-wide span coloured `var(--color-text-dim)` for every non-leader. No well, no rim, no rim light — and against the over-bright plate face ranks 2-8 are nearly invisible in the screenshot.",
+        "fix": "Wrap it: `<Well radius={99} className=\"flex shrink-0 items-center justify-center\" style={{ width: 36, height: 36, boxShadow: 'inset 2px 3px 6px rgba(0,0,0,0.92), inset -1px -1px 0 rgba(84,71,64,0.5), 0 0 0 1px rgba(157,128,80,0.45)' }}>` using `Well` from chrome.tsx:175, with the numeral at 19px `var(--color-text)` (`var(--color-brass-hi)` for rank 1), `tabular-nums`. Eight 36px near-black discs is also the single biggest lever on the material numbers."
+      },
+      {
+        "severity": "blocking",
+        "what": "glass tube brass end collars",
+        "reference_says": "Every meter is a glass tube capped at both ends by a chunky ribbed brass collar, taller than the tube itself, lit top-left with a dark contact shadow beneath — the same collar motif as the lever's tube. The collars are also what makes the leader's arc legal: they are its two visible contact posts.",
+        "build_does": "Standings.tsx:182-235 renders a bare dark capsule with `rounded-full` ends and nothing at either end on any of the eight rows. The only brass at a tube end is on the leader row, and it is two 4px `ContactPost` domes (lines 254-255) floating over the plate rather than collars seated on the glass.",
+        "fix": "Inset the capsule 7px on each side and, in the same relative wrapper, add two collar divs using the established pattern at src/components/Lever.tsx:319-335: 14px wide, 4px taller than the tube on each end, `left: -7` / `right: -7`, `borderRadius: 3`, background `repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0 1px, transparent 1px 4px), linear-gradient(180deg,#8a6428 0%,#d9b06a 18%,#7a5622 55%,#2c1d0a 100%)`, boxShadow `inset 1px 1px 0 rgba(255,220,160,0.4), inset -1px -1px 1px rgba(0,0,0,0.5), 0 3px 4px rgba(0,0,0,0.6)`. Then delete both `ContactPost` calls at lines 254-255 — the collars are the posts."
+      },
+      {
+        "severity": "blocking",
+        "what": "leader row tube and LEADING nameplate",
+        "reference_says": "The leader's tube carries NO fill. It is dark glass with a teal lightning arc jumping collar to collar inside it, that arc's teal light spilling onto the plate around the tube, and a small engraved brass \"LEADING\" nameplate with a rivet at each end sitting under the tube.",
+        "build_does": "Standings.tsx:190-211 paints the leader's full purple base fill and gold key fill, then draws the arc on top at lines 238-257 — so the arc reads as a scribble over a plastic bar rather than as the current in an empty tube. The SVG is `overflow: 'visible'` (line 241) and with `chaos={0.7}` across a 318px span the bolt wanders well outside the 16px capsule and over the plate face. At `intensity={0.42}` it is dimmer than the fill beneath it. No LEADING nameplate exists anywhere in the file.",
+        "fix": "In `StandingRow`, when `isLeader` skip both fill divs entirely — the leader is by definition 100% of the leader total, so no information is lost — and move the `<ArcBolt>` inside the capsule's `overflow-hidden` div so the glass clips it. Set `chaos={0.28}`, `weight={0.3}`, `strands={2}`, `intensity={0.95}`. Behind the tube add a motivated spill layer: an absolutely-positioned `inset-x-0` div 44px tall centred on the tube, `radial-gradient(60% 100% at 50% 50%, rgba(47,217,208,0.22) 0%, transparent 72%)`. Under the tube's right end render `<BrassPlate screws size={8} tracking=\"0.2em\">Leading</BrassPlate>` (chrome.tsx:259), and reserve the same 16px of vertical space on non-leader rows so all eight plates stay identical in height."
+      },
+      {
+        "severity": "blocking",
+        "what": "row plate cladding",
+        "reference_says": "Each team row is its own machined plate with a ~10px 45° chamfer at all four corners, a broken bright specular streak along the top and left chamfer, a brass slotted screw at each corner, an engraved hairline vent at the top edge plus a few engraved ticks at the top right, and a hard black contact shadow beneath.",
+        "build_does": "Standings.tsx:131-140 uses `className=\"steel-raised grain relative block rounded\"` with a hand-rolled `boxShadow` — a 4px-radius rounded rect, a 1px inset bevel, and a soft `0 2px 4px` shadow. No chamfer, no screws, no vent. The soft shadow plus `.steel-raised`'s bright #a2866a top stop (theme.css:154) leaves every plate edge fuzzy and haloed rather than crisp.",
+        "fix": "Replace with the existing `Plate` component (chrome.tsx:92): `<Plate as=\"div\" chamfer={10} screws screwInset={8} onClick={() => navigate(`/team/${team.id}`)} className=\"...\">`, or keep the `Link` as the outer element and put `Plate` inside it. `Plate` already brings `.plate` (clip-path chamfer, broken chamfer specular, brushed anisotropic streaking, top-left 2px bevel), `CornerScrews`, `.rust-creep` and `.plate-shadow`. Delete the `steel-raised` class and the boxShadow block on lines 136-138 (`Plate` owns the bevel). Add two 12px `.hairline` ticks at the top-right of the plate face for the reference's vent detail."
+      },
+      {
+        "severity": "major",
+        "what": "team names tinted in team colour",
+        "reference_says": "TURQUOISE / CRIMSON / SUNBURST / LIME are all cream heavy condensed. REFERENCE-SPEC.md lines 61-65 restricts team colour to the crest glyph, a lit binary cell and a filled meter segment, and calls out this exact build regression by name.",
+        "build_does": "Standings.tsx:150-155 sets `style={{ letterSpacing: '0.05em', color }}` where `color = var(--color-team-${team.colorToken})` — so all eight names render magenta / lime / pink / mint / blue / yellow / red / orange, which flattens the hierarchy and steals the cell/segment signal.",
+        "fix": "Change that `color` to `var(--color-text)`. Team colour on this screen then survives in exactly its licensed places: the crest glyph, the filled meter segment, and the new activity lamp dot."
+      },
+      {
+        "severity": "major",
+        "what": "overall material level — nothing on screen is dark",
+        "reference_says": "Target band is medianL ≈ 66 and midtone ≈ 38% (the v2 direction; the round-1 PNG's own 20 / 6.6% is too dark to chase). Plate faces sample #6A5240–#98795E and everything else on screen — wells, tube interiors, the activity list — is darker than the plate.",
+        "build_does": "`measure-material.mjs` reports medianL 110, midtone 60.3%, specular 1.69% for the current screenshot: the whole screen is uniformly bright brass. `.steel-raised` tops out at #a2866a, above `--color-plate-hi` #94795e; the eight 16px tubes are the only recesses on the page, and the crests are only 28px.",
+        "fix": "Deltas 3, 4 and 6 do most of this: `Plate` drops the top stop to `--color-plate-hi`, eight 36px rank wells and the recessed activity `Well` add the missing black. On top of that, tighten the plate padding from `py-[10px]` to `p-2` and raise `GAUGE_H` (Standings.tsx:22) from 16 to 20 so the dark glass covers more area. Re-run `node scripts/measure-material.mjs` and land medianL 62-72, midtone 34-42%, with warmth still well positive."
+      },
+      {
+        "severity": "major",
+        "what": "BIG SCREEN link in teal",
+        "reference_says": "Teal is only electricity (REFERENCE-SPEC.md lines 20-24). The reference standings screen has no navigation text at all; every affordance is hardware.",
+        "build_does": "Standings.tsx:41-44 renders `BIG SCREEN →` in `var(--color-accent)` — teal used as a text link, sitting directly above the leader's teal arc, which drains the arc of meaning.",
+        "fix": "Re-clad it as hardware: `<Link to=\"/display\"><BrassPlate screws size={8} tracking=\"0.22em\">Big screen</BrassPlate></Link>` (chrome.tsx:259) — engraved dark type cut into brass, no teal anywhere. Drop the `→` glyph or replace it with two engraved chevrons drawn as 1px dark/light hairline pairs."
+      },
+      {
+        "severity": "major",
+        "what": "gauge fill reads as flat neon plastic",
+        "reference_says": "The fill is light inside glass: a bright core band down the middle, a visible meniscus at the leading edge, the tube's dark interior clearly continuing past it, engraved graduations reading ON TOP of the lit fill, and a soft bloom onto the collar the light touches. Base and key light are one continuous column.",
+        "build_does": "Standings.tsx:191-211 gives the base fill and the key fill each their own `rounded-full` and offsets the key fill by `-2px`, so on every row they render as two separate lozenges with rounded caps butting into each other (clearly visible on FORGED, PEARLS and GEMS). The gradient runs the flat team colour from 32% to 62% with no core band. The graduation `<svg>` (lines 222-234) draws 9 ticks only 4-6px tall at 0.22 opacity along the top edge only — invisible over the fill.",
+        "fix": "Keep `rounded-full` on the outer `overflow-hidden` capsule only; set both fills to `borderRadius: 0` and make them abut exactly (base `left: 2, width: basePct * (W - 4)`; keys start at that exact right edge, dropping the `- 2px` fudge). Change the fill gradient to a lit-column profile: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, ${color} 18%, #ffffff 44%, ${color} 62%, rgba(0,0,0,0.5) 100%)`. Add a 2px `var(--color-lamp-hot)` meniscus at the fill's leading edge with a 6px bloom. Redraw the graduations full-height at `rgba(0,0,0,0.35)` with a 1px `rgba(255,244,220,0.18)` hairline beside each, so they read as engravings on the glass across both the lit and the dark part of the tube."
+      },
+      {
+        "severity": "major",
+        "what": "leader arc geometry hardcoded to a 390px viewport",
+        "reference_says": "n/a — this is a correctness defect that breaks the two-visible-brass-posts rule off-390px.",
+        "build_does": "`const gaugeW = 350 - 20` (Standings.tsx:128) hardcodes the plate width from a 390px viewport, and is wrong even there: `px-5` outer plus `px-3` inner gives a 326px interior, not 330. The SVG box and both `ContactPost` centres are then placed in those absolute px (lines 241-255), so at any other width the arc and its posts detach from the tube ends and the arc terminates on nothing.",
+        "fix": "Delete `gaugeW`. Render the collars as DOM elements pinned `left: -7` / `right: -7` (delta 4) so they track the tube at any width, and drive the `ArcBolt` off a measured width: put a `ref` on the capsule and a `useLayoutEffect` + `ResizeObserver` that stores `el.clientWidth` in state, then pass `x1={0} y1={h/2} x2={w} y2={h/2}` in real px. Do not use `preserveAspectRatio=\"none\"` — it would stretch the bolt's stroke weights."
+      },
+      {
+        "severity": "minor",
+        "what": "vertical divider between name block and score",
+        "reference_says": "An engraved vertical hairline splits each row at roughly 48%: [rank well · medallion · name] on the left, [score · tube] on the right.",
+        "build_does": "Nothing — the name span runs straight into the score span (Standings.tsx:149-178), so the score column reads as floating rather than as its own compartment.",
+        "fix": "Insert `<span className=\"engraved-v shrink-0 self-stretch\" aria-hidden />` (theme.css:349) between the name span and the score span, with 8px of gutter either side."
+      },
+      {
+        "severity": "minor",
+        "what": "key count rendered as words",
+        "reference_says": "CLAUDE.md: keys are whole numbers, the count is read by counting lit keys, and above three you render three keys plus a `+N` in tabular numerals. Nothing on this screen is currently a key.",
+        "build_does": "Standings.tsx:168-170 prints the literal text `3 KEYS` / `1 KEY` in a 7px mono label beside `+3.0` from line 166. Also, 7px type at DPR 2 is below the legibility floor — \"BASE\" and \"3 KEYS\" are mush in the screenshot.",
+        "fix": "Replace the `{row.keys} KEY{...}` span with `Array.from({length: Math.min(row.keys, 3)})` rendering `<KeyGlyph size={13} lit />` (chrome.tsx:452), followed by `+{row.keys - 3}` in `.numeral tabular-nums` when `row.keys > 3`. Keep `+{formatDeci(row.keysDeci)}` as the numeric contribution, and raise both `tech-label` sizes on lines 161 and 168 from 7px to 9px."
+      },
+      {
+        "severity": "minor",
+        "what": "director mode toggle",
+        "reference_says": "An energized toggle track is amber (`--color-lamp` / `--color-lamp-hot`); gold is reserved for the key alone. The reference has nothing here — this slot belongs to RECENT ACTIVITY.",
+        "build_does": "Standings.tsx:93 lights the ON label with `var(--color-key)` and lines 107-110 give the knob a gold `#ffe9a8 → #d9a842 → #8a5606` gradient plus a `rgba(255,198,61,0.45)` bloom — gold, on the same screen that renders gold key fills in the tubes, so the switch competes with the key language. It also occupies the RECENT ACTIVITY position, and its `steel-raised grain rounded` shell (line 59) has neither chamfer nor screws.",
+        "fix": "Swap the energized colours to amber: knob `linear-gradient(180deg,#fedf97 0%,#ed9040 34%,#8a4a12 100%)`, glow `0 0 10px rgba(237,144,64,0.5)`, ON label `var(--color-lamp-hot)`. Move the whole button below the new RECENT ACTIVITY section and clad it on `<Plate as=\"button\" chamfer={8} screws>` instead of `steel-raised rounded`."
+      },
+      {
+        "severity": "minor",
+        "what": "scale and 8px grid",
+        "reference_says": "Measured off the reference at 390 CSS px: title cap height ≈ 26px (≈34px Oswald), team name cap height ≈ 14px (≈20px), medallion ≈ 40px, row plate ≈ 80px tall, outer gutter ≈ 12px, gap between plates ≈ 8px.",
+        "build_does": "Title 26px (chrome.tsx ScreenHeader), name `text-[15px]` (Standings.tsx:151), `TeamCrest size={28}` (line 148), `gap-[6px]` and `px-5` (line 47), plate `py-[10px]` (line 133), tube `mt-[9px]` (line 182), breakout `mt-[3px]` (line 157) — 6, 9, 10, 20 and 3 are all off the 8px grid.",
+        "fix": "Title 34px in the new header block; name 20px; `TeamCrest size={40}`; outer padding `px-3`; `gap-2` between plates; plate padding `p-2`; tube `mt-2`; put the base/keys breakout on an 8px rhythm. Pin the row plate to exactly 80px so all eight remain identical in height with the LEADING nameplate space reserved."
+      }
+    ],
+    "shared_needs": [
+      "src/components/chrome.tsx — export a shared `GlassTube` component so the tube-with-brass-collars motif exists in exactly one place. REFERENCE-SPEC.md treats it as a shared part (the lever tube, the standings meters, and the big-screen meters are the same object), but the ribbed collar currently only exists inline inside src/components/Lever.tsx:319-335, so Standings would have to copy 18 lines of gradient and it will drift. Signature: `GlassTube({ height = 20, collarWidth = 14, className, style, children }: { height?: number; collarWidth?: number; className?: string; style?: CSSProperties; children?: ReactNode })`. It renders a relative wrapper; two collar divs pinned `left: -collarWidth/2` and `right: -collarWidth/2`, `collarWidth` wide and `height + 8` tall, `borderRadius: 3`, background `repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0 1px, transparent 1px 4px), linear-gradient(180deg,#8a6428 0%,#d9b06a 18%,#7a5622 55%,#2c1d0a 100%)`, boxShadow `inset 1px 1px 0 rgba(255,220,160,0.4), inset -1px -1px 1px rgba(0,0,0,0.5), 0 3px 4px rgba(0,0,0,0.6)` — lit top-left, contact shadow beneath; plus an `overflow-hidden rounded-full` dark-glass capsule inset `collarWidth/2` on each side, background `linear-gradient(180deg, rgba(10,8,6,0.92) 0%, rgba(30,26,22,0.85) 45%, rgba(8,6,5,0.95) 100%)`, boxShadow `inset 0 2px 5px rgba(0,0,0,0.8), inset 0 -1px 0 rgba(255,236,205,0.07)`, with `children` rendered inside that clip (fills, meniscus, graduations, or the leader's ArcBolt). Expose the measured capsule width to the caller via a forwarded ref or a `onWidth?: (w: number) => void` callback so a caller can place an ArcBolt's endpoints at the collar centres in real px without hardcoding a viewport width."
+    ]
+  },
+  {
+    "screen": "Roll call (/#/call/punctuality) — src/screens/RollCall.tsx, src/components/Lever.tsx",
+    "deltas": [
+      {
+        "severity": "blocking",
+        "what": "lever plate material at rest",
+        "reference_says": "In 02 (nothing selected) the lever is the warmest, brightest object on the screen: brass plate, two bright brass rails, a knurled brass grip. Sampled: plate #4c3a2c, rail peak #ffeaca, grip #8c714f peak #ffe4bc.",
+        "build_does": "Lever.tsx line 206 applies `opacity: dead ? 0.55` and `filter: dead ? 'saturate(0.35)'` whenever `pendingCount === 0`, which is the default state of the screen. Sampled from the build: lever plate #504841 / #3a342d (R-B = 13-15, i.e. neutral grey), grip #564e42, rails #1b1611. The bottom third of the screen reads blue-grey, which CLAUDE.md forbids outright, and screen warmth drops to 25.2 vs the reference's 36.2.",
+        "fix": "In Lever.tsx delete the `opacity` and `filter: saturate()` from the root style entirely. Express 'no teams selected' only in (a) the caption text and (b) `onPointerDown` returning early — never by desaturating the metal. If a visual affordance is still wanted, dim only the caption colour to `--color-text-dim`."
+      },
+      {
+        "severity": "blocking",
+        "what": "commit discharge (the money moment)",
+        "reference_says": "03 is a full-bleed lightning storm: a blown-out white core at the tube's centre, heavy teal bloom filling the lower third, branches jumping from the tube to both vertical rails, rails glowing teal, tick gauges ignited amber.",
+        "build_does": "RollCall.onFire (line 122) calls `setSelected(new Set())` before the seat animation runs, so `pendingCount` becomes 0 and `dead` becomes true for the entire 520ms seated hold. Captured seated frame (scratchpad/shots/seated-lever.png): grey plate at 55% opacity, tube fill forced to `opacity: dead ? 0.03` (line 350), spill layer forced to `opacity: dead ? 0` (line 309), arcs killed by `active={!dead && ...}` (line 423). The single most dramatic moment in the app renders grey and half-transparent.",
+        "fix": "Two changes. (1) In RollCall.onFire, keep the lever live through the beat: pass a `firing` prop (or keep `pendingCount` at `ids.length` until the ignite timers finish) so `dead` cannot become true while `phase === 'seated'`. (2) In Lever.tsx compute `dead` for interaction only and gate every visual on `phase`, not on `dead` — during `seated`, force tube fill opacity 1, spill opacity 1, and arcs active. Then add a stacked bloom inside the seated branch: an absolutely-positioned radial-gradient at the tube centre (white core ~64px, `rgba(255,255,255,0.95)` → `rgba(47,217,208,0.55)` at 45% → transparent at 80%) plus a second wider teal radial ~320px, both `transform: scale()`/opacity animated only."
+      },
+      {
+        "severity": "blocking",
+        "what": "header",
+        "reference_says": "A full-width brass plate ~72px tall with four corner screws, holding a recessed dark LCD window (~207x48) framed by a thin brass band. Inside the window: PUNCTUALITY in large cream Oswald (~24px) with MORNING LINE UP · 9:45 in mono (~11px, letterspaced) directly beneath it. No chip row anywhere.",
+        "build_does": "RollCall line 158 uses `ScreenHeader` (chrome.tsx:579), which is a bare 56px flex row with a back chevron and floating text on the wall — no plate, no screws, no LCD. The activity is instead spread across a 7-column `recess` grid of time chips (lines 166-208) plus a separate mono sub-line `LUNCH · 13:00` and an `ALL` link (lines 210-219).",
+        "fix": "Replace `ScreenHeader` with a local header built from chrome primitives: `<Plate chamfer={12} screws screwInset={10} style={{height:64}}>` containing a centred `<Well radius={3}>` inset 8px with `boxShadow` adding a 2px brass frame (`inset 0 0 0 2px var(--color-brass)`), holding `<div className=\"display-title\">{category.label}</div>` at 24px cream over `<div className=\"tech-label\">{activity.label} · {activity.time}</div>` at 11px. Delete the chip grid and the sub-line. Keep activity switching as two small brass nudge buttons (◀ ▶, 24x24, `.brass-band`) flanking the LCD on the plate, each stepping `activityId` through `dayActivities`; the back affordance becomes a small chevron button on the plate's left."
+      },
+      {
+        "severity": "blocking",
+        "what": "row plates",
+        "reference_says": "Each of the eight rows is its own chamfered brass plate with four corner screws, a bright broken specular streak along the top chamfer and an engraved groove just inside its edge. Sampled row face #ae997e with peak #fffce0; the reference scores 1.76% specular.",
+        "build_does": "Rows are `className=\"steel-raised grain\"` with hand-rolled inset box-shadows (lines 245-253) — square corners, no screws, no chamfer, no specular. Sampled build row face #77634f, peak #847360; the whole screenshot scores 0.33% specular against the reference's 1.76%.",
+        "fix": "Render each row through `Plate` from chrome.tsx: `<Plate as=\"button\" chamfer={6} screws screwInset={7} ariaPressed={on} disabled={done} onClick={() => toggle(team.id)} style={{height:56}}>`. `.plate` already carries the broken top/left chamfer speculars, the bottom chip notches and the top-left bevel, and `.plate-shadow` on its wrapper gives the contact shadow. Add one engraved outline inside the face: an absolutely-positioned span at `inset: 5px` with `boxShadow: 'inset 0 1px 0 rgba(255,244,220,0.14), 0 1px 0 rgba(28,16,6,0.5)'`. Keep the plate itself as the button so the DoD check (`button[aria-pressed]`, height >= 56, width >= 330) still passes."
+      },
+      {
+        "severity": "blocking",
+        "what": "punctuality sockets in a row",
+        "reference_says": "A row of large circular sockets, ~15px diameter on a ~20px pitch, occupying roughly a third of the row's width. Earned check-ins are filled and glowing in the TEAM colour (sampled #d15d7b on the pink row) with the glow spilling onto the plate; the rest are dark wells with a bright brass rim (peak #f7dbbc).",
+        "build_does": "RollCall line 280 renders `<ChargeTrack ticks={...} width={72} />`, whose sockets are r=3 in a 60-unit viewBox — about 7px across at 72px wide — crammed into the far right of the row, and lit in TEAL (`--color-accent`, ChargeTrack lines 65-77) plus a teal 6/7 pulse rim (line 169). Sampled socket strip: #6a827a, a cool grey-teal. This breaks 'teal is only electricity' and makes the count unreadable at arm's length.",
+        "fix": "Stop importing ChargeTrack in RollCall and render the seven sockets locally: a flex row of 7 spans, 15x15, `borderRadius: 9999`, `gap: 4px` (129px total). Unearned: `background: radial-gradient(circle at 40% 34%, #2b211b, var(--color-well) 62%, #0d0805)` with `boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.9), 0 1px 0 rgba(255,244,220,0.16)'`. Earned: team colour via `Lamp` with `color={teamColor}` (chrome.tsx already spills onto the plate through `.lamp-on`). The seventh socket keeps CLAUDE.md's cliff: at `ticks === 6` give it a 1.5px `--color-lamp` rim with the existing `pulse-rim` animation — amber, not teal."
+      },
+      {
+        "severity": "blocking",
+        "what": "selection control / cog knob",
+        "reference_says": "Each row ends in a large knurled brass cog knob (~44px) in a recessed seat. That knob IS the selection control. When a row is selected (03) the cog's face flips to a numeric readout of the value the pull will land — '1.0' — and the row's pending sockets go white-hot with a warm bloom while already-earned sockets keep their team colour.",
+        "build_does": "There is no CogKnob on this screen — RollCall never imports it, even though `chrome.tsx:350` exports `CogKnob({ size, readout, glow })` built exactly for this. The only cog-like object is ChargeTrack's 4.8-unit seventh socket (~11px). Selection is signalled instead by a coloured plate wash, a coloured ring and a 13px team-coloured indicator lamp; nothing anywhere previews the landing value.",
+        "fix": "Add `<CogKnob size={44} readout={on ? formatDeci(punctualityDeci(ticks + 1)) : undefined} glow={on} />` as the last child of each row. For the white-hot pending sockets, when `on` render sockets at index `ticks .. ticks` (the one this pull adds) with `background: radial-gradient(circle at 40% 34%, #fff 0%, #fff6e2 55%, var(--color-lamp) 100%)` and `boxShadow: '0 0 6px 1px rgba(255,246,226,0.9), 0 0 16px 4px rgba(237,144,64,0.5)'`; earned sockets keep team colour. Use `formatDeci`/`punctualityDeci` from `src/data/scoring` — never float maths."
+      },
+      {
+        "severity": "blocking",
+        "what": "outer bezel",
+        "reference_says": "The whole screen sits inside an outer bronze bezel with a chamfered corner and a screw at each corner; header, rows and lever are parts of one machine bolted to a wall.",
+        "build_does": "RollCall's root is `<div className=\"flex min-h-dvh flex-col pb-4\">` with `px-5` children — no frame, no corner screws. The screen reads as a stack of loose cards floating on brown.",
+        "fix": "Wrap the whole screen body in `<ScreenFrame band={10}>` from chrome.tsx (it already draws `CornerScrews` and the top-left-lit inner bevel), then use `px-2` inside it instead of `px-5`. Row width becomes 390 - 20 - 16 = 354px, still above the DoD's 330px minimum."
+      },
+      {
+        "severity": "blocking",
+        "what": "lever rails and tick gauges",
+        "reference_says": "Two full-height round brass rails with a bright specular down their lit side, and engraved tick gauges running the full plate height down the OUTER side of each rail — dense, ruler-like, ~30 ticks with a longer tick every fifth. On discharge the rails glow teal and the gauges IGNITE AMBER.",
+        "build_does": "Lever.tsx lines 219-267 draw the rails as near-black recessed channels (sampled #1b1611) filled by a teal `scaleY` wash that reads as a teal plastic strip. The gauges (lines 270-296) are 13 sparse 8px dashes placed INSIDE the rails at `left/right: 46`, coloured `rgba(237,227,210,0.2)` at rest and `var(--color-accent)` — teal — when lit.",
+        "fix": "Rebuild the rails as brass bars: `background: linear-gradient(90deg, #3a2a12 0%, #b9924f 22%, #f2dca6 38%, #8a6c3c 62%, #2a1c0a 100%)`, `borderRadius: 9999`, with `boxShadow: 'inset 0 1px 0 rgba(255,244,220,0.5), 0 2px 4px rgba(0,0,0,0.6)'`, plus a brass collar at each end. Replace the teal fill with an overlaid teal rim glow only (`boxShadow: '0 0 10px rgba(47,217,208,0.7)'` at seated opacity), so the rails stay brass and merely glow. Replace the hand-rolled tick loop with `<TickGauge count={30} vertical length={12} lit={seated || armed} />` positioned OUTBOARD of each rail (left: 6 / right: 6, full track height) — TickGauge already renders `--color-lamp-hot` with an amber drop-shadow when `lit`."
+      },
+      {
+        "severity": "blocking",
+        "what": "the glass tube",
+        "reference_says": "A glass tube crosses the mid-track with ribbed brass end collars: you can see through it to the plate behind, it has a specular highlight along its top and a thin teal arc idling inside it even at rest (02, with nothing selected).",
+        "build_does": "Lever.tsx lines 337-379 render the tube as an opaque near-black bar (`rgba(10,8,6,0.92)` → `rgba(8,6,5,0.95)`) with a 1.5px top highlight; in the captured rest frame it reads as a flat black strip. The idle arc never appears because `active={!dead && ...}` (line 423) and the tube fill's `opacity: dead ? 0.03` are both switched off whenever nothing is selected — the reference's resting state.",
+        "fix": "Make the tube read as glass: `background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(24,30,30,0.35) 22%, rgba(10,14,14,0.5) 55%, rgba(255,255,255,0.10) 100%)` with `boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5)'`, a 2px white specular strip inset 6px from each end along the top, and a 1px `rgba(255,255,255,0.22)` outline. Give the end collars the ribbed brass treatment at 16px wide so they clearly clamp the glass. Then decouple the idle arc from selection: always render the mid-tube `ArcBolt` at `intensity 0.42, strands 1, chaos 0.8, active={!reduced}` regardless of `pendingCount`, and raise the tube's resting inner-fill opacity to ~0.18 so the teal filament is visible at rest."
+      },
+      {
+        "severity": "major",
+        "what": "team names",
+        "reference_says": "Team names are bright cream (#F2E7D3) heavy condensed with a dark shadow under them, the highest-contrast text in the row, at every state.",
+        "build_does": "RollCall line 269 sets `color: on || lit ? 'var(--color-text)' : 'var(--color-text-dim)'`, so at rest names render #8A7A68 on a #77634f plate. Sampled name pixels #7c6a56 against a plate of #77634f — the names are effectively invisible in the screenshot.",
+        "fix": "Set the name colour to `var(--color-text)` unconditionally and add `textShadow: '0 1px 0 rgba(0,0,0,0.65)'`. Convey 'already logged' with the sub-label and a lowered plate brightness, never by dimming the name."
+      },
+      {
+        "severity": "major",
+        "what": "lever caption",
+        "reference_says": "A brass nameplate seated in the lever's bottom foot reading PULL TO COMMIT in engraved dark type, flanked by two tiny diamond marks.",
+        "build_does": "Lever.tsx lines 598-611 print `[ SELECT TEAMS ]` (or `[ RELEASE TO COMMIT · 2 TEAMS ]`) as bare letterspaced text on the plate — no nameplate, no diamonds, and the resting wording is not the reference's.",
+        "fix": "Replace the bare span with `<BrassPlate size={11} tracking=\"0.22em\">PULL TO COMMIT</BrassPlate>` centred in a brass foot bar spanning between the two rail feet, with a 4px rotated-45deg brass diamond immediately left and right of the text inside the plate. Keep `PULL TO COMMIT` as the resting label whenever a pull is possible; only swap to `RELEASE TO COMMIT` while `armed`. Move the `· N TEAMS` count out of the caption and onto a small mono line above the foot so the nameplate wording stays fixed."
+      },
+      {
+        "severity": "major",
+        "what": "selected / committed row treatment",
+        "reference_says": "A selected row's plate stays brass. The only things that change are the sockets (white-hot with a warm bloom) and the cog face (numeric readout). Team colour stays confined to the crest glyph and the earned sockets.",
+        "build_does": "RollCall lines 256-264 paint a full-plate `linear-gradient(90deg, teamColor 0%, transparent 72%)` at 0.16 opacity when selected and 0.40 when ignited, plus a 1.5px team-colour ring on the plate (line 250). The captured ignite frame shows entire plates washed yellow and orange, which flattens the material and violates 'team colour appears in exactly three places'.",
+        "fix": "Delete the plate wash span and the team-colour inset ring. Signal selection with: the sockets going white-hot, `CogKnob glow` (amber rim) plus its readout, and a 1px amber inset rim on the plate (`inset 0 0 0 1px var(--color-lamp)` at ~0.5 alpha). For the committed beat, use a brief white-hot flash on the affected sockets only, keeping the 40ms stagger already in place."
+      },
+      {
+        "severity": "major",
+        "what": "discharge light spilling onto the rows",
+        "reference_says": "In 03, teal light from the lever spills upward out of the lever plate onto the row plates above — their lower edges and the wall gaps between them are rim-lit teal, which is what makes the whole screen read as one energised machine.",
+        "build_does": "The Lever root has `overflow-hidden` (line 205), so every glow layer is clipped at the plate's edge. In the captured armed frame the row plates directly above are completely unaffected.",
+        "fix": "Have Lever report its discharge state upward (extend the existing `onArmedChange` with an `onDischarge(active: boolean)` callback fired on seat and clear), then in RollCall render a pointer-events-none overlay over the row stack: `background: 'linear-gradient(0deg, rgba(47,217,208,0.34) 0%, rgba(47,217,208,0.10) 42%, transparent 78%)'`, `opacity` 0/1 transitioned over 160ms, `mix-blend-mode: screen`. Animate opacity only, and hold it at 0 under `prefers-reduced-motion`."
+      },
+      {
+        "severity": "major",
+        "what": "teal used as a UI accent",
+        "reference_says": "Teal appears only as electricity — inside the lever tube and its branches. Nothing else on 02 or 03 is teal: no teal type, no teal panels, no teal pips.",
+        "build_does": "`--color-accent` is used as interface colour in six places in RollCall.tsx: the active chip's time (line 188), the completion pip (lines 199-200), the ALL/CLEAR button (line 215), the 'all logged' notice panel (line 223), the undo panel's tinted background plus 1px teal ring (line 323) and the UNDO label (line 331). The two translucent tinted panels also read as glassmorphism, which is on the forbidden list.",
+        "fix": "Remove all six. The chip row goes away with the header rewrite. Recolour ALL/CLEAR and UNDO to `var(--color-lamp)` on engraved brass (`BrassPlate`), and rebuild the two notice panels as `Well` recesses cut into a brass plate with cream mono type and an amber `Lamp` as the status indicator — opaque metal, no tint over the wall."
+      },
+      {
+        "severity": "major",
+        "what": "team medallion",
+        "reference_says": "The medallion nearly fills the row height (~32px in a ~38px row at reference scale; roughly 48px in our 56px row), its bezel screws are visible, and the glyph glows in luminous team colour even at rest.",
+        "build_does": "RollCall line 265 renders `<TeamCrest size={34} glow={on || lit ? 1 : 0} />` inside a 56px row, so the crest floats in the middle of a lot of empty plate and its glyph is cold until selected. TeamCrest already draws diagonal bezel screws and a glow layer that are wasted at 34px.",
+        "fix": "Change to `size={46}` and `glow={on || lit ? 1 : 0.45}` so the emblem emits at rest as in 02 and ignites on selection. At 46px the bezel screws resolve."
+      },
+      {
+        "severity": "major",
+        "what": "the machine does not fit one screen",
+        "reference_says": "Header, eight rows and the lever fill a single frame — the reference is one non-scrolling machine, and the lever is always reachable with a thumb.",
+        "build_does": "The full-page screenshot is 984 CSS tall against an 844 viewport, so the lever is entirely below the fold at rest (the drag-shot harness could not even reach the grip without a taller viewport). The extra height comes from the 40px chip row, the 20px sub-header line, 62px effective row pitch, a 312px lever and a separate BACK TO BOARD block.",
+        "fix": "Budget the screen to 844: ScreenFrame band 10 top and bottom (20), header plate 64, 8px gap, eight 56px rows on 8px gutters (504), 8px gap, lever height 224 — total 828. Concretely: change `gap-[6px]` to `gap-2`, drop the chip row and sub-header line, reduce Lever's `H` from 312 to 224 (scale TRACK_TOP/TRACK_H/HANDLE_H proportionally: 24 / 168 / 44), and render the undo banner as an absolutely-positioned overlay across the lever plate instead of an extra stacked block."
+      },
+      {
+        "severity": "minor",
+        "what": "vertical hairline before the cog",
+        "reference_says": "A single engraved vertical hairline separates the socket row from the cog knob in every row.",
+        "build_does": "There is no divider — ChargeTrack's internal hairline at viewBox x=46.4 sits between socket six and its own seventh socket, which is a different separation entirely.",
+        "fix": "Insert `<span className=\"engraved-v\" style={{ height: 26 }} />` between the socket row and the CogKnob, with 8px of gap either side. `.engraved-v` already exists in theme.css (dark groove, lit lower lip)."
+      },
+      {
+        "severity": "minor",
+        "what": "extra indicator lamp at the row's right edge",
+        "reference_says": "The rightmost object in a row is the cog knob. There is no separate status lamp.",
+        "build_does": "RollCall lines 290-307 render a 13px team-coloured lamp after the charge track, duplicating the selection signal and pushing the row's right edge past the cog position.",
+        "fix": "Delete the indicator-lamp span; the CogKnob readout plus the white-hot sockets carry the selected state."
+      },
+      {
+        "severity": "minor",
+        "what": "BACK TO BOARD footer",
+        "reference_says": "Nothing sits outside the machine; navigation is part of the chrome.",
+        "build_does": "RollCall lines 339-345 render a bare dim text button below the lever, outside any plate, on the wall.",
+        "fix": "Remove it and put the back affordance on the header plate as a small brass chevron button (24x24, `.brass-band`, engraved arrow) at the plate's left, inside the bezel."
+      }
+    ],
+    "shared_needs": [
+      "src/components/ChargeTrack.tsx (shared with the team sheet, not in my ownership list): its lit sockets, seventh-socket hot fill and 6/7 pulse rim are all `var(--color-accent)` (teal) — see lines 65-77, 95-96, 139-141, 169 and 176. Per REFERENCE-SPEC 'teal is not the on color', every lit socket must be amber: body `--color-lamp`, core `--color-lamp-hot`, resting-lit `--color-lamp-dim`, and the 6/7 cliff rim `--color-lamp`. Roll call will stop importing ChargeTrack (it renders its own 15px sockets in team colour), but the team sheet still shows it, so this recolour has to be applied once centrally rather than by two agents.",
+      "No change needed in chrome.tsx, TeamCrest.tsx, Arc.tsx or theme.css — Plate/Well/ScreenFrame/CogKnob(readout, glow)/TickGauge(lit)/BrassPlate/Lamp(color)/`.engraved-v`/`.knurl` already provide everything above. Noting only that `ScreenHeader` (chrome.tsx:579) is a plateless text header and is the wrong component for this screen; roll call will build its own brass header plate from Plate + Well rather than asking for a change to ScreenHeader, since other screens depend on it."
+    ]
+  },
+  {
+    "screen": "Board (/#/)",
+    "deltas": [
+      {
+        "severity": "blocking",
+        "what": "row order vs rank numerals",
+        "reference_says": "Rows are sorted by score descending; the rank chips read 01,02,03,04,05,06,07,08 straight down the page, zero-padded to two digits.",
+        "build_does": "src/screens/Board.tsx:140 maps `teams` (roster order) while the numeral comes from `ranks.get(team.id)`, so the screenshot reads 1,2,3,6,5,7,3,8 — out of order, with a duplicated 3 and no 4. Ranks are also printed as bare single digits.",
+        "fix": "After line 52 add `const ordered = useMemo(() => [...teams].sort((a, b) => (ranks.get(a.id) ?? 99) - (ranks.get(b.id) ?? 99) || a.order - b.order), [teams, ranks])` and map `ordered` at line 140 instead of `teams`. Render the numeral as `String(rank).padStart(2, '0')`. Leave dayRanks() alone — competition ranking (two 6.0s both rank 3, then 5) is correct; the deterministic tiebreak is only for row order."
+      },
+      {
+        "severity": "blocking",
+        "what": "eight team rows",
+        "reference_says": "Eight separate brass plates, identical 64px height, an 8px wall gap between them so the wall shows through, chamfered ~6px corners, four brass corner screws on each, own contact shadow, own weathering crop.",
+        "build_does": "Board.tsx:138-149 wraps all eight rows in ONE `plate grain rust-creep` div and separates them with `inset 0 -1px 0` hairlines (BoardRow line 194). No screws anywhere on the rows, one shared rust stain across the whole block, and the wall is never visible between rows.",
+        "fix": "Replace the single wrapper with `<div className=\"flex flex-col gap-2 px-2\">{ordered.map(...)}</div>` and make each BoardRow's outer element `<Plate chamfer={6} screws screwInset={6} style={{ height: 64 }}>` from components/chrome. Delete the `boxShadow` hairline on line 194 and the now-unused `last` prop. Plate already supplies plate-shadow, per-instance textureOffset and rust-creep, so each row weathers differently."
+      },
+      {
+        "severity": "blocking",
+        "what": "header",
+        "reference_says": "A full-width brass header plate at y 6..50 (≈44px tall) with a heavy double brass band, a screw at each of the four corners, and an inset brass inner panel whose left and right ends are chamfered to a point (hexagonal), carrying a rivet at each vertex. Centred on it: `DAY 2 — KINGDOM`, heavy condensed cream at ~26px (cap height ~18px), em dash, tight tracking (~0.02em), with a dark drop shadow under the type.",
+        "build_does": "Board.tsx:64-72 renders bare cream text `Junkyard Redemption` left-aligned at 21px, a mono `SOL CAMP` at the right, and a BracketRule hairline. There is no plate, no frame, no screws, and the day/theme never appears in a header.",
+        "fix": "Replace the whole `<header>` block with `<BrassFrame band={7} radius={4} screws>` containing an inner `brass-band grain` div (height 30, clipPath `polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)`, an inset engraved 1px line) and centre `{activeDay.name.toUpperCase()} — {activeDay.theme.split('—')[0].trim().toUpperCase()}` in font-display 600 at 26px, color var(--color-text), letterSpacing 0.02em, textShadow '0 2px 0 rgba(20,10,4,0.7)'. Add a `Screw` at the left and right vertices. Total header height 44."
+      },
+      {
+        "severity": "blocking",
+        "what": "day rail",
+        "reference_says": "A 10px brass rail spanning the full width, terminating in a ~12px round boss with a rivet at each end, carrying FIVE circular sockets ~24px across (16px inner disc in a 4px brass collar) on a ~47px pitch, group centred. Past days are filled brass discs; the current day is a teal-lit pilot lamp whose bloom spills onto the rail and faintly rims the neighbouring socket; days after it are dark unlit wells. Occupies y 60..80.",
+        "build_does": "Board.tsx:74 calls `<DayRail days={days} activeId={...} onSelect={...} />` with no `variant`, so it defaults to `tabs` — five octagonal brass tabs labelled ARR/1/2/3/4 with an amber backlight, 38px tall. No rail, no sockets, no teal pilot lamp, and it uses amber where the reference uses teal.",
+        "fix": "Pass `variant=\"sockets\"` and size the region to 24px: `<DayRail days={days} activeId={activeDay.id} onSelect={setActiveDayId} variant=\"sockets\" className=\"mx-2 mt-2 h-[24px]\" />`. Note this variant has no consumer today, so screenshot it after the switch; geometry tweaks belong in shared_needs."
+      },
+      {
+        "severity": "blocking",
+        "what": "row internal layout",
+        "reference_says": "A 64px row is a two-tier instrument. Top tier (row-relative y 7..33): a recessed dark capsule channel running from behind the medallion (x≈117) to x≈333, holding the team name at its left and the binary cells right-aligned to x≈324. Bottom tier (centred at row-relative y ≈48, sitting directly on the brass plate face, NOT recessed): six punctuality sockets from x≈131 on a ~17.6px pitch, a short dim dash, a 26px cog knob, then the recessed key capsule x≈271..326. Score well x≈335..385, full row height.",
+        "build_does": "BoardRow (Board.tsx:188-247) is one 56px flex line: crest, name, 5 breakers, 40px ChargeTrack, key count, score, all on a single baseline, all sitting flat on the shared plate with no recessed channel anywhere. There is no second tier, so the punctuality track is squeezed into 40px and the row has no depth layers.",
+        "fix": "Restructure BoardRow inside the new 64px Plate as absolutely-positioned columns at the measured x edges above. Add the top-tier channel as `<Well radius={7} style={{ position:'absolute', left:110, right:60, top:7, height:26 }}>` and place the name + binary cells inside it; put the punctuality sockets, dash, cog and key capsule on the plate face below it. Replace the ROW_H/CREST/NAME_W/SOCKETS_W/PUNCT_W/KEYS_W/SCORE_W constants (lines 36-44) with the new budget: ROW_H 64, rank chip 30, crest 58, channel 110→330, score well 48."
+      },
+      {
+        "severity": "blocking",
+        "what": "punctuality row",
+        "reference_says": "Six circular sockets ~12px across — brass collar with a dark well inside — on a ~17.6px pitch, then a short thick dim-brass dash, then the SEVENTH check-in as a distinct 26px brass cog knob with an engraved starburst face. Sockets are AMBER when lit; teal never lights a socket except the day rail's pilot lamp. At 6/7 the cog's rim is amber and pulsing.",
+        "build_does": "Board.tsx:232-234 renders `<ChargeTrack ticks={ticks} width={40} />`. At 40px the sockets shrink to ~4px teal dots and the seventh to a ~9px teal ring — it reads as a string of tiny cyan LEDs, and the fills are `var(--color-accent)` (teal), which breaks the teal-is-only-electricity rule.",
+        "fix": "Stop using ChargeTrack on the board (it stays in roll call / team sheet). Compose the row directly from chrome.tsx: six `<Lamp on={i < Math.min(ticks,6)} size={12} />` (default amber) at pitch 17.6 starting x 131, then a 6x2px bar in `#6b563c`, then `<CogKnob size={26} glow={ticks === 6} />` centred at x≈262 for the seventh (`on` state = ticks >= 7 — give it the amber `glow` rim and the `pulse` animation only at ticks === 6). Wrap the group in an element with `aria-label={`Punctuality ${Math.min(ticks,7)} of 7`}`."
+      },
+      {
+        "severity": "blocking",
+        "what": "key rail",
+        "reference_says": "A recessed dark capsule (~56x20, fully rounded ends) at the row's right, x≈271..326, holding up to three keys hanging by their bows from the capsule's top lip — the bows overhang the lip. Lit keys are gold and emit onto the capsule; empty slots hold dark key silhouettes. Above three keys: three keys and `+N` in tabular numerals.",
+        "build_does": "Board.tsx:236-238 renders `<KeyCount keys={...} size={20} />` — a 9px key glyph followed by the numeral `1` in gold text. It reads as a text label, not as hardware, and there are no empty slots so there is no visible room for more.",
+        "fix": "Replace KeyCount with the real rail, which already exists and already draws hooks, hanging keys, dark empty slots and `+N`: `<Well radius={9999} style={{ position:'absolute', left:271, width:56, height:20, top:38 }}><KeyRail keys={score?.keys ?? 0} capacity={3} width={56} /></Well>`. KeyRail's svg is overflow-visible, so let the bows break the well's top edge. Drop the `KeyCount` import on line 6."
+      },
+      {
+        "severity": "major",
+        "what": "score readout",
+        "reference_says": "A recessed dark panel with chamfered corners at the plate's right end, x≈335..385, spanning nearly the full 64px row height, with the plate's two right-hand corner screws sitting just outside it. `6.0` centred in cream tabular numerals at ~34px (cap height ~25px). All eight share one column edge.",
+        "build_does": "Board.tsx:240-245 prints the value as a bare 19px cream numeral in a 44px right-aligned span — correct column edge and tabular numerals, but no recess, no chamfer, and roughly half the reference's type size, so the score does not read as the row's headline.",
+        "fix": "Wrap it: `<Well radius={4} style={{ position:'absolute', right:6, top:6, width:48, height:52 }}>` with the numeral centred at fontSize 34, color var(--color-text), `tabular-nums`, lineHeight 1. Keep `formatDeci(total)` — no float arithmetic."
+      },
+      {
+        "severity": "major",
+        "what": "rank chip",
+        "reference_says": "A recessed square well ~30x32 with ~5px radius and a light lower-right lip, at the row's far left (x 17..48), holding `01`..`08` in cream tabular numerals ~22-24px that nearly fill the chip. Every rank gets the same treatment — rank 01 is not gilded.",
+        "build_does": "BoardRow lines 198-217 puts a 13px circular badge with a 9px numeral on the crest's top-left corner, and gives rank 1 a brass gradient fill with dark type. It reads as a notification dot, and the gold treatment invents a hierarchy the reference does not have.",
+        "fix": "Delete the absolute badge and its rank-1 gradient branch. Add, as the row's first column, `<Well radius={5} style={{ position:'absolute', left:12, top:16, width:30, height:32 }}>` containing `String(rank).padStart(2,'0')` in `numeral tabular-nums`, fontSize 23, color var(--color-text), centred. Same styling for all eight."
+      },
+      {
+        "severity": "major",
+        "what": "binary cells",
+        "reference_says": "Plain square lamps in the recessed channel, ~13px with ~4px gaps on a ~17.6px pitch, right-aligned to x≈324. Earned = a filled square glowing in the team colour with a bright inner face and tight spill onto the channel floor. Unearned = a dark recessed square with a thin warm rim.",
+        "build_does": "Board.tsx:226-230 renders `<Breaker size={20} />` per category — a 20x26 toggle housing whose dark body dominates and whose team colour appears only as a small paddle stripe. At row scale the five cells read as five dark boxes, not as lit team-colour cells, so the earned/unearned signal is nearly invisible.",
+        "fix": "Swap Breaker for the square lamp already in chrome.tsx: `<Lamp square on={(score?.byCategory[c] ?? 0) > 0} color={color} size={13} dataPart=\"binary-cell\" />`, five of them in a `flex gap-[4.6px]` justified to the channel's right edge, each with `aria-label` naming the category. KEEP FIVE CELLS — BINARY_CATEGORIES has five members and CLAUDE.md governs counts; the concept art's slot count is inconsistent row to row (6 for WARRIORS, 7 for PRECIOUS/GEMS/PEARLS, 8 for KNIGHTS), so do not add a sixth."
+      },
+      {
+        "severity": "major",
+        "what": "team name",
+        "reference_says": "`WARRIORS` in CREAM heavy condensed at ~22px (cap height ~16px, a quarter of the row height), left-aligned inside the recessed channel starting at x≈126, sharing a baseline with the binary cells. Team colour appears only in the crest glyph and the lit cells.",
+        "build_does": "Board.tsx:219-224 sets `color` to `var(--color-team-*)` and fontSize 13 in a 66px clipped span. Every name is tinted, which flattens the hierarchy and destroys the lit-cell signal, and at 13px the names are subordinate to the score instead of level with it.",
+        "fix": "Set `color: 'var(--color-text)'`, fontSize 22, letterSpacing 0.02em, and widen the span to ~90px inside the channel with `paddingLeft: 8`. Drop the `color` variable from the name style; keep it only for the crest and the binary cells."
+      },
+      {
+        "severity": "major",
+        "what": "medallion",
+        "reference_says": "A ~58-60px medallion at x 55..117, filling the row height almost edge to edge, overlapping the recessed channel's left end: two concentric brass rings, dark team-tinted interior, and the emblem in bright luminous team colour with a soft bloom.",
+        "build_does": "Board.tsx:199 renders `<TeamCrest teamId={team.id} size={26} />` with no `glow`. At 26px the emblems are unreadable pinpricks and the medallion no longer reads as the row's anchor object; the lab bench shows the same component at 56px reads correctly.",
+        "fix": "`<TeamCrest teamId={team.id} size={58} glow />`, absolutely positioned `left: 48, top: 3` so it slightly overhangs the plate's top and bottom and covers the channel's left end (give it `zIndex: 1` above the Well)."
+      },
+      {
+        "severity": "major",
+        "what": "footer",
+        "reference_says": "A brass plate strip ~30px tall spanning the full width, four corner screws, chamfered corners, rust staining at its right end. At the left: a ~95x13 barcode of dark engraved bars, and beneath it a single mono line in ENGRAVED DARK type (~7px, ~0.06em tracking) reading `STATUS: ONLINE / SYNC: 98% / VER: 2.2.1 / ID: 907R 60H0`. Nothing else.",
+        "build_does": "Board.tsx:153-168 renders two 44px `steel-raised bevel` buttons, STANDINGS and BIG SCREEN, in cream 12px display type. It reads as a mobile web app's button bar, and it is the only thing at the bottom of the screen.",
+        "fix": "Replace the `<nav>` with `<Plate chamfer={6} screws screwInset={6} style={{ height: 30 }}>` containing `<Barcode width={95} height={13} />` at left:14 top:4 and the mono line beneath it at left:14 bottom:4, fontSize 7, color '#2a1c0c', opacity 0.85, letterSpacing 0.06em (VER from package.json, ID from the store's deviceId, truncated). Keep navigation reachable by putting two engraved mono links — `STANDINGS ▸` and `DISPLAY ▸` — at the strip's right end in the same dark engraved mono, so the strip still reads as an instrument label rather than a button bar."
+      },
+      {
+        "severity": "major",
+        "what": "the two text blocks above the rows",
+        "reference_says": "Nothing sits between the day rail and the first row plate — rows begin at y≈91. The day name and theme live in the header plate; there are no column labels and no theme line.",
+        "build_does": "Board.tsx:77-84 prints a `DAY 1  NATION — GOD MAKES ETERNAL PROMISES` line, and lines 100-134 print a `TEAM / CLN / VRS / DEED / LSN / BHV / PNC / KEY / TODAY` label row. Together with the bare title these fill the top ~290 CSS px of the screen with chrome-less floating text on the wall — the reference uses 84px of hardware for the same region.",
+        "fix": "Delete both blocks (77-84 and 100-134). The theme moves into the header plate (see the header delta). To keep roll call reachable without labels, make each binary `Lamp` and the punctuality cog a `<button>` that calls `openCall(categoryId)` (navigation only, never a mutation) with an aria-label naming the category — and to avoid nesting buttons inside a link, change the row from a `<Link>` (line 189) to a `<Plate>` with a `<Link>` covering only the rank chip + medallion + name + score region."
+      },
+      {
+        "severity": "minor",
+        "what": "page horizontal padding",
+        "reference_says": "The header plate, row plates and footer strip all run from x≈7 to x≈383 — a ~7px margin, so the hardware nearly touches the screen edge.",
+        "build_does": "Every block uses `px-5` (20px), so the plates sit 20px in from each edge and the row has ~40px less width to work with — which is why the current column budget (comment at lines 21-26) is so tight that keys had to become a text count.",
+        "fix": "Change `px-5` to `px-2` (8px, on-grid) on the header, day rail, rows container and footer. That returns 24px to the row and makes the measured column edges in the row-layout delta fit as given."
+      },
+      {
+        "severity": "minor",
+        "what": "Arrival non-scoring banner",
+        "reference_says": "Nothing of the kind. The day rail carries the non-scoring signal — Arrival is a socket that is visibly inert.",
+        "build_does": "Board.tsx:86-97 renders a translucent rounded box (`background: rgba(138,82,48,0.12)` with an inset ring) holding `Arrival day · travel and settling in · no scoring`. A tinted translucent panel is not in the material vocabulary and edges toward glassmorphism.",
+        "fix": "Delete the banner block. Preserve the warning by adding an engraved mono tag inside the header plate's right end when `!activeDay.scored`: `NON-SCORING` at 7px in '#2a1c0c', and keep DayRail's strike-through on the Arrival socket."
+      },
+      {
+        "severity": "minor",
+        "what": "specular and lit-metal balance",
+        "reference_says": "measure-material on 01-board.jpg: medianL 64, specular 2.46%, midtone 39%, warmth 30.9. The specular comes from a large count of small bright brass parts — the header's double band, 5 socket collars, 32 row corner screws, 8 key-capsule rails, 8 cog rims, 48 punctuality socket collars, 8 medallion rings, 8 recess lower lips.",
+        "build_does": "measure-material on the current screenshot: medianL 58, specular 1.26% (half the reference), midtone 43.1%, warmth 30.7. Warmth and midtone already pass; the build is short on bright brass edges because it has almost no discrete hardware — no screws, no collars, no frames, no recess lips.",
+        "fix": "No separate tuning pass needed: implementing the header frame, socket rail, per-row corner screws, cog knobs, socket collars, key capsules and score wells above adds exactly the parts the reference gets its specular from. Re-run `node scripts/measure-material.mjs <shot> design/reference/v2/01-board.jpg` afterwards and confirm specular lands near 2.4% and medianL near 64 — if medianL is still low, brighten the row Plate's top-edge chamfer rather than the plate face (warmth and midtone are already on target)."
+      }
+    ],
+    "shared_needs": [
+      "src/components/ChargeTrack.tsx — the lit punctuality sockets are TEAL. The `litFill` gradient (stops #ffffff → #c9fffb → var(--color-accent) → #0e6b66) and the seventh's `hotFill` (→ var(--color-accent) → #12857f) both burn teal, and the seventh's earned rim is teal too. REFERENCE-SPEC says teal is only electricity and punctuality sockets are amber. Change `litFill` to #FFFFFF → var(--color-lamp-hot) → var(--color-lamp) → #7A3D10, `hotFill` to #FFFFFF → var(--color-lamp-hot) → var(--color-lamp) → #B4600F, and the seventh's lit/pulsing rim stroke to var(--color-lamp). The Board will stop using ChargeTrack, but roll call and the team sheet still render it, and the rule is app-wide.",
+      "src/components/DayRail.tsx — SocketRail geometry does not match 01-board.jpg. Sockets are 30px inside `h-11 w-11` buttons with `gap-[26px]` (70px pitch); the reference socket is 24px overall (16px inner disc in a 4px brass collar) on a ~47px pitch. Change the inner span to width/height 24, the collar `inset` to -4 with a 3px band, and the flex `gap-[26px]` to `gap-[23px]`. Also give each end of the rail a 12px circular brass boss behind its rivet — in the reference the rail terminates in a round lug, not a squared-off bar end.",
+      "src/components/DayRail.tsx — the active socket's teal bloom must visibly spill onto the rail and faintly rim the socket next to it (reference halo radius ≈ 2x the socket diameter). If the `lamp-on` class alone does not reach that, add an explicit spill layer behind the socket and above the rail: an absolutely-positioned `-inset-[16px]` div with `background: radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--color-accent) 45%, transparent) 0%, transparent 70%)`, `pointer-events-none`. This variant has never been rendered by any screen, so it needs one visual check.",
+      "src/components/DayRail.tsx — SocketRail hardcodes `justify-center` with a fixed gap, so the socket group's total width (currently 324px, and ~211px after the pitch change) is not adjustable from the Board. If the orchestrator would rather keep the socket span parameterised, expose `socketSize` and `gap` props with the reference values (24 / 23) as defaults."
+    ]
+  },
+  {
+    "screen": "Key ceremony (/#/key/knights) — src/screens/KeyCeremony.tsx",
+    "deltas": [
+      {
+        "severity": "blocking",
+        "what": "the vault door (whole screen ground)",
+        "reference_says": "A dark brushed steel vault door fills the frame: inset ~20px left/right, top edge y≈21, bleeding off the bottom, near-black wall outside it (sampled #18100C at x<20). Door face is cooler and darker than the brass rows elsewhere — sampled #2A241F / #362317 / #3D2B1E where the keyhole light does not reach — with horizontal brushing, a 2px top-left-lit chamfer on every panel edge, rust in the lower crevices, and a hairline engraved panel line inset ~20px inside the door edge. Reference measures medianL 48, midtone 21.7%, specular 7.06%.",
+        "build_does": "No door exists. KeyCeremony.tsx:66-72 paints the root with two radial gradients over linear-gradient(180deg,#1c1409,#16110d,#0f0b07): a flat brown void, no panel edges, no bevel, no brushing, no fasteners. Measures medianL 27, midtone 2.2%, specular 1.58%. scripts/check-material.mjs:19 gates this route at medianL>=42 and midtone>=17, so the screen fails the material gate.",
+        "fix": "Replace the root background at KeyCeremony.tsx:66-72 with two layers: (a) a wall div using var(--color-wall-deep) plus a warm radial vignette; (b) an absolutely-positioned door div at inset 21px 18px 0 20px, className='grain rust-creep' (those theme.css classes supply brushing, grit and lower-edge oxide over any background), background linear-gradient(180deg,#3A322A 0%,#2E2720 38%,#241E19 72%,#1B1712 100%), boxShadow 'inset 1px 1px 0 rgba(255,240,216,0.22), inset -1px -1px 0 rgba(26,14,6,0.6), 0 4px 18px rgba(0,0,0,0.7)'. Add the engraved panel line as a child at inset 20px, radius 10px, boxShadow 'inset 0 1px 0 rgba(255,240,216,0.10), 0 1px 0 rgba(0,0,0,0.5)' plus a 1px rgba(0,0,0,0.45) border. Do not use .steel or Plate here — those are the mid-brass #94795E material and would read as a brass row, not a steel door."
+      },
+      {
+        "severity": "blocking",
+        "what": "centre escutcheon and blown-out keyhole",
+        "reference_says": "A brass keyhole plate 106x182 CSS px (x 143→249, y 208→390 at 390 wide), silhouette arched at BOTH top and bottom (shield-ish), built as a stepped double frame — outer chamfered band, then a raised inner band, then the recessed field. One brass slotted screw at top centre (y≈222) and one at bottom centre (y≈376). Inside it a keyhole blown out to #FEFCC8: a circle centred (194,274) r≈20 plus a tapered slot widening from r to ~34 wide at y≈356. Plate brass samples #97662D avg with #FFF2B8 peaks; the keyhole light re-lights the plate's own inner face.",
+        "build_does": "Nothing at the centre but a flat cartoon key drawn at scale(4.6) (KeyCeremony.tsx:166-179). No escutcheon, no keyhole, no plate, no screws.",
+        "fix": "In the SVG layer, draw the escutcheon as a single path with arched top and bottom, e.g. M143 300 L143 250 Q143 208 196 208 Q249 208 249 250 L249 350 Q249 390 196 390 Q143 390 143 350 Z, filled with a top-left-lit linear gradient #F0D49A→#B8925A→#8A6C3C→#5A4526, then repeat the path inset 7px with stroke rgba(255,244,214,0.35) on the top-left arc and rgba(24,14,5,0.55) on the bottom-right for the double-frame step. Cut the keyhole as one path (circle r20 at 194,274 unioned with a slot tapering to 34px wide at y356) filled #FEFCC8 with a 2px #FFF4D0 rim, and put a radialGradient bloom of --color-key behind the plate so the plate's inner field is visibly lit by it. Place a brass Screw-style dot at (196,222) and (196,376). Sizing matters for the material gate: the escutcheon plus posts plus seal plus rail must cover roughly 14% of the 390x844 frame."
+      },
+      {
+        "severity": "blocking",
+        "what": "god-rays from the keyhole",
+        "reference_says": "The keyhole is the screen's emitter and throws a fan of broad soft gold wedges radially outward across the door in every direction — up-left, up-right, down-left, down-right — reaching x 150→930 and y 480→1180 in reference pixels. The rays are what carry the door face into the midtone band: sampled #D0A050 immediately left of the escutcheon, #995F27 up-left at (330,600), #745239 below it, falling to #211610 behind the title block. This is the single biggest contributor to the reference's 21.7% midtone.",
+        "build_does": "One flat radial gradient circle r=210 of --key at 30% opacity centred below the arc (KeyCeremony.tsx:126-134). It is an undirected haze, not directional light, and it lifts almost none of the frame — midtone measures 2.2%.",
+        "fix": "Add a ray fan inside the SVG, drawn BEHIND the escutcheon and above the door: 14-18 triangular wedges whose apex is the keyhole centre (194,274), each 4-9deg wide, lengths varied 140-260px, fill a linearGradient from rgba(255,214,120,0.42) at the apex to transparent at the tip, group opacity ~0.75, with two or three wedges deliberately wider and brighter. Vary the angles irregularly — an even fan reads as a starburst sticker. Add an elliptical pool of rgba(255,198,61,0.22)→transparent centred on the keyhole so the light also reads as a wash on the door, not only as spokes. On award, raise the group opacity via a transform/opacity-only transition (no filter or layout animation)."
+      },
+      {
+        "severity": "blocking",
+        "what": "key rail and hanging keys at the bottom",
+        "reference_says": "A brass bar 29px tall spanning the FULL frame width edge to edge (it bleeds past the door on both sides), top edge at y≈574, with a raised end block at each far end, round rivets along it (one at centre x≈195), rust staining, and a rolled lit top edge (sampled #88683B avg, #EECD93 peak). Keys HANG from it by their bows, the bow ring straddling the bar's top edge, ~112px tall and ~30px wide, at x≈117 and x≈269. Previously-awarded keys hang dull, cold and patinated; the newly awarded one is incandescent gold-white with orange sparks flying off and pale smoke rising past the rail, its bloom lighting the rail brass and the door around it.",
+        "build_does": "There is no rail and no hanging key anywhere. The awarded state changes only a line of body copy and the button label (KeyCeremony.tsx:206-224); nothing physical records the award.",
+        "fix": "Add a rail below the title block: a div at inset-x-0 (full bleed; the root already has overflow-hidden), height 29, className='brass-band grain rust-creep', with a Screw at each far end and a rivet span at centre, plus boxShadow 'inset 0 1px 0 rgba(255,244,214,0.45), 0 3px 8px rgba(0,0,0,0.65)'. Beneath it render one KeyGlyph per awarded key from keyCount, size ~30 (KeyGlyph renders 2.3x its size tall, giving ~112px), hanging, positioned absolute so the bow ring overlaps the rail's top edge by ~6px, distributed evenly across the rail width. Previously-awarded keys use lit={false}. In the awarded phase render the new key twice, stacked: a cold KeyGlyph underneath and a lit KeyGlyph on top carrying className='key-cool' — the existing theme.css .key-cool animates opacity 1→0 over 2000ms, so the hot layer fades to reveal the cold one, which is exactly the cool-to-match behaviour and is opacity-only. Add sparks (6-10 short 1x5px gold rects animated with translate+opacity) and smoke (two blurred pale ellipses animated with translateY+opacity) parented to the hot key, both suppressed under prefers-reduced-motion while the ignition state itself stays."
+      },
+      {
+        "severity": "blocking",
+        "what": "two vertical brass handle posts",
+        "reference_says": "A vertical brass handle post either side of the escutcheon: 29px wide, 141px tall (left x 70→99, right x 289→320, y 235→376), a rounded capsule with a wider pad at each end carrying a brass slotted screw (screws at y≈247 and y≈365) and a narrower shaft between them. Each post's INNER face is bright where the keyhole light hits it (#F8B34B peak) while its outer edge carries only a dim key-light rim — the posts are lit by the emitter, which is what makes the light read as motivated. These are the two visible brass endpoints the arcs jump from.",
+        "build_does": "No posts. Two 7px ContactPost dots sit at width*0.16 and width*0.84, y=322 (KeyCeremony.tsx:57-60, 157-163) — 273px apart, floating in the void high above the key, with nothing between them but a rope of gold.",
+        "fix": "Replace the two ContactPost dots with real posts drawn in the SVG: a rounded rect x=70 w=29 y=235 h=141 rx=14.5 (mirror at x=289), filled with a horizontal gradient #8A6428→#D9B06A→#7A5622→#3A2810 so the specular sits left-of-centre, plus an extra inner-face highlight stroke of rgba(255,240,200,0.5) on the edge facing the escutcheon. Draw the end pads slightly wider (rx 14.5 circles at y 247 and 365) and put a brass slotted screw in each. Keep a ContactPost (or an equivalent domed cap) at the exact arc endpoint on each post's inner face so the endpoint stays visibly a contact, and add a small corona bloom there."
+      },
+      {
+        "severity": "blocking",
+        "what": "team seal at the top",
+        "reference_says": "A gold coin 126px across, centred at (197,114), overlapping the door's horizontal seam so it reads as mounted proud of both panels. Thick gold outer bezel, an emissive warm-gold interior disc (sampled #B67F42 avg, #FFEDB6 peak) that blooms outward onto the door, a thin engraved ring inside that, the crest emblem in the middle, and the legend struck as circular text along the BOTTOM arc, right-reading, in light cream-gold, with a small dot at each end of the arc. Legend reads FIRE KNIGHTS - EST. 2042.",
+        "build_does": "A 26px TeamCrest sits inline beside the team name in the header (KeyCeremony.tsx:93-101) with no label, no gold, no bloom. At 26px it is a decorative bullet, not the seal — the reference's hero object is 126px and is the second brightest thing on screen after the keyhole.",
+        "fix": "Move the crest out of the header and into the door: absolutely position TeamCrest at size={126}, gold, label={team.name} (roster full name, e.g. 'Fire Knights'; append a struck detail such as ' · EST. 2026' if you want the reference's cadence), centred horizontally with its centre on the seam line at y≈114. Put a radialGradient bloom of rgba(255,198,61,0.30)→transparent, r≈110, behind it so the coin visibly lights the door panels around it, and a contact shadow of 0 6px 14px rgba(0,0,0,0.7) beneath. See shared_needs — TeamCrest's gold variant keeps a dark team-tinted interior and runs the legend over the TOP arc, both of which need changing centrally."
+      },
+      {
+        "severity": "blocking",
+        "what": "title block",
+        "reference_says": "Three stacked lines, centred, very large: GOLDEN KEY in cream heavy condensed spanning nearly the full width (276px wide, 40px cap height → ~55px font-size), baseline y≈480; the team's full name beneath at ~31px cap height (~42px font-size), baseline y≈524; KEY 02 in letterspaced mono, ~14px cap height (~15px font-size, ~0.22em tracking), baseline y≈549. Type sampled cream #F8E7D4.",
+        "build_does": "KeyCeremony.tsx:83-101 renders a tiny mono line 'DAY 1 · GOLDEN KEY' at 9px, then 'Key №2' at 30px as the largest type on screen, then the team name at 15px. The hierarchy is inverted — the reference's largest words are GOLDEN KEY and the team name, and the key number is the smallest line.",
+        "fix": "Rewrite the header block as three centred lines placed on the door between the escutcheon and the rail: (1) 'GOLDEN KEY' in font-display 600 uppercase at 54px, letter-spacing 0.01em, color var(--color-text), line-height 0.9; (2) {team.name.toUpperCase()} in font-display 600 at 42px, same colour; (3) `KEY ${String(number).padStart(2,'0')}` in font-mono at 15px, letter-spacing 0.22em, color var(--color-text). Delete the 'DAY n · Golden Key' tech label at lines 84-86 — the reference has no such line and it competes with the title block. Give the whole block a subtle text-shadow of 0 2px 4px rgba(0,0,0,0.8) so cream type holds against the lit door."
+      },
+      {
+        "severity": "major",
+        "what": "the giant flat key at screen centre",
+        "reference_says": "There is no free-floating key. The key object appears only in two places: implied by the keyhole at centre, and hanging physically from the rail at the bottom.",
+        "build_does": "KeyCeremony.tsx:166-179 draws a key at scale(4.6) — a ~230px flat cartoon key with a plain disc bow, a hard dark inner circle and two rectangular teeth — occupying the whole middle of the screen where the escutcheon belongs. It has no bevel, no material, no seat, and it floats on nothing.",
+        "fix": "Delete the entire <g transform={`translate(${cx} ${postY + 74}) scale(4.6)`}> block (lines 166-179) and the kc-key linearGradient def (113-118) with it. The escutcheon replaces it at centre; the key itself moves to the rail as a KeyGlyph. Do not restyle this element — it is the wrong object in the wrong place."
+      },
+      {
+        "severity": "major",
+        "what": "arc weight, span and endpoints",
+        "reference_says": "Two SHORT arcs, one per side, each spanning only the ~44px gap between a post's inner face and the escutcheon's outer edge (left x 99→143, right x 249→289), both at y≈305, the keyhole's vertical centre. Each is 2-3 fine white-hot filaments (~1 CSS px core) that bow apart into a narrow lens shape and converge hard at both ends, wrapped in a tight gold bloom, with a bright corona where the current lands on the post and on the escutcheon.",
+        "build_does": "One arc spans 273px across the whole screen between the two floating dots (KeyCeremony.tsx:137-150) at weight 0.9, which puts ArcBolt's glow body at 4.9px and its outer bloom at 16px — in the screenshot it reads as a single fat fuzzy gold rope, not current. There is no arc on either side of anything, because there is no escutcheon for current to jump to.",
+        "fix": "Replace the single ArcBolt with two: <ArcBolt x1={99} y1={305} x2={143} y2={305} .../> and <ArcBolt x1={289} y1={305} x2={249} y2={305} .../>, both with color={GOLD} coreColor={GOLD_HOT}, weight={0.4} (so the core lands ~0.8px and the glow body ~2px), strands={live ? 3 : 2}, chaos={live ? 1.1 : 0.7}, intensity={live ? 1 : 0.55}, different seeds. Add a corona at each of the four endpoints (two nested circles of GOLD at 0.10/0.24 opacity plus a small #FFF8E0 core dot) so both terminals read as live contacts. Remove the two diagonal ArcBolts at lines 151-156 — they terminate on the key's midpoint, which is not a contact post, and the key is being deleted anyway."
+      },
+      {
+        "severity": "major",
+        "what": "team name colour",
+        "reference_says": "REFERENCE-SPEC.md: the team colour appears in exactly three places — the crest glyph, a lit binary cell, a filled meter segment — and is never used for a team's name; names are always cream (#F2E7D3). In the reference both GOLDEN KEY and FIRE KNIGHTS are cream.",
+        "build_does": "KeyCeremony.tsx:97 sets the team name to `var(--color-team-${team.colorToken})`, rendering FIRE KNIGHTS in #FF4438 red — the only saturated non-gold element on a screen whose whole point is that it is gold-only.",
+        "fix": "Change line 97's color to var(--color-text). The team colour on this screen survives only inside the crest emblem within the seal. Also check the awarded-state copy at lines 208-211, which uses color var(--color-key) for a full sentence of body text — keep gold for the key and its light, not for prose."
+      },
+      {
+        "severity": "major",
+        "what": "offer vs awarded staging",
+        "reference_says": "The reference render IS the awarded state: keyhole blown out, rays at full, arcs live, the new key incandescent with sparks and smoke and cooling over ~2s. That implies a visibly quieter pre-award state for the same hardware.",
+        "build_does": "The two phases differ only in arc intensity/chaos/strands and in the paragraph and button below (KeyCeremony.tsx:61, 145-156, 184-225). The .key-cool animation that theme.css:620 provides specifically for this screen is never used, so nothing ignites and nothing cools.",
+        "fix": "Stage both phases off the existing `live` flag. Offer: keyhole is a dark well with only a faint warm rim (fill var(--color-well), 1px rgba(255,198,61,0.35) rim), ray group opacity ~0.18, arcs at intensity 0.55/strands 2, rail shows only the previously-awarded cold keys plus one visibly empty position. Awarded: keyhole fill #FEFCC8 at full, ray group opacity ~0.8, arcs at intensity 1/strands 3, and the new key mounted hot with the .key-cool overlay described above. Transition ray and bloom opacity only — no filter, width, or layout animation, per the motion rule — and keep the ignition state change under prefers-reduced-motion while dropping sparks, smoke and arc flicker."
+      },
+      {
+        "severity": "major",
+        "what": "award control and body copy",
+        "reference_says": "No web-style button and no explanatory paragraph anywhere. Every interactive-looking thing on the door is hardware: the escutcheon, the posts, the rail.",
+        "build_does": "KeyCeremony.tsx:186-204 renders a two-line explanatory paragraph in --text-dim plus a full-width 56px `rounded` dark rectangle labelled 'Award the key'. It reads as a generic web CTA, and together the paragraph and button consume ~120px at the bottom of the viewport — exactly the band the key rail and hanging keys need.",
+        "fix": "Delete the paragraph at lines 186-189. Make the escutcheon itself the primary control: wrap it in a <button aria-label={`Award golden key ${number} to ${team.name}`}> with the keyhole as its face, and put a small engraved brass nameplate beneath the escutcheon reading TURN TO AWARD (BrassPlate from chrome.tsx, size 11, tracking 0.24em). Keep one text-labelled control for reachability but restyle it as brass hardware, not a rounded web button: BrassPlate or a chamfered plate with two screws, ~40px tall, centred, not full-width. No script clicks this button (see shared_needs), so the accessible name is free to change — just keep it a real button with a discoverable name, and keep the awarded state assertable from the DOM (a data-part on the rail plus data-lit on the new key is the cheapest hook)."
+      },
+      {
+        "severity": "minor",
+        "what": "door seam and fasteners",
+        "reference_says": "A horizontal seam splits a short top panel (y 21→113) from the main door: a dark groove at y≈113 with the lower panel's lit top chamfer immediately beneath it (groove sampled #190F09, lip #533D2B — top-left key light catching the proud lower panel). Fasteners are PALE STEEL domed heads ~10px across in dark washer seats (peaks #F2E3D7 / #FCE9DC, no slot), at x≈34 and x≈356, in rows at y≈34, y≈97 and y≈126, with another row low on the door. The brass hardware (escutcheon, posts, rail) uses brass SLOTTED screws instead — two distinct fastener families.",
+        "build_does": "No seam and no fasteners of any kind.",
+        "fix": "Draw the seam as two 1px divs at y=112 and y=114: the upper rgba(0,0,0,0.75), the lower rgba(255,240,216,0.20), spanning the door's inner width. Add steel door bolts as spans: 10px circles with background radial-gradient(circle at 36% 32%, #FCE9DC, #9A8C82 46%, #4A423C 100%) in a 1px rgba(0,0,0,0.8) seat with a 0 1px 0 rgba(255,240,216,0.15) lip, at x 34 and 356 for rows y 34, 97, 126 and one low row above the rail. Use chrome.tsx's brass Screw only on the escutcheon, posts and rail ends — do not use it for the door itself, the reference's door fasteners are cool steel, not brass."
+      },
+      {
+        "severity": "minor",
+        "what": "key ordinal glyph",
+        "reference_says": "KEY 02 — the word KEY, a space, and a zero-padded two-digit numeral in letterspaced mono.",
+        "build_does": "KeyCeremony.tsx:91 and 210 render 'Key №{number}', producing 'Key №2': a numero sign that appears nowhere else in the app, mixed case, and an unpadded digit.",
+        "fix": "Use `KEY ${String(number).padStart(2, '0')}` in font-mono uppercase at both call sites (lines 91 and 210). Keep the numerals tabular so the label does not shift width between key 09 and key 10."
+      },
+      {
+        "severity": "minor",
+        "what": "back affordance",
+        "reference_says": "The reference shows no navigation chrome — the door is the whole screen.",
+        "build_does": "KeyCeremony.tsx:75-80 puts a bare mono '← BACK' text button at the top left of the void, which will now sit on top of the door's upper panel and read as a web link pasted onto metal.",
+        "fix": "Keep the route but make it hardware: a small engraved brass tab (BrassPlate, size 10, tracking 0.24em, one Screw) at the door's top-left inside the engraved panel line, or an arrow cut into the door with the ScreenHeader back-arrow SVG treatment. Keep the 44px tap target and the accessible name."
+      }
+    ],
+    "shared_needs": [
+      "src/components/TeamCrest.tsx — the `gold` variant only swaps the bezel gradients; the interior stays a dark team-tinted well (g('inner') is built from shade(hex,-0.7..-0.9) at lines 132-136). In reference 04 the ceremony seal's interior is an EMISSIVE warm-gold disc (sampled #B67F42 avg, #FFEDB6 peak) with the emblem sitting on it. Requested change: when `gold` is true, drive the g('inner') stops from gold instead of the team hex — 0% #7A5514, 52% #5A3C0C, 100% #332206 — and add a var(--color-key) bloom circle over the interior at ~0.30 opacity. Keep the emblem itself in team colour (that is one of the three sanctioned team-colour placements). Without this the 126px seal reads as a dark red coin on a gold screen.",
+      "src/components/TeamCrest.tsx — the `label` textPath arc (line 143) is the TOP semicircle: d='M 32 32 m -23.4 0 a 23.4 23.4 0 1 1 46.8 0'. Reference 04 runs the seal legend along the BOTTOM arc, right-reading, with a small dot at each end of the arc. Requested change: add a `labelAt?: 'top' | 'bottom'` prop defaulting to 'top' (so the team sheet and big screen are unaffected) and, when 'bottom', use d='M 32 32 m -23.4 0 a 23.4 23.4 0 1 0 46.8 0' plus two r=0.9 dots at (8.6,32) and (55.4,32).",
+      "src/components/TeamCrest.tsx — the `label` text fill is #33240F, dark engraved (line 189). On the reference seal the legend is light cream-gold, lit by the coin's own emitting interior. Requested change: when `gold` is true, set the label fill to #FFF2C4 and give it a 0.3px stroke of rgba(90,54,6,0.5) so it still reads as struck rather than printed.",
+      "src/components/chrome.tsx — KeyGlyph's bow is a plain stroked circle r=5.6 (line 493) and its bit is two plain rects. On this screen the hanging keys are ~112 CSS px tall, where the reference bow is a wide OVAL ring with a heart-shaped inner cutout plus a turned collar below it. Requested change (non-blocking polish): make the bow an ellipse rx=7.2 ry=5.4 with a heart-shaped inner cutout using fillRule='evenodd', and add a turned collar as two stacked tapered rects between bow and shank. At 30px+ the current bow reads as a keychain split-ring.",
+      "scripts/ — no change needed, but the orchestrator's brief is factually wrong on one point and it will misdirect other agents: scripts/check-commit-flow.mjs does NOT touch this screen (it only drives #/call/good_deed and the lever, lines 25-58), and scripts/award-shot.mjs points at a dead #/award/turquoise route. The only script that visits #/key/knights is scripts/check-material.mjs:19, which seeds jr:setting:director-mode=1, screenshots full-page at 390x844 DPR 2, and gates warmth 18..70, medianL 42..100, midtone 17..64, specular 1.1..12 plus R>G>B channel ordering. Nothing clicks the award button, so its accessible name is not load-bearing. check-dod.mjs and check-motion.mjs do not list this route at all, so the no-multiplier and transition-property checks never see it — hold those rules by hand here."
+    ]
+  },
+  {
+    "screen": "Big screen (/#/display)",
+    "deltas": [
+      {
+        "severity": "blocking",
+        "what": "column body + footing plate (the missing metal)",
+        "reference_says": "Each team is a tall brushed plate ~161px wide standing on the wall: chamfered top corners (~14px), bevel lit top-left, a brass slotted screw at each top corner, plate face sampling #5E4A3D at the top through #4A3A2E to #33281F at the bottom, rust creeping along the lower edge. At the bottom of every column sits a separate brass FOOTING plate ~80px tall, ~12px wider than the column on each side, four screws (one per corner, inset ~14px), a bright diagonal specular streak sweeping upper-left to lower-right, and a hard contact shadow beneath. The footings are the floor. Sampled: footing face #513F35 with peaks to #EAC8B5.",
+        "build_does": "There is no plate and no footing. BigScreen.tsx:211-222 draws only a 1px `inset 0 0 0 1px rgba(237,227,210,0.07)` outline for the column, and :194-208 a 16px hatched brass strip (BASE_H = 16) as a base. The columns are literally floating coloured bars on a gradient. This is the whole material deficit: medianL 30 vs the reference's 48, midtone 16.6% vs 20.2%, specular 2.21% vs 5.00% — `scripts/check-material.mjs` currently FAILS this route (medianL floor 42, midtone floor 17).",
+        "fix": "In Column(), wrap each column in `<Plate chamfer={14} screws rust style={{position:'absolute', left:x, top:376, width:160, height:608}}>` and render the head/meter inside it. Because `.plate`'s shared face (#94795E→#654632, luma 85-120) is brighter than this reference's column plates and would put ~38% of the screen in the midtone band, add one ambient-shading child inside the Plate: `<div style={{position:'absolute',inset:0,background:'linear-gradient(180deg, rgba(20,12,6,0.30) 0%, rgba(20,12,6,0.52) 100%)',pointerEvents:'none'}}/>` — that lands the face at ~#5E4A3D→#3A2E25 and preserves the top-left bevel and screws. Replace the 16px strip at :194-208 with a footing `<Plate chamfer={6} style={{left:x-12,top:904,width:184,height:80}}>` carrying four `<Screw>`s at inset 14 and one absolutely-positioned specular streak child: `background:'linear-gradient(118deg, transparent 30%, rgba(255,238,211,0.42) 46%, rgba(255,238,211,0.10) 56%, transparent 66%)'`. Keep every column's footing on the same top edge."
+      },
+      {
+        "severity": "blocking",
+        "what": "the vertical meter — recessed channel of discrete slots",
+        "reference_says": "A recessed dark channel cut into the column plate, inset ~24px from its left and right edges, holding DISCRETE horizontal slots of identical height (slot ~30px, gap ~7px, radius ~6px). Every slot is visible whether lit or not: empty slots are near-black recesses (#1D1411) with a faint warm rim on their upper lip (#40342D) and the channel wall showing between them. Filled slots glow the team colour bottom-up (sampled fill #EFCD5F on the gold column, peak #FFFFB7) with a bright top face and a tight bloom onto the channel walls only. The topmost lit slot may be a HALF-WIDTH partial for the fractional tenth (the leader's top slot is left-half red / right-half dark). No slot is ever gold — the meter is team colour only, top to bottom.",
+        "build_does": "BigScreen.tsx:168-190 draws free-floating full-column-width bricks straight onto the background: no channel, no housing, no visible empty capacity, and the gaps between bricks show the wall rather than a recess, so it reads as a stacked bar chart rather than a gauge. Worse, :156-160 appends one GOLD brick per key on top of the team-colour stack (`fill = gold ? 'var(--color-key)' : color`), so the leader's meter is capped with three yellow bricks that read as a rendering bug and duplicate what the key rail already says.",
+        "fix": "Delete the gold-brick branch at BigScreen.tsx:160 and the `gold` field on the brick objects at :156-159 — the meter carries `totalDeci` in team colour only. Inside the column Plate, cut a channel with `<Well radius={4} style={{position:'absolute', left:24, right:24, top:136, bottom:8}}>`. Give the channel a fixed capacity `CAP = Math.max(10, Math.ceil(maxTotalDeci/10))`, identical in all eight columns, and render exactly CAP slot divs bottom-up at `pitch = channelH / CAP`, `slotH = pitch - 8`. Empty slot: `background:'#1D1411'`, `boxShadow:'inset 0 2px 3px rgba(0,0,0,0.75), inset 0 -1px 0 rgba(84,71,64,0.55)'`, radius 6. Lit slot: `background: linear-gradient(180deg, color-mix(in oklab, <color> 55%, #fff) 0%, <color> 34%, <color> 74%, color-mix(in oklab, <color> 72%, #000) 100%)` plus `boxShadow:'inset 0 1px 0 rgba(255,255,255,0.6), 0 0 12px <color>'` so the spill lands on the channel wall and nowhere else. For the fractional tenth render the topmost lit slot at `width:'50%'` (half-width, per REFERENCE-SPEC and the leader column; the last column draws the same idea as a reduced-height bar — pick one and use it in all eight)."
+      },
+      {
+        "severity": "blocking",
+        "what": "header — two brass title plates, not a centred heading",
+        "reference_says": "Two plates on the wall. TOP LEFT, x 48→~770, y 40→208: chamfered corners (the inner corner facing the gap is a large ~14px cut), a screw at each corner inset ~18px, heavy rust staining along the bottom edge, `JUNKYARD REDEMPTION` in cream (#F0E2CC) heavy condensed at ~64px with a hard dark drop shadow offset about +3/+4 for embossed relief, over `SOL KIDS CAMP` at ~26px in the same cream and shadow. TOP RIGHT, its mirror: `DAY 2 · KINGDOM` at ~64px (middle dot separator, not an em dash) over `GOD PROMISES A PERFECT RULER` at ~26px, uppercase cream — not dim. The ~380px gap between the plates, over the leader, is where the key rails hang.",
+        "build_does": "BigScreen.tsx:85-112 centres a bare `display-title` of `activeDay.name` (\"DAY 1\") at 62px on the background, with `activeDay.theme` under it in `var(--font-body)` at 27px in `--color-text-dim` and sentence case (\"Nation — God Makes Eternal Promises\"), followed by a 620px hairline. There is no plate, no screw, no camp identity, and the theme reads as dim body copy.",
+        "fix": "Replace :85-112 with two `<Plate chamfer={14} screws screwInset={18} rust>` panels absolutely positioned at `{left:48, top:40, width:723, height:168}` and `{left:1149, top:40, width:723, height:168}`. Left plate: `JUNKYARD REDEMPTION` in `.display-title` at 64px, letterSpacing 0.02em, `color:'var(--color-text)'`, `textShadow:'0 3px 0 rgba(24,14,6,0.75), 0 5px 10px rgba(0,0,0,0.6)'`, over `SOL KIDS CAMP` at 26px with the same cream and shadow. Right plate, right-aligned: `DAY {activeDay.index} · {activeDay.theme.split('—')[0].trim().toUpperCase()}` on the top line and `{activeDay.theme.split('—')[1].trim().toUpperCase()}` at 26px beneath, both cream rather than `--color-text-dim`. Drop the hairline at :103-111."
+      },
+      {
+        "severity": "blocking",
+        "what": "column head — medallion, nameplate and score all belong at the top",
+        "reference_says": "Reading down each column: (1) the MEDALLION, ~96px, overhanging the plate's top edge by about two thirds of its diameter, glyph luminous in the team colour on every column and not only the leader; (2) a brass NAMEPLATE inset in the plate width, ~48px tall, a screw at each end vertically centred, the team name in tiny DARK ENGRAVED caps wrapping to two lines (`GOLD / GUARDIANS`, ~20px per line); (3) the SCORE in huge cream tabular numerals, ~88px, centred, sitting ABOVE the meter inside the column head; then (4) the meter channel. All eight nameplates share a baseline and all eight scores share a baseline.",
+        "build_does": "BigScreen.tsx:244-268 puts all three BELOW the column, under the base strip: a 42px crest with `glow={isLeader ? 1 : 0}` so seven of eight crests read as unlit dots, the shortName as bare 24px text with `color` set to the team colour (:256) — violating \"team NAMES are always cream, never tinted\" — and the score at only 42px (:262-267). There is no nameplate hardware at all and the column head is empty.",
+        "fix": "Move the :244-268 block into the column Plate as its head and delete the foot. Crest: `<TeamCrest teamId={team.id} size={96} glow={isLeader ? 1 : 0.5} />` centred on the plate's top edge (`top: -56` relative to the plate) — pass a non-zero glow on every column so the glyph is luminous. Name: `<BrassPlate screws size={20} tracking=\"0.10em\">` with the shortName split on its space so it wraps to two lines, the plate height fixed at 48 in all eight columns so the baselines are shared; BrassPlate's engraved dark type is the reference treatment and it removes the tinted-name violation, so do not restore `color` on the name. Score: `className=\"numeral\"`, `fontSize: 88`, `color:'var(--color-text)'`, `fontVariantNumeric:'tabular-nums'`, centred between nameplate and channel."
+      },
+      {
+        "severity": "blocking",
+        "what": "leader hardware — bracket posts, full-height arcs, cables",
+        "reference_says": "The leader carries TWO BRASS CONTACT-POST BRACKETS ON EACH SIDE: a rectangular brass bracket with two visible screws at the top of the plate and a larger one lower down, per side, mounted on a vertical brass rail. TEAL ARCS RUN THE FULL HEIGHT (~450px) between the top and bottom bracket on BOTH sides, jagged with a white-hot core and a heavy teal bloom, and dark rubber CABLES loop outward and down from the lower brackets. The meter channel's own edges glow teal from that light. Leader only — no arc anywhere else on the board.",
+        "build_does": "BigScreen.tsx:225-241 draws one short HORIZONTAL arc, 60px tall, floating above the top brick of whichever column is leftmost, between two small round `ContactPost`s (r=10). Nothing runs the height of the column, there are no brackets, no cables and no teal spill on the channel; and because rank 1 is drawn leftmost, the arc sits at the far left of the board instead of on a centred column.",
+        "fix": "Replace :225-241 with, per side of the leader plate (offset ~44px outside its left and right edges): a vertical brass rail div (`.brass-band`, 10px wide, full plate height); a bracket at the rail's top and another at its lower third, each a small `<Plate chamfer={3}>` about 34x56 carrying two `<Screw slot={…}>`; then one absolutely-positioned SVG per side spanning the two brackets with `<ArcBolt x1={cx} y1={topBracketY} x2={cx+6} y2={bottomBracketY} chaos={2.2} weight={1.6} strands={2} intensity={0.95} seed={…}/>` and a `<ContactPost>` at each end so the arc terminates on visible brass (ArcBolt's amplitude is capped at 10px * chaos, so a 450px bolt needs chaos ≈ 2.2 to deviate like the reference). Add a dark cable: an SVG `<path>` in `#1B1410` with a 3px lit top edge looping from the lower bracket outward and down to the footing. Add the teal spill on the leader's Well only: `boxShadow:'0 0 0 1px rgba(47,217,208,0.55), 0 0 18px rgba(47,217,208,0.30)'`. Gate all of it on `isLeader`."
+      },
+      {
+        "severity": "blocking",
+        "what": "column order and leader placement",
+        "reference_says": "Eight columns laid out 4 · LEADER · 3 with the leader CENTRED in the composition and ELEVATED: its plate top sits ~80px higher than the other seven (bigger medallion, bigger score in the taller head) while its footing stays on the same baseline as everybody else's. The seven non-leaders are otherwise geometrically identical. The leader group is separated from its neighbours by a wider gap (~130-170px), which is what the side posts and arc corridors occupy.",
+        "build_does": "BigScreen.tsx:115-127 lays the standings out in strict rank order left to right (`x = originX + i * (COL_W + COL_GAP)`, COL_W 176 / COL_GAP 24), so the leader is the leftmost column, every column head is at the same height and there is no centre. The middle of the screen is occupied by rank 4.",
+        "fix": "Split `rows` into `leader = rows[0]` and `rest = rows.slice(1)`, then render `rest[0..3]` left of centre, the leader centred at x 880 (COL_W 160), and `rest[4..6]` right of centre. On the 8px grid inside a 48→1872 content band: COL_W 160, COL_GAP 40, leader side gap 152 (8*160 + 6*40 + 2*152 = 1824 exactly), giving plate lefts 48, 248, 448, 648 | 880 | 1192, 1392, 1592 on one shared footing baseline. Give the leader plate `top: 296` against the others' `top: 376`, with a 112px medallion and a ~104px score filling the taller head, and keep its channel top, bottom, slot pitch and slot count identical to the other seven so the meters stay comparable."
+      },
+      {
+        "severity": "major",
+        "what": "outer frame, inner mounting panel, corner screws, rust",
+        "reference_says": "The screen is one machine: the wall shows only as a ~30px band at the extreme edges, and everything is mounted on a large inner panel with chamfered corners, a bevel lit top-left, a big brass screw at each of its corners (visible bottom-right at about (1866,1017)) and heavy rust along its bottom edge and lower corners. The header plates and footings sit proud of that panel. Sampled: wall #1F1610, panel #17100D–#1E1814.",
+        "build_does": "BigScreen.tsx:70-83 renders the 1920x1080 box as three stacked radial/linear gradients only. There is no bezel, no panel, no corner screw and no rust anywhere on the screen, which is a large part of the missing specular mass (2.21% vs 5.00%).",
+        "fix": "Wrap the fixed 1920x1080 box's contents in a mounting panel: an absolutely-positioned div at `inset: 24` with `className=\"steel grain rust-creep\"` and chamfered corners (or `<Plate chamfer={18} screws screwInset={22} rust>`), plus a dimming overlay holding it near #1E1814 so it stays darker than the plates mounted on it. Keep the existing warm vignette on the outer box so the wall still reads at the edges, and position the header plates, columns and footings inside this panel."
+      },
+      {
+        "severity": "major",
+        "what": "the number and the meter scale disagree",
+        "reference_says": "Column heads read 7.3, 6.0, 4.7, 3.3, 8.0, 5.3, 2.0, 0.6 — single-digit values that can only be one day's score plus that day's keys (6.0 ceiling + keys), matching the `DAY 2 · KINGDOM` plate above them. One meter slot = 1.0 point, the channel holds 8-10 slots, and the fraction is the partial slot at the top. The number and the meter are the same reading at two resolutions.",
+        "build_does": "BigScreen.tsx:47 uses `standings(events, days, teams)`, which is cumulative across every scored day, so the heads read 15.9 / 15.3 / 14.3 / … while the header names a single day. :49-52 then derives the brick scale from the leader (`maxBricks = ceil(leaderTotal/10)` = 16, `brickH` 28.5px), so the meter's unit silently changes with the data and 16 bricks are not countable from the back of a hall — which is the stated reason the meter exists.",
+        "fix": "Read the day, not the camp: `const scores = dayScores(events, activeDay.id, teams)` plus `dayRanks(scores)` (both already exported from `src/data/derive`, so no shared edit), sort by `totalDeci` descending, and render `formatDeci(score.totalDeci)` in the head. Set the channel capacity once for the whole board: `CAP = Math.max(10, Math.ceil(Math.max(...scores.map(s => s.totalDeci)) / 10))`, so 6.0 of base plus up to four keys always fits and all eight columns share one slot count and pitch. Keep integer tenths — lit slots = `Math.floor(totalDeci/10)`, partial = `totalDeci % 10` tenths, never a float divide. (If the cumulative read must stay, the header plate has to stop naming a single day and CAP must still be computed this way — but 16 slots in a 400px channel is not countable, which is why the reference is day-scoped.)"
+      },
+      {
+        "severity": "major",
+        "what": "key rails above the columns that hold keys",
+        "reference_says": "Short horizontal brass rails with a brass CLAMP at each end, one per team that holds keys, positioned directly above THAT team's column and only a little wider than it. Golden keys hang from the rail by their bows and gold-white lightning crackles off the key bits downward toward the medallion below. In the reference only two rails exist for eight teams — the leader's (2 keys, hanging into the open gap between the header plates at y≈40) and column 5's (1 key, hanging just under the right header plate's edge at y≈212).",
+        "build_does": "BigScreen.tsx:274-337 renders one KeyHanger per column, each an SVG rail `COL_W + 20` wide starting at `x - 10`, so all eight rails abut into a single unbroken bar spanning the whole screen with a key under every column and no clamps. The keys are hand-rolled SVG rather than the shared `KeyGlyph`/`BrassRail`, and each carries two large unmotivated haloes (`<circle r=15 fill=var(--color-key) opacity=0.12>` at :307-308, ~34px at the 2.3 scale) that render as brown discs floating on the wall — glow with no emitting surface under it. There is no crackle.",
+        "fix": "Render a rail only when that team's key count is non-zero, `width = COL_W + 24` centred on the column, at `top: 214` (just below the header plates) — or `top: 56` for the centred leader, whose rail hangs in the open gap. Use `<BrassRail height={12}>` for the bar (its end rivets read as the reference's clamps) and `<KeyGlyph hanging size={26}>` per key, up to three, then `+N` in tabular numerals (never `×`). Delete the halo circles at :307-308 — KeyGlyph already carries a motivated drop-shadow bloom. Add the crackle as a short `<ArcBolt>` from the rail collar to the key's bow with `color=\"var(--color-key)\"` / `coreColor=\"var(--color-key-hot)\"` so both endpoints are visible brass; see shared_needs, because CLAUDE.md currently forbids gold as an arc colour outside the ceremony."
+      },
+      {
+        "severity": "minor",
+        "what": "the floor line under the columns",
+        "reference_says": "Nothing spans the board beneath the columns. Each footing plate seats itself with its own hard contact shadow onto the mounting panel, and the rust in the joint is what reads as the joint.",
+        "build_does": "BigScreen.tsx:130-139 draws a 5px full-width brass gradient line at `STACK_BOTTOM + BASE_H + 2` — a decorative rule that belongs to no object and cuts the composition in half horizontally.",
+        "fix": "Delete :130-139. Put the seating into each footing instead: `boxShadow:'inset 0 1px 0 rgba(255,244,214,0.6), 0 6px 10px rgba(0,0,0,0.65)'`, and let `rust` on the footing Plate supply the joint grime."
+      },
+      {
+        "severity": "minor",
+        "what": "hand-rolled hardware instead of the shared vocabulary",
+        "reference_says": "Every part on this screen is one of the six shared machine parts — plate, screw, brass frame, recess, emitter, medallion — so the big screen and the phone screens read as the same machine under one light direction.",
+        "build_does": "BigScreen.tsx builds its own rail gradient (:285-301), its own key path (:302-320) and its own base strip (:194-208) in raw SVG/CSS, duplicating `BrassRail`, `KeyGlyph` and `Plate`, and renders no `Screw` anywhere — so bevel direction and highlight colour drift from the rest of the app.",
+        "fix": "Replace the local `bs-rail-*` gradient and key `<g>` in KeyHanger with `BrassRail` + `KeyGlyph`, and the base strip with a `Plate` footing plus `Screw`s, as described in the column-body and key-rail fixes. Import them from `../components/chrome`; no shared edit is required."
+      },
+      {
+        "severity": "minor",
+        "what": "material gate target",
+        "reference_says": "warmth 22.7, medianL 48, midtone 20.2%, specular 5.00%.",
+        "build_does": "warmth 25.6, medianL 30, midtone 16.6%, specular 2.21% — below the central `scripts/check-material.mjs` floors of medianL 42 and midtone 17, so this route currently fails the gate.",
+        "fix": "Once the column plates, header plates, nameplates, medallions and footings land, re-run `node scripts/measure-material.mjs <shot> design/reference/v2/06-big-screen.jpg` and tune only the column-face ambient overlay opacity (0.30→0.52 in the column-body fix) until medianL sits in the mid-40s to 50s and midtone in the low 20s. Specular comes from screw highlights, footing streaks and brass nameplate peaks — if spec% is still under 4%, brighten the footing streak stop toward `--color-plate-spec` (#FFEED3) rather than raising the plate face, which would push midtone past the reference."
+      }
+    ],
+    "shared_needs": [
+      "CLAUDE.md: adjudicate the gold-arc rule for this screen. CLAUDE.md says \"never let gold act as an arc colour on any other screen\" (ceremony only), but REFERENCE-SPEC screen 06 and 06-big-screen.jpg both show gold-white lightning crackling off the hanging keys. Either add an explicit clause — \"the big screen's key-rail crackle is the second gold-arc exception; it is short, terminates on the rail collar and the key bow, and never touches a meter or a column\" — or state that the crackle must be a gold bloom/spark with no ArcBolt at all, so /display does not silently break a stated rule.",
+      "No code change is needed in any shared file: ArcBolt already accepts arbitrary endpoints so vertical leader arcs work (amplitude is capped at 10px * chaos, so ~450px bolts want chaos ≈ 2.2), Plate/BrassPlate/BrassRail/Well/Screw/KeyGlyph/ContactPost/TeamCrest cover every part named above, and dayScores + dayRanks are already exported from src/data/derive. scripts/check-dod.mjs asserts nothing structural about /display beyond \"no multiplier notation\", so the restructure is safe to do inside src/screens/BigScreen.tsx alone."
+    ]
+  },
+  {
+    "screen": "Team sheet — /#/team/:teamId (verified against design/reference/v2/05-team-sheet.jpg, 1080×1935 ⇒ 390×699 CSS at 2.769×; build measures 390×952 CSS, material 97 medianL / 56.1% midtone / 1.08% specular / 35 warmth vs reference 66 / 37.5% / 2.23% / 44.3)",
+    "deltas": [
+      {
+        "severity": "blocking",
+        "what": "punctuality row placement",
+        "reference_says": "Punctuality is row 2 of six IDENTICAL 54px-tall chamfered plates (order: CLEANLINESS, PUNCTUALITY, MEMORY VERSE, GOOD DEED, LESSON KNOWLEDGE, BEHAVIOR). It carries the same glyph + divider + label as the others; only its right-hand control differs (charge track instead of toggle). Whole screen fits 699 CSS px, no scroll.",
+        "build_does": "TeamSheet.tsx:137-189 hoists punctuality into its own 172px-tall block ABOVE the list, with the label at 13px, a 318px-wide track, and a 7-cell grid of activity time chips (8:30 / 9:00 / …) underneath that exists nowhere in the reference. The five binaries then follow as a separate list. Page is 952 CSS tall and scrolls.",
+        "fix": "Delete the whole `{/* punctuality first */}` block (TeamSheet.tsx:136-189) including the SOCKET_CENTER_PCT time-chip grid. Map once over `SCORED_CATEGORIES` from src/data/scoring.ts (it is already in exactly the reference order) and render one 54px row per entry; inside the row switch on `c === 'punctuality'` to render <ChargeTrack> instead of the toggle. Move the per-activity check-in interaction onto the six lamps + cog inside ChargeTrack (each socket becomes a <button> whose aria-label is the activity label + time), so the chip grid is not needed."
+      },
+      {
+        "severity": "blocking",
+        "what": "binary row control (the toggle)",
+        "reference_says": "At the RIGHT end of each row, a 62×31 CSS physical capsule toggle: a recessed seat cut into the plate, a raised brass bezel ring ~3px, and inside it a recessed track. ON = emissive amber track (#EE8636 core, hot band #F68C31 along the lower inner edge), the word `ON` in pale cream (sampled #FFE0A0 ≈ --color-lamp-hot) at ~14px heavy condensed on the left half of the track, and a 26px domed brushed-brass knob (specular #FFF0B9) pushed to the RIGHT, sitting proud and shadowing the track. Amber spills ~10px onto the plate around the capsule. OFF = dead capsule on --color-off-track (#54402E), `OFF` in dim warm grey (#A08165) on the RIGHT half, dull gunmetal knob at the LEFT, no bezel glow at all.",
+        "build_does": "Breaker.tsx renders a 30×39 VERTICAL paddle switch, and TeamSheet.tsx:207 places it at the row's LEFT edge, before the label. There is no capsule, no ON/OFF word, no brass knob. The right end of the row instead holds a score numeral.",
+        "fix": "Add `variant?: 'cell' | 'toggle'` to Breaker.tsx, defaulting to `'cell'` so Board.tsx:228 and Lab.tsx keep the current paddle unchanged. Implement `'toggle'` as the 62×31 capsule described above (SVG or nested divs): recess groove ring, brass bezel via a lit-top-left linear-gradient border, track filled `linear-gradient(180deg,#c9550a,#ee8636 55%,#f68c31 88%)` when on with `.lamp-on` and `--emit: var(--color-lamp)` for the spill, `ON`/`OFF` text as described, knob = radial brass gradient with a dark contact ring. In TeamSheet.tsx move it from position 1 to the row's right end and delete the numeral span at :217-222."
+      },
+      {
+        "severity": "blocking",
+        "what": "punctuality colour — teal where the reference is amber",
+        "reference_says": "Every punctuality element is AMBER: the six lit lamps are amber cores in brass bezels, the seventh socket's cliff rim is a broken amber arc ring, and the readout value is amber. Teal appears nowhere on this screen (REFERENCE-SPEC: \"teal is not the 'on' color … lit lamps and punctuality sockets are amber\").",
+        "build_does": "ChargeTrack.tsx:65-77 fills lit sockets from `litFill`/`hotFill` gradients built on `var(--color-accent)` (#2FD9D0); :95-96 and :139-141 spill teal onto the plate; :164-173 strokes the cliff rim in `--color-accent`; ChargeReadout:253 renders the `→ 1.0` preview in `--color-accent`; and TeamSheet.tsx:180 colours checked-in time chips `--color-accent`. The screenshot of /#/team/precious is six glowing teal balls — the only cool thing on an otherwise brown screen.",
+        "fix": "In ChargeTrack.tsx add `color?: string` defaulting to `'var(--color-lamp)'` and route every fill/stroke/spill through it: `litFill` → #FFFFFF → var(--color-lamp-hot) → color → #7A3A10; `hotFill` → #FFFFFF → #FFEBC2 → color; spill circles → `fill={color}`; cliff rim stroke → `var(--color-lamp)`. Same for ChargeReadout's cliff span. RollCall.tsx:280 can then pass `color={teamColor}` if it still wants team-tinted sockets; Board.tsx:233 inherits amber, which is what its own reference wants."
+      },
+      {
+        "severity": "blocking",
+        "what": "team seal",
+        "reference_says": "A 145 CSS px brass coin, horizontally centred (centre at x≈195), top edge at y≈8, so it OVERHANGS and breaks the header frame's top edge (frame top y≈25) by ~17px. Two concentric brushed brass rings with the full team name as circular text engraved in the outer ring (`RUST REVIVAL CO.`), the emblem inside, four bezel screws. It is the only place the team name appears.",
+        "build_does": "TeamSheet.tsx:65-77 renders a ScreenHeader with `RUST CO.` at 26px, then a separate row with a 44px TeamCrest (no `label`), the full team name in 15px display type tinted `var(--color-team-rustco)`, and a mono theme line. Three separate statements of identity, none of them a coin, consuming 104 CSS px before the panel even starts. Nothing overhangs anything.",
+        "fix": "Delete the ScreenHeader call and the whole crest/name/theme flex row (TeamSheet.tsx:65-77). Render `<TeamCrest teamId={team.id} size={140} label={team.name} glow={0} />` absolutely positioned, `left:50%; transform:translateX(-50%); top:8px; z-index:2`, over a header panel whose own top starts at y=25 — the coin's lower 128px sits inside the panel and its top 17px sits on the wall. Add `paddingTop: 96px` to the panel's interior so the equation clears the coin. Keep a back affordance as a 44×44 absolutely-positioned chevron button at `left:2px; top:2px`."
+      },
+      {
+        "severity": "blocking",
+        "what": "header panel material and frame",
+        "reference_says": "A heavy brass DOUBLE frame — outer bevel band ~7px in lit brass (sampled #B0935A) plus an engraved inner line — with a slotted brass screw at each of the four corners sitting on the band, and rust patina along the band's lower corners. The interior it frames is a DARK warm brushed field (sampled #5D422F at the top, falling darker toward the bottom), clearly recessed below the frame and clearly darker than a category row plate (#835E41).",
+        "build_does": "TeamSheet.tsx:83-84 wraps the equation in a bare `.plate grain rust-creep` div at x=20 w=350 h=81. No brass band, no engraved inner line, no screws, and the interior samples #7F7A60/#846C51 — brighter than the row plates, and nearly neutral (R−B only 31 against the reference's 46). It is the single brightest region on the screen and a large contributor to medianL 97 vs 66.",
+        "fix": "Replace the wrapper with `<BrassFrame band={7} radius={5} screws>` from chrome.tsx, at x=16 w=358, total height 189. Inside it place your own interior div (BrassFrame passes children through, so no shared change is needed): `background: linear-gradient(180deg,#5D422F 0%,#4E3A2C 62%,#3A2A1F 100%)` plus the `.grain` class and an inset shadow `inset 0 3px 8px rgba(0,0,0,.7), inset -1px -1px 0 rgba(84,71,64,.4)` so it reads as a recess under the band."
+      },
+      {
+        "severity": "blocking",
+        "what": "category glyphs",
+        "reference_says": "Each row opens with a ~36 CSS px ENGRAVED BRASS LINE-ART glyph at x≈30-66: gear-with-droplet (cleanliness), clock-with-gear (punctuality), scroll-with-cross (memory verse), handshake (good deed), brain-with-circuit-traces (lesson knowledge), striding caped figure (behavior). Each is drawn as a brass stroke with a lit upper-left edge and a dark lower-right drop, so it reads as raised metal.",
+        "build_does": "No glyphs exist. TeamSheet.tsx:207 passes `glyph={glyph(c)}` into Breaker, which renders the three-letter mono abbreviation `CLN` / `VRS` / `LSN` engraved on the paddle face (Breaker.tsx:152-164), only above 30px and only in the OFF state. The punctuality row has no glyph at all.",
+        "fix": "Add an exported `CategoryGlyph({ id, size = 36 })` to src/components/Breaker.tsx (a file you own — do NOT create a new shared component file) with six hand-drawn SVG paths keyed by CategoryId, all in a 48×48 viewBox, `fill=\"none\"` with `stroke=\"url(#brass)\"` (`#E8C795`→`#9D8050`→`#5A4526`), `strokeWidth=\"3\"`, `strokeLinecap=\"round\"`, plus a 1px `#2B1B0C` copy offset (1,1) beneath for the engraved lower lip. Render it as the first child of every row including punctuality. Leave Breaker's `glyph` string prop alone so Board.tsx is unaffected."
+      },
+      {
+        "severity": "blocking",
+        "what": "key rail composition at the bottom",
+        "reference_says": "A bare full-width brass bar on the wall: x 16→374, y 619→648 (29 CSS tall), a slotted screw at each far end, six dark recessed hook slots with brass tongues, and the bar's RIGHT ~85px is a chamfered brass end tab reading `+ KEY` in cream heavy condensed with a notch and rust where it meets the bar. Awarded keys hang below the bar, lit gold (#FDD248) with a tight bright bloom on the dark wall. Nothing else — no section label, no separate button, no status sentence.",
+        "build_does": "TeamSheet.tsx:229-260 nests a 190px `<KeyRail>` inside a bright `steel-raised` plate, preceded by a `GOLDEN KEYS · DAY 1` tech-label and followed by `Director mode required · enable on Standings`, with `+ Key` as a detached rounded dark button floating to its right. The bar is only 190px of a 350px panel, has 4 hooks, and its keys' bloom lands on bright brass instead of the wall so it does not read as emission. (The hanging keys themselves DO render — verified on /#/team/precious — so that part of the brief was a data artifact of rustco holding zero keys.)",
+        "fix": "Add an exported `KeyHookRail({ keys, hooks = 6, width, onAdd, disabled })` to KeyRail.tsx (leave `KeyRail`/`KeyCount` untouched for Board.tsx and Lab.tsx). Draw one 358×29 brass bar directly on the wall with `overflow: visible` so keys hang past it, `<Screw>` at each far end, six recessed hook slots, and the right 85px as a chamfered tab (`clip-path` notch on its left edge) containing `+ KEY`; the tab is the button. In TeamSheet.tsx delete the wrapping plate, the `GOLDEN KEYS` label and the director-mode sentence — express the gate by rendering the tab in cold unlit brass with `aria-disabled` instead."
+      },
+      {
+        "severity": "major",
+        "what": "the equation",
+        "reference_says": "One line, one shared baseline, running left to right: `5.6` cream ~29px · `/ 6.0` dim ~15px · `+` cream ~26px · `2` cream ~29px · `KEYS` cream ~15px · two upright gold key glyphs ~24px tall · `=` cream ~26px · `7.6` cream ~44px (the largest thing on the screen) with `TOTAL` in ~12px cream caps tucked directly beneath it and right-aligned to it. No `BASE SCORE` label. Total is CREAM, never gold.",
+        "build_does": "TeamSheet.tsx:85-123 lays out three equal `flex-1` centred columns with `Operator` spacers, so nothing shares a baseline. `+` and `=` are 17px `--color-text-dim` with an engraved text-shadow (they read as dirt). The total is 30px — the same size as the base — and is switched to `var(--color-key)` gold whenever keys > 0 (verified gold `6.6` on /#/team/precious). The key cell renders a miniature `<KeyRail>` whose brass bar pokes up through the panel's top chamfer, with `0 KEYS` / `1 KEY` as a dim mono caption; at zero keys it prints a dim grey `0`. A `BASE SCORE` tech-label sits under the base.",
+        "fix": "Replace the three-column flex with a single `flex items-baseline justify-center gap-[6px]` row: base 29px `--color-text`; `/ 6.0` 15px `--color-text-dim`; `+` 26px `--color-text`; key count 29px `--color-text`; `KEYS` 15px `--color-text` (0.06em tracking); then `Array.from({length: Math.min(keys,3)})` of `<KeyGlyph size={11} lit />` from chrome.tsx (24px tall), followed by `+{keys-3}` in tabular numerals when keys > 3 — never a `×`; `=` 26px; then a `relative` span holding the total at 44px `--color-text` with `TOTAL` at 12px absolutely positioned `right:0; top:100%` beneath it. Drop `BASE SCORE`, drop the `<KeyRail>` in the header, and drop the gold colour switch on the total."
+      },
+      {
+        "severity": "major",
+        "what": "day rail position and the header/rail stack order",
+        "reference_says": "The five day tabs sit BELOW the header panel (tab top y≈219, 5px under the frame's bottom edge at y≈214), centred, ~190 CSS px wide overall, and the selected tab's amber bloom spills down onto the wall beneath it.",
+        "build_does": "TeamSheet.tsx:79 renders `<DayRail>` ABOVE the header plate (rail at y≈220 but the panel not until y=162… i.e. rail first, panel second), and it spans ~270 CSS px.",
+        "fix": "Move the `<DayRail days={days} activeId={activeDay.id} onSelect={setActiveDayId} variant=\"tabs\" />` call to immediately AFTER the header BrassFrame, with `marginTop: 5px`. Sizing of the tabs themselves is a shared change (see shared_needs)."
+      },
+      {
+        "severity": "major",
+        "what": "team colour spill",
+        "reference_says": "On this screen the team colour appears in exactly one place: the emblem inside the coin. The team NAME is cream (it is the coin's circular legend, in engraved brass). Row toggles are amber for every category and every team; there are no tinted numerals anywhere.",
+        "build_does": "TeamSheet.tsx:58 builds `color` from the team token and feeds it to (a) the full team name at :70, (b) every Breaker paddle at :207, and (c) every row's score numeral at :219. On /#/team/precious this paints the name, five paddles and five numerals #B14DFF — a screen full of purple, which the forbidden list specifically names.",
+        "fix": "Delete the `color` variable's use at TeamSheet.tsx:70 (name → `var(--color-text)`), :207 (toggle → amber, handled by the new `variant=\"toggle\"` which should ignore `color` entirely) and :219 (numeral deleted with the rest of that span). The only remaining consumer of the team colour on this screen is TeamCrest, which derives it internally from `teamId`."
+      },
+      {
+        "severity": "major",
+        "what": "category row plate geometry",
+        "reference_says": "Each row is a chamfered brass plate — a flattened octagon, ~7px 45° cut at all four corners — spanning x 16→374, 54 CSS px tall with 8px gaps, and carrying TWO small (~8px) slotted screws on its LEFT edge only, at x≈24, one near the top and one near the bottom. A vertical engraved hairline divider sits at x≈74 between the glyph and the label. The label stays full cream in BOTH states.",
+        "build_does": "TeamSheet.tsx:200-205 uses `steel-raised grain rounded` — 4px rounded corners, no chamfer, no screws, no divider — at x=20 w=350, height 56 with 6px gaps. The label is switched to `--color-text-dim` when the category is unearned (:211), and a `EARNED` / `NOT EARNED` mono sublabel is stacked under it (:215), neither of which exists in the reference (its OFF row, LESSON KNOWLEDGE, is full cream with no sublabel).",
+        "fix": "Swap the row wrapper for `<Plate as=\"button\" chamfer={7} screws={false} className=\"h-[54px]\">` from chrome.tsx, at `px-4` (16px page margin) with `gap-[8px]` between rows; add two `<Screw slot={…} />` absolutely at `left:8px, top:11px` and `left:8px, bottom:11px` with different slot angles; insert `<div className=\"engraved-v self-stretch my-[10px]\" />` after the glyph. Set the label to `var(--color-text)` unconditionally at 17px (the reference's cap height measures 12.3 CSS px ⇒ ~17px Oswald; the \"~30px\" in REFERENCE-SPEC is reference pixels, not CSS), and delete the EARNED/NOT EARNED span at :215."
+      },
+      {
+        "severity": "major",
+        "what": "charge track construction",
+        "reference_says": "A recessed capsule from x≈205 to x≈345, ~19px tall, interior sampled #3B2B1E — a genuine dark well cut into the plate, with a dark top-left inner shadow and a bright #453224 lip along the bottom. A dim brass en dash `–` sits OUTSIDE the capsule to its left. Inside: six ~13px lamps, each a brass bezel over a dark seat with an amber emissive core. The seventh is a ~34px brass ANNULUS overlapping and breaking out of the capsule's right end, with eight dark engraved ornaments around its ring and a dark unlit well at its centre; at 6/7 a broken amber arc ring (four arcs) burns around its outside and spills onto the plate. Sparse engraved ticks above and below the capsule on the plate, one of them a caret pointing at the seventh.",
+        "build_does": "ChargeTrack.tsx draws seven bare sockets on transparent background — no capsule, no recess, no leading en dash, no gauge ticks, no caret. The seventh is a solid brass 'wagon wheel' (a filled bezel disc with an 8-spoke starburst, :149-202) rather than an annulus around a dark well, and its cliff rim is a single unbroken teal circle.",
+        "fix": "Add `capsule?: boolean` (default false, so Board.tsx:233 at 72px and RollCall.tsx:280 stay pixel-identical) to ChargeTrack. When true: draw a rounded-rect well behind the six lamps (`fill=\"#3B2B1E\"`, plus an inset-shadow-equivalent dark top edge path and a `#453224` 0.6px lower lip), a `–` glyph at x=0 outside it, three engraved tick marks above and three below in `#3A2C22`, and a caret `M …` over the seventh's centre. Convert the seventh from a filled disc to an annulus: keep the brass ring but fill the centre with the existing `well` gradient at r=BIG_R-1.6 whenever `!full`; replace the single `pulse-rim` circle with four 70° arc paths stroked `var(--color-lamp)` at 0.9 width with a drop-shadow spill, still under `.pulse-rim`."
+      },
+      {
+        "severity": "major",
+        "what": "charge readout",
+        "reference_says": "Beneath the plate at its right edge (right-aligned to x≈358, just below the plate's bottom), one tiny mono line ~9px: `6 / 7 · 0.6` — the `6` and `7` cream, the `/`, the `·` separator and the value `0.6` in amber. At 6/7 it previews `0.6 → 1.0`.",
+        "build_does": "TeamSheet.tsx:145 puts `<ChargeReadout size={14} />` INSIDE the block on the same line as the label, top-right. ChargeTrack.tsx:239-258 renders it at 14px with `/ 7` as a dim tech-label, the value in `--color-text-dim`, no `·` separator, and the cliff arrow in teal.",
+        "fix": "In ChargeReadout: default `size` to 9, wrap in `font-mono`, colour the ticks/`7` `var(--color-text)` and the `/`, a new `·` separator and the `formatDeci(value)` `var(--color-lamp)`; keep the `→ 1.0` preview but in `var(--color-lamp)` too. In TeamSheet render it absolutely positioned at the punctuality row's `right: 12px; top: 100%` so it hangs just under the plate, and remove it from the row's label line."
+      },
+      {
+        "severity": "minor",
+        "what": "screen margins and grid",
+        "reference_says": "Header panel, all six rows and the key rail share x 16→374 (16px page margin, 8px grid). Row gap 8px.",
+        "build_does": "TeamSheet.tsx uses `px-5` (20px) everywhere and `gap-[6px]` between rows, so nothing lands on the 8px grid and the plates are 8px narrower than the reference's.",
+        "fix": "Change every `px-5` to `px-4` and `gap-[6px]` to `gap-[8px]`; verify the header, rows and rail all measure x=16 w=358."
+      },
+      {
+        "severity": "minor",
+        "what": "Arrival-day lock notice",
+        "reference_says": "No such element — the day rail's inert Arrival tab is the whole signal.",
+        "build_does": "TeamSheet.tsx:128-132 renders a rounded translucent `rgba(138,82,48,0.12)` box with a 1px inset ring and the sentence 'Arrival day does not score'. A soft translucent panel with a hairline ring on top of metal reads as glassmorphism, which is on the forbidden list.",
+        "fix": "Replace with an engraved line, no box: a single `tech-label` at 8px in `--color-text-dim` centred under the day rail reading `ARRIVAL · NO SCORING`, with `textShadow: '0 1px 0 rgba(255,236,205,0.10)'` and no background or border."
+      },
+      {
+        "severity": "minor",
+        "what": "hung-key bloom falloff",
+        "reference_says": "A hung key's bloom is tight and bright — a small hot halo hugging the bow and a short warm wash on the wall directly under it, dying out within about half a key-height.",
+        "build_does": "KeyRail.tsx:44-46 stacks three flat circles at r=10/6.6/4.8 and 0.11/0.16/0.2 alpha, which at the rail's render scale reads as one large flat translucent disc rather than emission with falloff (clearly visible around the single key on /#/team/precious).",
+        "fix": "Tighten to four stops with a steeper ramp — r = 8/5.5/3.8/2.6 at opacity 0.06/0.12/0.22/0.34, and add `fill=\"var(--color-key-hot)\"` on the innermost. Because the new bottom rail sits on the dark wall rather than on a bright plate, the same alphas will read roughly twice as strong, so re-check after the rail is moved."
+      }
+    ],
+    "shared_needs": [
+      "src/theme.css — `.plate` and `.steel-raised` do not fall dark at the bottom edge, which is the single largest cause of this screen measuring medianL 97 / midtone 56.1% against the reference's 66 / 37.5%. Sampled straight down a reference category-row plate: top #835E41, mid #714E38, bottom #382316. The build's row plate samples #7D674E → #6F5440 over the same span. Change the final stop of `.plate`'s face gradient (line ~527, currently `var(--color-plate-lo)` #654632) and of `.steel-raised`'s (line ~154, currently #6E5038) to #3B2517, and warm the upper stops toward the sampled values: `--color-plate-hi` #94795E → #8C6647, `--color-plate` #82684F → #77523A, `--color-plate-lo` #654632 → #3B2517. That also lifts warmth (build 35 vs reference 44.3) since the reference plate's R−B runs 66 at the top and 57 at the middle versus the build's 47.",
+      "src/theme.css — the wall behind the hardware is too light. Reference wall samples #191410 at the top-left and #1B110F at the bottom; the build renders #2C2118 and #1F1811. In the `#root` rule (line ~96) change `linear-gradient(180deg, #251b16 0%, #1d1510 55%, #150f0a 100%)` to `linear-gradient(180deg, #1E1610 0%, #191410 55%, #120C08 100%)` and raise the vignette stop `rgba(0, 0, 0, 0.62)` to `rgba(0, 0, 0, 0.72)`. The wall is ~40% of this screen's area, so this alone moves medianL several points.",
+      "src/components/DayRail.tsx (`TabRail`) — tabs are roughly 2× reference size and the selected tab does not read as an amber emitter. Reference: every tab ~30×20 CSS (uniform — Arrival included), gap 7px, whole rail ~190 CSS px wide and centred; the idle tab face is DARK brass (sampled #684F2F, noticeably darker than a row plate) with a ~13px bone numeral over an engraved dark shadow; the selected tab is inset with an AMBER EMISSIVE face (sampled #8F4B2C mid, brightest pixel #FFE4C6) and a strong bloom spilling out below it onto the wall. Concretely: change `style={{ minWidth: d.scored ? 46 : 58, height: 38 }}` (line 153) to `minWidth: 30, height: 20` for all five days; drop the numeral from 19px to 13px (and ARR from 13px to 10px); for the active tab replace the `brass-band` face with `background: radial-gradient(70% 120% at 50% 115%, #FFD9A0 0%, #EE8636 34%, #8F4B2C 72%, #5A2A12 100%)` and keep the numeral dark (#2A1606); widen the active bloom from `-inset-1` to `-inset-2` and raise its colour-mix from 55% to 75%. Also give the idle `brass-band` face a `filter: brightness(0.72)` rather than 0.88 so it sits below the row plates in value.",
+      "src/components/TeamCrest.tsx — the circular legend arc is only 180° (line 143: `d=\"M 32 32 m -23.4 0 a 23.4 23.4 0 1 1 46.8 0\"`), a top semicircle. The reference coin runs its legend from roughly 8 o'clock over the top to 4 o'clock, ~250° of arc; `RUST REVIVAL CO.` barely fits at 180° and `PINK JUNKYARD WARRIORS` (22 characters) will not fit at the 140px seal size this screen needs. Please extend it to start and end below the horizontal, e.g. `d=\"M 15.4 49.6 A 23.4 23.4 0 1 1 48.6 49.6\"` (a 250° sweep, still drawn clockwise so the text reads left-to-right over the top), and reduce the legend `font-size` one step so long names do not collide at the ends.",
+      "src/components/chrome.tsx — `.screw` is hard-coded to 11×11 in theme.css (line 263) with no way to size it. The reference uses ~12px screws on the header brass frame but only ~8px screws on the category rows; at 11px the row screws visually outweigh the 8px page grid. Please make it `width: var(--sw, 11px); height: var(--sw, 11px)` (and scale the `::after` slot inset with it), and give `Screw` / `CornerScrews` an optional `size?: number` that sets `--sw`. Non-breaking — every existing call keeps 11px.",
+      "Coordination, not a file edit: ChargeTrack.tsx and Breaker.tsx are mine, and the fixes above add strictly backward-compatible props so no other screen changes behaviour by default — Breaker gains `variant?: 'cell' | 'toggle'` defaulting to `'cell'` (Board.tsx:228 and Lab.tsx unaffected), ChargeTrack gains `color?: string` defaulting to `var(--color-lamp)` and `capsule?: boolean` defaulting to `false` (Board.tsx:233 and RollCall.tsx:280 render identically except that their punctuality sockets turn from teal to amber, which REFERENCE-SPEC requires of them too). One decision needs relaying: REFERENCE-SPEC's roll-call section says a row's earned check-ins show in TEAM colour, so whoever owns RollCall.tsx should pass `color={teamColor}` explicitly to keep that; if they do nothing they get amber."
+    ]
+  }
+]

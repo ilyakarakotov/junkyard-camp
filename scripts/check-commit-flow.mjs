@@ -2,9 +2,10 @@
 // undo actually walk it back? Exercises the real event log, not a mock.
 // Usage: node scripts/check-commit-flow.mjs
 import { chromium } from 'playwright-core'
+import { chromiumPath } from './chromium.mjs'
 
 const BASE = process.env.BASE ?? 'http://localhost:5173/junkyard-camp/'
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 
 let failures = 0

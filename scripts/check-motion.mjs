@@ -5,6 +5,7 @@
 // Screenshots cannot catch this — it has to be read off computed style.
 // Usage: node scripts/check-motion.mjs
 import { chromium } from 'playwright-core'
+import { chromiumPath } from './chromium.mjs'
 
 const BASE = process.env.BASE ?? 'http://localhost:5173/junkyard-camp/'
 const ROUTES = ['/', '#/call/punctuality', '#/team/precious', '#/standings', '#/display', '#/lab']
@@ -12,7 +13,7 @@ const ROUTES = ['/', '#/call/punctuality', '#/team/precious', '#/standings', '#/
 // `all` is disallowed too: it silently opts every animatable property in.
 const ALLOWED = new Set(['transform', 'opacity', 'none', ''])
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
 
 let failures = 0

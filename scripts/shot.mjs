@@ -1,6 +1,7 @@
 // Playwright screenshot helper.
 // Usage: npm run shot -- '/#/award/turquoise' shots/award.png [--viewport 390x844] [--dpr 3] [--base http://localhost:5173/junkyard-camp/]
 import { chromium } from 'playwright-core'
+import { chromiumPath } from './chromium.mjs'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
@@ -17,9 +18,7 @@ const base = flag('base', 'http://localhost:5173/junkyard-camp/')
 
 mkdirSync(dirname(out), { recursive: true })
 
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium',
-})
+const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({
   viewport: { width: w, height: h },
   deviceScaleFactor: dpr,

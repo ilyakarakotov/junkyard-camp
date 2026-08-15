@@ -2,11 +2,19 @@
 // from the tokens. Reads computed CSS on live routes and asserts against
 // theme.css tokens.
 import { chromium } from 'playwright-core'
+import { chromiumPath } from './chromium.mjs'
 
 const TOKENS = {
   bg: '#16110d',
-  panel: '#241c16',
+  // The plate face. Sampled off the concept art at #70624F..#967862; a plate
+  // that drifts back toward the old near-black #241C16 fails here first.
+  panel: '#82684f',
+  'plate-hi': '#94795e',
+  'plate-lo': '#654632',
+  well: '#1a120e',
   brass: '#c08a3e',
+  lamp: '#ed9040',
+  'lamp-hot': '#fedf97',
   accent: '#2fd9d0',
   text: '#ede3d2',
   key: '#ffc63d',
@@ -64,7 +72,7 @@ const hexToRgb = (hex) => {
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
 }
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 await page.goto('http://localhost:5173/junkyard-camp/', { waitUntil: 'networkidle' })
 await page.evaluate(() => document.fonts.ready)

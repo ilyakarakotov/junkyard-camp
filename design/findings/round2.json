@@ -1,0 +1,681 @@
+[
+  {
+    "screen": "Big screen (/#/display)",
+    "changed_files": [
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/screens/BigScreen.tsx"
+    ],
+    "summary": "Eight columns still read 4 · leader · 3, but the leader is now wider (192 vs 160) and centred in the composition at 1060, and its rig sits hard against its own plate edges: a 14px brass rail down each side, a brass cap at the top and bottom of each rail as the arc's two endpoints, and a heavier junction bracket standing off the rail halfway down with the cable bolted to it — so the two full-height teal bolts read as current running up the leader rather than as two separate lightning columns. The nameplates are the big change: each is a bolted-on brass plate overhanging its column by 8px, its face lifted onto the bright band of the brass so a near-black letter with a hard cream bottom-lip highlight has somewhere to cut, type auto-sized to the longest line (16–26px, most land at 19–26), and the two end screws moved into absolutely-positioned wrappers — they had been falling to their static position in the flex column, which is what was printing a screw over the middle of FORGED and INNOCENT. All eight names survive a 4× downscale. Key rails now sit directly over the column that holds the keys, the keys hang 26px clear of the rail on a visible brass collar, and each carries the gold crackle CLAUDE.md's carve-out permits: rail collar to the key's own bow, about 20px, touching no meter, column or score, with gold appearing nowhere else on the screen. The meter is unchanged in logic and verified against its numerals — day-scoped, CAP 10, whole slots from floor(deci/10) and a half-width slot for the remainder, so 7.0 shows seven full, 6.6 six plus a half, 4.5 four plus a half — with tighter slot gaps, a brighter rim on the empty recesses so the capacity is countable, and a wider bloom on the lit fill.",
+    "closed": [
+      "LEGIBILITY: nameplate type is auto-sized per column and the brass face is lifted so dark engraved type has contrast; the two invisible short names (FORGED, INNOCENT) were being overprinted by mis-positioned screws, now fixed. Every name reads at 1/4 scale.",
+      "Leader arcs brought in against the column's sides (bolt centreline at the plate edge ±4px) with brass caps top and bottom as the two visible endpoints, plus a junction bracket and cable per side.",
+      "Key rails aligned over their own team's column (width = column + 24, centred on it); the leader's still hangs in the open gap between the title plates.",
+      "Score vs meter scale verified in agreement: day-scoped totals, CAP 10, whole slots + half-width partial from integer tenths — 7.0 / 6.6 / 6.0 / 5.6 / 4.5 / 4.4 / 4.3 all match their fills.",
+      "Gold crackle added inside CLAUDE.md's three conditions (rail collar to key bow, ~20px, never touching a meter, column or score); no other gold on /display.",
+      "Material line now within a point of the reference on warmth and medianL; check-dod, check-motion and validate-tokens all pass."
+    ],
+    "left": [
+      "midtone% is 23.1 against the reference's 20.2 — the concept art holds more of its area in deep shadow than the shared Plate face allows without dropping medianL below the reference's 48. Pushing the mounting-panel shading further took medianL to 44, so I backed off.",
+      "The nameplates overhang their column by 8px where the reference insets them. That is a deliberate trade: our roster names are much longer than the concept art's placeholders, and the overhang is what buys the type its readable size.",
+      "The leader's cables are single-stroke rubber loops; the reference's are thicker and braided, with a warmer lit edge."
+    ],
+    "shared_needs": [
+      "Possible latent bug outside my files: `<Screw className=\"left-[5px] top-1/2 -translate-y-1/2\">` rendered at its static position (the centre of the stack) rather than at the plate edge when its parent is a centred flex column — that is what was printing a screw over the team names here. I worked around it locally with an absolutely-positioned wrapper div. `BrassPlate` in src/components/chrome.tsx uses the same `left-[3px] top-1/2 -translate-y-1/2` pattern inside an inline-block parent, and other screens pass Screw the same way, so it is worth verifying on the board and team sheet that those screws are actually landing on the plate edges."
+    ],
+    "stats": "mine: warmth 23.3 / medianL 47 / midtone 23.1% / specular 4.83% — reference: warmth 22.7 / medianL 48 / midtone 20.2% / specular 5.00% (highlight order correct on both)"
+  },
+  {
+    "screen": "Standings (/#/standings)",
+    "changed_files": [
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/screens/Standings.tsx"
+    ],
+    "summary": "Eight identical 88px machined plates under a bracketed STANDINGS title block, each split by an engraved hairline: rank well, medallion, cream name and a fixed-width base/keys readout on the left; the score over a glass tube meter on the right. The meters are now literally the shared GlassTube part from chrome.tsx — dark bore between two turned, ribbed brass collars — with the team-coloured lit column, its gold key continuation, an amber meniscus and engraved graduations reading over both lit and dark glass. The leader's tube carries no fill: a three-strand teal bolt runs collar to collar and passes under both collars, washing the bore and spilling teal onto the plate, with a riveted LEADING nameplate beneath. Below the stack, RECENT ACTIVITY is a recessed well of three 32px rows fed by derive.recentActivity over the append-only log, each with a team-colour lamp as the only emitter. The DIRECTOR MODE strip is now a chamfered, screwed panel with a SEC·01 stamp, a recessed amber pilot lamp and a two-position amber track whose single legend sits on the exposed half so it is readable in both states.",
+    "closed": [
+      "Tube meters converted to the shared GlassTube component from chrome.tsx; the local collarStyle() gradient copy is deleted, so the lever tube, the standings meters and the big-screen channels are now one part.",
+      "Leader arc endpoints verified on the collars: x1=-5, x2=boreW+5 against a ResizeObserver-measured bore, so the bolt visibly disappears under both brass collars instead of stopping short in mid-glass. Confirmed at 4x zoom.",
+      "Breakout chip verified additive and counted: '12.9 BASE | [key][key][key] +3.0', lit glyphs capped at three with '+N' in tabular numerals above that, no multiplier notation. DOM text scan for x/multiplication signs on the route returns zero hits.",
+      "The zero-key variant no longer breaks the column: 'NO KEYS' prose replaced by one unlit glyph plus a dim '+0.0', and the readout window is a fixed 152px with a fixed 30px numeral column, so all eight base figures share a left edge, all eight dividers share an x, and all eight key contributions share a right edge (measured spread 0px).",
+      "RECENT ACTIVITY confirmed as a pure view over the append-only log: recentActivity() from src/data/derive filters compensating events, folds reversal into a `reversed` flag rendered at 0.45 opacity, and nothing is read from storage inside the component.",
+      "STD-05 / CUM reworked into a deliberate pair of panel stamps — STD·05 inside the top-left bracket, CUM plus three engraved index ticks inside the top-right — at 8px brass with 0.26em tracking instead of one orphan 7px string.",
+      "DIRECTOR MODE strip made deliberate: SEC·01 panel stamp, an amber pilot lamp seated in its own recess whose spill reports the unlocked state, and the OFF/ON legend moved to whichever half of the track the knob is not covering (previously 'ON' was rendered underneath the knob and invisible when engaged).",
+      "Tube height raised 17->20 and glow spill tightened (top -6, height TUBE_H+12, falloff to transparent at 66-68%) so every meter's light dies close to its emitter rather than hazing the plate."
+    ],
+    "left": [
+      "Scores stay cream rather than team-tinted as in the reference render — REFERENCE-SPEC licenses team colour to the crest glyph, a lit cell and a filled meter segment only, so this is a deliberate departure from the concept art.",
+      "The reference sets score and meter side by side on one baseline; ours stacks score over meter to make room for the base/keys breakout the scoring model requires. Structural, kept from round one.",
+      "Plate faces land at medianL 58 / midtone 37.3% against the stated v2 target of ~66 / ~38%. Midtone is on target; median is 8 low and I did not push brighter because the eight rank wells and the activity well are what carry the dark end, and lifting the plates costs them their contrast.",
+      "The reference plates carry a few engraved vent ticks at the top right; ours have the top-left vent only, because the score numeral occupies that corner in our layout."
+    ],
+    "shared_needs": [
+      "src/components/chrome.tsx — GlassTube butt-joints its bore to the collars (bore inset collarWidth/2, collars pinned at -collarWidth/2), so the glass stops at each collar's inner face instead of running behind it as it does in the reference art. An optional `boreOverlap` prop (or drawing the bore full-width and the collars above it) would make the tube read as one continuous cylinder on every screen that uses it.",
+      "src/components/chrome.tsx — GlassTube exposes no way to read its measured bore width, so placing an ArcBolt's endpoints on the collar centres requires inserting a throwaway `absolute inset-0` probe div as a child to hang a ref on. An `onWidth?: (w: number) => void` callback or a forwarded ref to the bore would remove that workaround here and on /display."
+    ],
+    "stats": "r2-standings.png: warmth 29.8, order true, medianL 58, midtone 37.3%, specular 2.28%, mean rgb 80,66,51 — vs design/reference/05-standings.png: warmth 15.3, order true, medianL 20, midtone 6.6%, specular 0.13%, mean rgb 34,28,19 (the round-one reference render is structural only; the v2 material target is medianL ~66 / midtone ~38%)"
+  },
+  {
+    "screen": "Key ceremony (/#/key/knights) — src/screens/KeyCeremony.tsx",
+    "changed_files": [
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/screens/KeyCeremony.tsx"
+    ],
+    "summary": "The vault door now reads as one machine with nothing overlapping the focal object: the escutcheon sits alone in the middle of the door, its blown-out keyhole (white-hot circle plus tapered slot, brass ring and slot edge drawn as an OUTLINE so the light comes through rather than plugging the hole) throwing soft god-rays that are blurred and distance-graded so they die out before the title. The two brass handle posts carry short gold arcs into the escutcheon's edges with a bright corona on all four terminals. The team seal sits proud of the door seam with its legend reduced to FIRE KNIGHTS on the arc — no more self-collision — and a warm gold wash that lights the coin's seat around the emblem instead of bleaching the flame out of it. The award action is now an engraved brass nameplate screwed to the door below KEY 02, one line, 208×44, keyboard-reachable as the second tab stop with a gold focus ring instead of the browser's blue one; the broken doubled screw glyph is gone. At the foot, one key hangs per key the team holds plus the pending one hot with sparks and rising smoke, bows straddling the rail's top edge; on award the hot layer cools off the cold key beneath over 2s via .key-cool, and under prefers-reduced-motion the ignition stays while sparks, smoke and arc flicker drop.",
+    "closed": [
+      "The TURN TO AWARD action no longer overlaps the escutcheon: it is a 208x44 brass nameplate at y=632, below the KEY 02 line and above the rail, on one line",
+      "The two black bars inside AWARD are gone — they were chrome.tsx Screws whose position:absolute was overridden by .grain > *, collapsing them to 0x0 boxes that painted only their box-shadow rings; the action plate's screws (and the rail's) now carry the `absolute` utility and an explicit size",
+      "God-rays softened: the wedge fan is drawn through a feGaussianBlur and a userSpaceOnUse distance gradient, shortened to 0.94x, so the edges are gone and the falloff is tight",
+      "The rail now hangs one key per key held plus the pending one hot, with a warm bloom spilling onto the rail brass, sparks and smoke on the hot key, and .key-cool cooling it to match after the award",
+      "The seal legend no longer collides with itself or the emblem — `label` is just the team's full name, the EST suffix is dropped",
+      "The seal's `glow` prop was removed: its rim is struck in the team colour and a red glowing ring on the one gold-only screen was the exact tell the rule exists to prevent",
+      "The coin interior now reads as a lit gold disc; the gold wash leaves the centre clear so the team-colour emblem keeps its saturation"
+    ],
+    "left": [
+      "Specular is 5.4% against the reference's 7.06% — the remaining gap is almost all in the coin: TeamCrest's gold bezel falls to brass-brown at the bottom-right where the reference coin is bright polished gold all the way round. Closing it means changing TeamCrest, not this screen.",
+      "The seal legend runs over the TOP arc; the reference runs it along the bottom arc, right-reading, with a dot at each end. Needs the `labelAt` prop (shared_needs).",
+      "The hanging keys' bows are stroked circles; at 58px they read as split-rings rather than the reference's wide oval bow with a heart cutout and a turned collar. Needs KeyGlyph (shared_needs).",
+      "medianL is 53 vs the reference's 48 — the door carries slightly more of the keyhole's wash than the render does. Within the material gate and, at this point, a taste call rather than a defect."
+    ],
+    "shared_needs": [
+      "src/theme.css — `.grain > *` (position: relative) has the same specificity as `.screw` (position: absolute) and comes later, so ANY Screw placed inside a .grain container without Tailwind's `absolute` utility collapses to a 0x0 inline box and paints as a small dark square made of its own box-shadow rings. That is the bug behind this screen's two black bars in the word AWARD, and it will silently hit every other screen that puts a Screw on a brushed plate. Fix centrally: either raise .screw's specificity (e.g. `.grain > .screw`, or `.screw { position: absolute !important }` is too blunt — better, move .screw after .grain in the layer) or have chrome.tsx's Screw/CornerScrews set `position: 'absolute'` inline the way CornerScrews already does.",
+      "src/components/TeamCrest.tsx — add `labelAt?: 'top' | 'bottom'` (default 'top' so the team sheet and big screen are unaffected). Reference 04 runs the ceremony seal's legend along the BOTTOM arc, right-reading, with a small r=0.9 dot at each end: d='M 32 32 m -23.4 0 a 23.4 23.4 0 1 0 46.8 0' plus dots at (8.6,32) and (55.4,32).",
+      "src/components/TeamCrest.tsx — when `gold`, the bezel gradients still fall to #5f4310 at the bottom-right, so the ceremony coin reads as a half-dark disc where the reference coin is bright polished gold across its whole face (sampled #B67F42 avg, #FFEDB6 peak). Requested: brighten the gold `rim`/`rimDark` stops (e.g. rim 0% #fff6d8, 24% #f6d478, 58% #c19434, 100% #7c5a1a) and lift the gold `inner` stops so the interior emits on its own. Right now this screen has to screen a gold gradient over the coin to fake it, and any wash strong enough to light the field also bleaches the team-colour emblem — which is one of the three sanctioned places team colour is allowed to appear.",
+      "src/components/chrome.tsx — KeyGlyph's bow is a stroked circle r=5.6 and its bit two plain rects. At the 58px used here (≈133px tall) the bow reads as a keychain split-ring. Requested polish: an ellipse rx=7.2 ry=5.4 with a heart-shaped inner cutout under fillRule='evenodd', plus a turned collar of two stacked tapered rects between bow and shank.",
+      "src/theme.css — there is no warm :focus-visible style, so every keyboard focus ring in the app is the UA's blue. On a screen whose entire premise is that it contains no cool colour, that ring is the loudest thing on the door. I added a local `.kc-focus:focus-visible { outline: 2px solid var(--color-key) }`; a global brass/amber focus-visible token in theme.css would fix it everywhere and let this screen keep only the gold override."
+    ],
+    "stats": "mine: warmth 45.0, medianL 53, midtone 21.2%, specular 5.39%, R>G>B true (mean 87,68,42) — reference 04-golden-key.jpg: warmth 49.5, medianL 48, midtone 21.7%, specular 7.06% (mean 91,66,41). Started this round at warmth 38.0 / medianL 48 / midtone 17.3% / specular 4.47%."
+  },
+  {
+    "screen": "Board (/#/)",
+    "changed_files": [
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/screens/Board.tsx"
+    ],
+    "summary": "The board now reads as eight machined instrument rows on a wall: brass header plate with an octagonal inner panel and a rivet at each end, the socket day rail with its teal pilot lamp, then eight separate 76px plates with corner screws, a recessed rank chip, a 66px medallion overhanging a recessed name/binary channel, six brass-collared punctuality sockets and an engraved dash leading to the seventh as a cog knob, a key capsule with hanging keys, and a recessed score readout — closing on a brass footer strip with barcode and engraved mono status line. The screen was a full stop too dark because ~110px of unlit wall sat below the footer; I spent that on metal (row height 64→76, gap 8→10, tighter rail margins, taller header and footer) rather than on glow, and medianL went 45 → 63 against the reference's 64. I also restructured the row DOM so the whole row is one link containing rank, name, punctuality, keys and score, with the five binary cells and the cog as z-10 sibling buttons over it — that fixed four board definition-of-done assertions that were silently failing because the score and the team name lived outside the anchor the check searches. Detail work added brass collars with dark bores to the punctuality sockets (they were bare amber dots), a visible engraved dash, lit lower-right rims on all four recesses, and column alignment so the team name and the first socket share one edge while the key capsule's right edge matches the channel's above it. All of check-dod passes, including no horizontal scroll, no multiplier notation, identical row heights, 0px score column spread, descending sort and cream team names.",
+    "closed": [
+      "Screen was a stop too dark — medianL 45 → 63 (ref 64), by converting the dead wall below the footer into hardware (ROW_H 64→76, ROW_GAP 8→10, header 46→48, footer 30→36, day-rail margins 8→4). No glow was added.",
+      "Rows sorted by score descending; rank chips read 01,02,03,03,05,06,07,08 — competition ranking with a deterministic roster tiebreak for row order, exactly the round-one accepted fix.",
+      "Team names are cream, and the assertion is now real: before my change the check-dod cream test queried `a[href*=\"#/team/\"] *` and found zero elements because the name sat outside the link, so it was passing vacuously.",
+      "Exactly five binary cells per row (BINARY_CATEGORIES), each a square lamp in the team colour, each a button that only navigates to roll call.",
+      "Keys are hanging glyphs on a rail with dark empty hooks and a `+N` overflow; no `×` anywhere (check-dod no-multiplier passes on all routes).",
+      "All eight scores share one column edge — spread 0px — in tabular numerals, unclipped, in a recessed well with a lit rim.",
+      "Row heights identical at 76px across all eight (check-dod reports a single distinct height).",
+      "DOM restructure: the row `<Link>` now wraps rank chip, crest, name, punctuality, key rail and score; the five binary buttons and the cog knob are absolutely-positioned z-10 siblings, so no button nests inside an anchor and `board has 8 rows / scores well-formed / scores share a column edge / rows sorted` all pass (all four were failing before).",
+      "Punctuality sockets are now turned brass collars with a dark bore and the amber lamp inside the bore, matching the reference's machined rings — previously they were bare 13px amber discs with no collar.",
+      "The engraved dash between the sixth socket and the seventh cog knob is now visible (two-tone engraved bar with a lit lower edge).",
+      "Lit lower-right rim plus a hairline chamfer on every recess — rank chip, channel, key capsule, score well — which is how the reference's wells read as cut rather than painted.",
+      "Column rigour: the team name's left edge and the first punctuality socket's left edge share x=120; the key capsule's right edge is the channel's right edge, as in the reference.",
+      "Header upgraded: 9px brass band, inner panel changed from chamfered-to-a-point to a true 9px-chamfer octagon, a rivet driven through the band at each panel end, engraved top/bottom hairlines.",
+      "Footer collisions fixed — barcode, status line and the STANDINGS/DISPLAY engraved links no longer sit under the plate's corner screws.",
+      "Category lamps and the cog navigate only; nothing on this screen mutates state."
+    ],
+    "left": [
+      "warmth 33.6 vs the reference's 30.9 and specular 3.72% vs 2.46% — the shared `.plate` and `.brass-band` gradients run brighter and more saturated than the sampled reference brass. Our plate faces land at L 100–140 where the reference's sit at L 70–100, so ~3.4% of the screen is above L150 where the reference has ~0.9%. Not addressable from Board.tsx; see shared_needs.",
+      "midtone 35.3% vs 39% — same root cause: tone that should be plate-face midtone is sitting above the midtone ceiling in the bright brass, and our well interiors sit at L<10 where the reference's are ~L23.",
+      "Team crest glyphs are generic marks (an X for Warriors, a diamond for Precious, a heart for Innocent) where the reference has detailed emblems, and the crest interiors are near-black where the reference's are a mid-tone team-tinted disc. TeamCrest.tsx is not mine.",
+      "Day rail socket pitch is ~90px against the reference's ~47px, so the five sockets span nearly the full width instead of a tight centred group, and the three future sockets are plain dark holes with no brass collar detail. DayRail.tsx is not mine — this was already reported in round one and is still open.",
+      "Key rail empty slots draw a bare hook where the reference draws a full dark key silhouette, and KeyRail's own bright brass bar sits across the capsule's top lip where the reference hides it. KeyRail.tsx is not mine.",
+      "Binary cell bloom radius is wider than the reference's tight, crisp cell glow. Lamp() in chrome.tsx is not mine."
+    ],
+    "shared_needs": [
+      "src/theme.css — `.plate` and `.brass-band` are the last measurable gap on this screen. The plate gradient runs `--color-plate-hi` (#94795E, L124) → #866c52 → #78604a → `--color-plate-lo` (#654632, L76), which puts the face at L 76–124; the reference's sampled face sits at L 70–100. Combined with `.brass-band`'s #d8b47c/`--color-brass-hi` top stops, ~12.3% of a board screenshot lands above L150 against the reference's 8.9%, which is the whole of the remaining warmth (+2.7) and specular (+1.3pt) delta. Dropping each plate stop ~12 L and the brass-band top two stops ~15 L should land warmth ≈31 and specular ≈2.5 on every screen at once. This is a cross-screen change, so it needs one owner, not eight.",
+      "src/theme.css — `.well` / `.recess` bottom out near L 8–14 (`linear-gradient(180deg, rgba(0,0,0,0.55) …)` over `--color-well` #1A120E). The reference's recess interiors sample at #1e160e, L≈23, and 8.3% of our screen is below L10 against the reference's 3.4%. Lifting the top black stop from 0.55 to ~0.35 would put the recess floors on the reference and give the wells the bounced-light read the material rules describe, without touching contrast on the cream numerals.",
+      "src/components/DayRail.tsx — the `sockets` variant still does not match 01-board.jpg (reported in round one, unchanged). Socket pitch measures ~90px against the reference's ~47px, so the group spans nearly the full rail; the socket should be 24px overall (16px bore in a 4px brass collar) with the flex gap around 23px. The three future sockets render as flat black discs — the reference gives every socket, lit or not, a brass collar and four dark notches, and only the lit one gets the teal bloom.",
+      "src/components/TeamCrest.tsx — the glyph set is generic (Warriors is an X, Precious a diamond, Innocent a heart, Pearls a figure) where the reference has readable emblems: gear+piston, crystal cluster with circuit traces, diamond+drill, scallop shell, sword+shield, dove+olive branch, anvil+hammer, gear+wrench. Second: the crest interior is near-black, so the coin reads as a dark porthole; the reference's interior is a mid-tone team-tinted disc (roughly the team colour at 22% over #2A2018) with the glyph luminous on top. At row scale this is the single most visible difference between our board and the concept art.",
+      "src/components/KeyRail.tsx — empty capacity draws only a bare J-hook. The reference draws a full dark key silhouette hanging in every empty slot (the `dark` gradient already exists; the `lit &&` guard around `<KeyBody>` is what suppresses it). Also, the rail bar is the brightest thing in the capsule; the reference tucks it under the recess lip so the bows are what overhang. Suggest an optional `rail={false}` prop, or moving the bar's top stop from #e2c383 down to ~#a8823c so it stops out-glowing the keys it carries.",
+      "src/components/chrome.tsx — `Lamp`'s glow radius is generous enough that five 13px team-colour cells at a 17.6px pitch merge into one coloured wash across the recessed channel. The reference cell is a crisp filled square with a bright inner face and a spill of roughly half a cell width. A `spill` multiplier (default 1, board passes ~0.6) would let the board tighten it without changing the roll-call and team-sheet reads."
+    ],
+    "stats": "warmth 33.6 / medianL 63 / midtone 35.3% / specular 3.72% against the reference's 30.9 / 64 / 39% / 2.46% (round-two starting point was 31.3 / 45 / 30.4% / 3.59%)"
+  },
+  {
+    "screen": "Roll call (/#/call/punctuality) — src/screens/RollCall.tsx, src/components/Lever.tsx",
+    "changed_files": [
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/screens/RollCall.tsx",
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/components/Lever.tsx"
+    ],
+    "summary": "The screen now reads as one machine bolted to a dark wall: inside a thin bronze bezel (ScreenFrame band 6) sits a near-black warm wall panel, and the header plate, eight row plates and lever housing are separate brass parts with the wall showing black through every 8px gap. Each row is a single line — 46px medallion, bright cream 19px name, seven brass-grommeted sockets (team colour when earned, dark well with a lit brass ring when not, amber pulsing rim at 6/7), an engraved hairline, then a 44px cog knob that flips to the landing value (`0.5`, `1.0`) when the row is selected. The header plate carries only a recessed dark LCD window (category over `LUNCH · 13:00`) with a back chevron in the left brass margin and a stacked pair of engraved brass activity steppers mirroring it in the right margin; the old three-button cluster is gone, as are the LOGGED / `4 / 7` subtitles. The lever uses the shared `GlassTube` at 26px with 42px turned brass collars clamping it to the rails, its mechanism recessed into a darker housing interior, and the stray `ALL` tab and `CH-01 · COMMIT` label now live in a deliberate recessed status groove across the top of the housing that also hosts the 60-second undo. The commit beat was captured and verified against reference 03: grip seated at the base, the tube blown out white, teal strands jumping from the bore to visible brass collars at the top and bottom of both rails, rails glowing teal, tick gauges ignited amber, and teal light filling the wall gaps above without washing the brass faces.",
+    "closed": [
+      "TOO BRIGHT — added a dark warm wall panel inside the bezel (radial #35251a→#1a110a with true inner shadow), widened the row gutters to 8px, recessed the lever mechanism into a darker housing interior (#6d5542→#443124, sampled to match the reference's #433124), and graded every plate face to the reference's measured luminance profile (flat ~#7b5e48 with a bright top chamfer, not the shared gradient's #94795e→#4a3524). Rest midtone went 64.5% → 51.7% (reference 42.1, gate ceiling 64) and medianL 96 → 83.",
+      "HEADER CLUTTER — the header plate is the LCD window plus two hardware controls placed in the brass margins the reference leaves empty: a 22px back chevron at the left, a stacked pair of 22x10 engraved brass steppers at the right. Nothing crowds the window, and the LCD got a thinner darker brass frame and a brown-black interior instead of the previous bright orange ring on pure black.",
+      "The overlapping ALL tab and CH-01 · COMMIT label — both moved into a new recessed status groove cut across the top of the lever housing (a Well between the corner screws), which now also carries the queued count, the committed count, the draining undo timer and the UNDO tab. Both brass tabs got flex centring so their engraved captions sit inside the metal instead of spilling below it. The old absolutely-positioned undo banner is gone.",
+      "Row subtitles — deleted. The row is one line; the count lives in the sockets, and the 'already logged' state is carried by the disabled plate, its lowered brightness and the aria-label (`Pink Junkyard Warriors, 6 of 7 check-ins, already logged`).",
+      "The thin tube — replaced with chrome.tsx's shared GlassTube at height 26 and collarWidth 42, so the lever tube, the standings meters and the big-screen channels are literally the same part. The collars are centred on the rails and read as substantial turned sleeves; arc endpoints are inset to the bore edge.",
+      "COMMIT STATE verified by screenshot, not assumption: grip at the base, hard white blowout at the tube centre painted over the bolts, six branches to both rails terminating on the top and bottom brass collars with bright contact dots, rails rim-lit teal, TickGauge lit amber, teal spill on the wall gaps above. Rest→seated goes medianL 83→91, specular 1.65→2.76.",
+      "The discharge spill no longer washes the rows blue-green: it sits BEHIND the plates (each plate now carries zIndex 1) so it lights the wall in the gaps and the plate edges. That took the seated frame from warmth 13.9 with ordering FALSE (a hard CLAUDE.md violation) to warmth 22.8 with ordering true.",
+      "Sockets rebuilt locally as brass grommets with tight emitter falloff instead of the shared Lamp's wide soft halo — the halos were both an unmotivated wash over the plate and a large part of the brightness problem.",
+      "Team names raised to bright cream #fdf6e6 at 19px bold, which is where the rest frame's specular came from: 1.44% → 1.65% against the reference's 1.76%.",
+      "Machine fits one screen with no scroll: scrollHeight 844, scrollWidth 390. Two Well instances were silently overflowing to 422px because chrome.tsx's Well puts `relative` ahead of the caller's `absolute` in its class list; fixed by setting position inline."
+    ],
+    "left": [
+      "medianL 83 / midtone 51.7 against the reference's 66 / 42.1. This residual is structural, not a material error: the concept render is a ~698 CSS-tall frame with 40px rows, while we are on 844 with a 56px row floor and full-width hit areas, so the machine covers ~7 percentage points more of the frame and the wall covers that much less. Plate faces themselves now sample #715d48–#614933 against the reference's #7b5e48–#7a5d47 — i.e. already very slightly DARKER than the reference. Darkening further would take the plates out of REFERENCE-SPEC's #6A5240–#98795E band to chase an area ratio. Both figures sit inside the gate ([42,100] and [17,64]).",
+      "Seated specular 2.76% against reference 03's 4.4%. Closing it needs more blown-out white area than the current 210x58 core plus six strands; going further started to erase the tube and its collars entirely, which loses the mechanism the shot exists to show. In gate ([1.1,12]).",
+      "The reference's tube collars are two-stage (a wide sleeve stepping down to a narrower ring at the glass). The shared GlassTube renders one collar per end, so ours is a single stage — a change I would have had to make in chrome.tsx.",
+      "scripts/drag-shot.mjs cannot reach this screen's grip on its own: the lever's pointer handler returns early while nothing is selected, so the harness drags a dead control and only ever writes the rest frame. I captured the commit beat with a local script that clicks the ALL tab first (kept at scratchpad/commit-shot.mjs). drag-shot.mjs would need a pre-arm step to be useful here."
+    ],
+    "shared_needs": [
+      "src/components/chrome.tsx — `Well` builds its class list as `well relative ${className}`, so a caller passing `absolute` loses the cascade (both utilities are in the same Tailwind layer and `relative` wins by stylesheet order, not attribute order). The element then keeps `position: relative` while left/right are applied as relative offsets, and it overflows its parent. It cost me two silent 422px-wide overflows on this screen. Suggest `Well` (and any other chrome primitive that hardcodes a positioning utility) accept position through style or drop `relative` when the caller supplies one. I worked around it with inline `position: 'absolute'`.",
+      "src/components/chrome.tsx — the shared `.plate` face gradient (#94795e → #866c52 → #78604a → #4a3524) does not match the references. Measured down a row plate in 02-rollcall-rest.jpg, the face is nearly FLAT at #7b5e48 top to bottom with only a bright hairline chamfer at the top edge; the darkness in the reference lives in the gaps BETWEEN plates. I had to overlay a local `PlateGrade` on every plate to pull the top down ~20% and lift the bottom back into the light. Every screen will need the same correction, so the fix belongs in `.plate` in theme.css (or as a graded variant on `Plate`), not repeated per screen. My local `PlateGrade` and `TopSpecular` helpers in RollCall.tsx are the reference implementation if it helps.",
+      "src/components/chrome.tsx — `Lamp`'s glow is far wider and softer than the references' sockets, which are crisp filled discs in a brass grommet with falloff inside a few pixels. At 14px in a row, eight rows deep, the halos fogged the plates and contributed materially to the brightness overshoot. I stopped using Lamp for row sockets and hand-rolled a `Socket` (brass ring + inset well / team-coloured emitter with 3px and 7px falloff stops). If the board and team sheet use Lamp at similar sizes, tightening its falloff centrally would help them the same way.",
+      "src/components/ChargeTrack.tsx (carried over from round one, still not in my ownership) — its lit sockets, seventh-socket fill and 6/7 pulse rim are all `var(--color-accent)` (teal), which breaks REFERENCE-SPEC's 'teal is not the on color'. Roll call no longer imports it, but the team sheet still shows it, so the amber recolour (`--color-lamp` body, `--color-lamp-hot` core, `--color-lamp-dim` resting-lit, `--color-lamp` cliff rim) has to happen once centrally.",
+      "scripts/drag-shot.mjs — add an optional pre-arm step (e.g. click a `[data-part]` or a named control before grabbing the grip) so it can capture the commit beat on roll call, where the lever is inert until teams are selected."
+    ],
+    "stats": "rest: warmth 35.5 / medL 83 / midtone 51.7% / spec 1.65% vs reference 02's 36.2 / 66 / 42.1% / 1.76% — warmth and specular matched, all four in gate (was 41.1 / 96 / 64.4% / 1.58% and failing the midtone ceiling). seated: warmth 22.8 / medL 91 / midtone 62.7% / spec 2.76%, ordering true, vs reference 03's 26.6 / 83 / 51.7% / 4.4% (was warmth 13.9 with ordering FALSE). scrollWidth 390, scrollHeight 844, 8 rows at 364x56. check-dod, check-motion and validate-tokens all pass; typecheck clean via an isolated tsbuildinfo."
+  },
+  {
+    "screen": "Big screen (/#/display) — fresh shot at 1920x1080 dpr2, compared against design/reference/v2/06-big-screen.jpg",
+    "verdict": "minor-gaps",
+    "findings": [
+      {
+        "severity": "major",
+        "what": "The bottom ~60 CSS px of the mounting panel is a dead black void. The reference puts a lit brass ledge there, so in my shot the eight columns stand on nothing and the screen loses its lowest depth layer.",
+        "evidence": "Measured on the full-width strip below the footing plates: mine (x60-3780, y1990-2110) maxL=44, brightest #322b21, mean #18120d (L≈19). Reference same band (x40-1880, y1000-1055) maxL=213, brightest #e4d2bf, mean #251b15. A vertical scan in mine at x=600 goes L=101 at the footing plate's bottom bevel (y1980) and then never exceeds L=21 from y1984 to the frame edge at y2160. In the reference the equivalent scan at x=300 holds L=56-67 (#44332b–#513e37) with a bright bevel line at L=83 and rust speckle. Visible consequence: the mounting panel's bottom-left corner screw in my shot (real ~92,2062) sits alone in black with no readable plate under it.",
+        "fix": "Light the mounting panel's lower band the way the reference does — carry the panel's plate face down past the footings (mid-brown, L≈55-65), strike its bottom bevel, and keep the vignette above it rather than letting the panel fall to wall level."
+      },
+      {
+        "severity": "major",
+        "what": "The lit meter does not spill any light onto the footing plate 5px beneath it, at exactly the place the reference makes the spill most obvious.",
+        "evidence": "Vertical scan in mine at x=300: the bottom lit slot reads #aa49f4 (y1770), and the footing plate's top bevel immediately below reads #eee2c8 (y1800) then #cabba6 — pure warm cream, b<g<r, zero purple cast. The reference at x=150: bottom slot #fd94c6 (y889), then the footing bevel at y919-922 reads #bf7a88 / #c58d94 — visibly pink-cast metal. Confirmed visually in the zoomed footing crops: the reference's plate top edge and the panel around it are washed pink; mine is warm-white.",
+        "fix": "Give the lit meter a coloured spill onto the metal it borders — tint the footing plate's top bevel and the channel's outer walls with the team colour at tight falloff, the same way the arcs already tint the leader's brass rails teal."
+      },
+      {
+        "severity": "major",
+        "what": "The leader's meter channel edges barely glow teal. In the reference they are two bright teal channel rails flanking the slots — one of the strongest reads in the concept.",
+        "evidence": "src/screens/BigScreen.tsx gives the leader's Well only '0 0 0 1px rgba(47,217,208,0.5), 0 0 22px rgba(47,217,208,0.28)'. Sampled at the channel edge (1970,1300) it is #143735 — a dark teal hairline. The reference at the same relative point shows a wide lit teal band flanking the slot stack (crop crops/ref-meter-edge.jpg: bright cyan vertical rails either side of the red slots, clearly brighter than the slot gaps). Side by side, mine reads as a plain dark channel with two lightning bolts outside it.",
+        "fix": "Make the channel's own walls emitters on the leader: a 3-4px teal-lit inner rail on both sides of the slot stack with a wider bloom onto the plate, so the current visibly runs through the meter rather than only beside it."
+      },
+      {
+        "severity": "minor",
+        "what": "The eight footing plates read as polished chrome, not warm bronze — the coolest, brightest elements on the screen.",
+        "evidence": "Box mean over footing plate 1: mine (70,1810,340x180) = rgb(120,104,87), L≈107; reference (70,905,200x95) = rgb(87,59,56), L≈68. Peak specular is the same in both (236,226,207 vs 246,226,209), so it is the plate body that is too bright and too neutral — mine's face runs #a29078–#d7cdbb across most of its area where the reference's stays #3c2d26–#5c483d with a narrow streak.",
+        "fix": "Darken the footing plate body toward the reference's bronze and narrow the specular streak so it is a highlight on brass rather than a full-face gradient."
+      },
+      {
+        "severity": "minor",
+        "what": "No rust patina anywhere on the screen, though the columns pass a `rust` prop. The reference carries it on the footing plates' lower edges, the header plate's lower edge, and the panel band beneath the footings.",
+        "evidence": "Zoomed footing crops: the reference shows orange oxide along the plate's bottom edge and spreading onto the panel below (#7a4a2a-family speckle), plus rust along the header plate's lower edge. My footing plates and header plate show a clean bevel and no oxide at any edge; the panel below is black.",
+        "fix": "Emit the rust in the crevices and lower edges that are actually lit — the footing plate's bottom lip and the panel band under it — once that band is lit at all (see the first finding)."
+      },
+      {
+        "severity": "minor",
+        "what": "The leader's bolts read as thick neon zigzag ribbons rather than current: the white-hot core is fat and the teal glow is narrow and hard-edged, the inverse of the reference's proportions.",
+        "evidence": "Horizontal cross-section through my left bolt at y=1500: two near-white peaks (#e8faf8 L=244 at x1908, #d5f6f4 at x1922) spanning ~24 device px ≈ 12 CSS px of core, wrapped in a hard saturated band (#2ecac1 L=154) with the whole footprint dead by x1880 — ~30 CSS px total. Reference at y=700: core is 4px of #98f9f8 (a cyan, not white), inside a smooth ramp still measurable 25px out (L=58 at x960 rising to 112 at x986) — >50 CSS px of bloom.",
+        "fix": "Thin the core to ~2-3px and tint it cyan rather than white, and widen/soften the teal bloom so the ratio inverts; add finer short-segment branching instead of long straight zigzag runs."
+      },
+      {
+        "severity": "minor",
+        "what": "The leader carries one stand-off bracket per side; the reference has two per side (top and bottom), with the dark cables running off the lower pair.",
+        "evidence": "My leader crop shows, per side: a brass cap at the top of the rail, one heavier two-screw bracket at mid-height, a brass cap at the bottom, and a thin cable loop off the mid bracket. The reference crop shows two rectangular two-screw brackets per side — one high (level with the score) and one low (near the last slot) — with the cable looping between the lower brackets.",
+        "fix": "Split the single mid bracket into an upper and a lower two-screw bracket at the arc's endpoints and hang the cable from the lower pair, so the posts and the arc terminations are the same hardware."
+      },
+      {
+        "severity": "minor",
+        "what": "Nameplate type size is not uniform across the eight columns, so the names read at different weights in a list that is otherwise identical row-for-row.",
+        "evidence": "plateType() in BigScreen.tsx yields 26px for six teams, 20px for RUST REVIVAL CO. (longest line 12 chars) and 23px for the leader. Visible in crops/mine-plates-right.png: 'RUST REVIVAL CO.' is clearly smaller and lighter than 'INNOCENT' and \"GOD'S PEARLS\" beside it. Every reference nameplate uses one size. (Plate heights themselves are fine — scans at x=390 and x=1200 both give a top bevel at y=820 and a bottom edge at y=928, identical 54 CSS px.)",
+        "fix": "Pick one size that the longest roster name clears at the plate width (widen the plate or tighten tracking for that one), rather than auto-sizing per column."
+      },
+      {
+        "severity": "minor",
+        "what": "The hanging key's lowest tooth is a rectangle detached from the shank, and the key's tip clears the medallion bezel by only ~2-3 CSS px, reading as a collision.",
+        "evidence": "3x zooms of two keys (crops/m-key-zoom.png, crops/m-keylead-zoom.png): the shank ends, then a separate offset block floats below it with a visible gap — the reference key is a continuous E-shaped bit joined to the shank. In the column-1 zoom the lowest block bottom sits ~15px (3x) above the medallion's outer ring, i.e. ~2-3 CSS px; the reference leaves the key well clear of the crest.",
+        "fix": "Join the bit to the shank in KeyGlyph, and raise the hanger or shorten the drop so the key ends at least 8px above the medallion bezel."
+      },
+      {
+        "severity": "minor",
+        "what": "Gold is used as an arc colour on /display. The reference art does show it, so this is a rule-versus-reference conflict that should be decided rather than passed silently — the report claims a CLAUDE.md 'carve-out' that CLAUDE.md does not contain.",
+        "evidence": "crops/m-keylead-zoom.png shows a gold-white crackle running from the rail collar into the key's bow. CLAUDE.md: 'never let gold act as an arc colour on any other screen' — the ceremony at /key/:teamId is named as the single exception. REFERENCE-SPEC screen 06 asks for 'gold lightning crackling off the keys', and REFERENCE-SPEC's own precedence note gives CLAUDE.md the win on rules.",
+        "fix": "Get an explicit decision. If it stays, note the exception in CLAUDE.md so the rule is not silently contradicted; if not, drop the crackle and let the key's bloom on the rail carry it."
+      }
+    ]
+  },
+  {
+    "screen": "Key ceremony (/#/key/knights) — src/screens/KeyCeremony.tsx",
+    "verdict": "does-not-match",
+    "findings": [
+      {
+        "severity": "major",
+        "what": "The arcs have no white-hot core — they are single-layer gold, so the discharge reads as a drawn squiggle rather than current.",
+        "evidence": "Scanned the left arc band (device 200,660 → 260,740) in my fresh shot: 0 pixels above the white threshold (R>235,G>225,B>200) out of 4800; brightest pixel rgb(238,216,160). The only near-white pixels anywhere near the arcs are 26 px at the two terminal dots (rgb(254,242,207) = --key-hot). The same scan on 04-golden-key.jpg (280,780 → 400,900) returns 666 white pixels at rgb(255,255,244) forming a visible forked filament with the gold bloom sitting UNDER it. Zoomed crops confirm it: the reference bolt is a white lightning fork; mine is a thin amber thread inside a soft disc of haze.",
+        "fix": "Draw the arc as the rule specifies: a thin --key-hot/white core path on top of a thicker gold glow path beneath, on both sides. Right now only the endpoints are hot."
+      },
+      {
+        "severity": "major",
+        "what": "The door bolts are pearl-white domes with no slot in a flat black ring — the brightest, coolest-reading hardware on the door.",
+        "evidence": "Sampled six bolts in my shot: (73,84)=#CCBCB0, (73,270)=#DCC9BA, (73,1620)=#DBCABE, right column #B6A79C/#BDAB9E — luminance ~190-200, i.e. brighter than the brass seal bezel I sampled at #C3A26D and far brighter than anything else on the upper door. Crop shots/sk/top.png shows six smooth off-white balls each ringed by a hard black outline, no slot, no washer seat. The same corners in 04-golden-key.jpg (crop ref-tl.png) are small muted bronze rivets, sampled ~#5A473A, with a faint turned face — they recede. REFERENCE-SPEC hardware item 2 asks for \"a brass slotted head in a dark washer seat\".",
+        "fix": "Restyle DoorBolt as a brass slotted head (warm #9D8050/#E8C795 gradient, engraved slot, dark washer seat with a lit lower-right lip) and drop its luminance well below the seal bezel."
+      },
+      {
+        "severity": "major",
+        "what": "A detached grey smoke puff floats ~90px above the hot key, behind the award nameplate, reading as a dirty smudge on the door with nothing connecting it to its source.",
+        "evidence": "In my shot there is a soft blob centred near device (520,1245) = CSS (260,622): sampled #41352A against the surrounding door at #31261A/#32261C — clearly lighter, ~50px across, sitting between KEY 02 and the TURN TO AWARD plate, with no smoke at all between it and the key at the rail (crop shots/mine-blob.png). Source: `.kc-smoke` animates `translateY(-86px) scale(1.7)` from `top:-10` on a 58px key, so the puff crosses the whole caption band, and it is painted before the nameplate so it vanishes behind a plate that is nearer the viewer than the smoke's own source. In 04-golden-key.jpg the smoke is a continuous thin warm wisp hugging the key, roughly one key-height tall, never detaching and never crossing the type.",
+        "fix": "Cut the travel to ~24-30px, keep opacity tied to distance so it dies before the caption band, and paint the plume above the nameplate layer so it is never occluded by hardware nearer the camera."
+      },
+      {
+        "severity": "major",
+        "what": "The hot key's \"sparks\" are three pale vertical bars rendered inside the bow ring, reading as smears on the key rather than sparks thrown off it.",
+        "evidence": "Crop shots/mine-hotkey.png: three faint vertical streaks sit inside the key's bow ring and one below-left of it; nothing flies clear of the silhouette. Source confirms every spark starts from one point on the shank — `left: KEY_SIZE/2 - 1, top: 42, width: 1.8` — so at any frame they overlap the key body. 04-golden-key.jpg shows discrete warm dashes scattered outside the key to its right and below, plus a few above the rail, none over the key itself.",
+        "fix": "Seed sparks from the key's outer edge (bow rim and bit) with varied origins, and bias --sx outward so the visible travel is off the silhouette, not across it."
+      },
+      {
+        "severity": "major",
+        "what": "The escutcheon is a plain stadium capsule; the reference focal object is a rectangular plate with an arched top and bottom and square shoulders.",
+        "evidence": "Source line 542: `rx={96}` on a rect of width EX1-EX0 = 106 and height 434-252 = 182 — a pill. Crop shots/mine-esc.png shows a uniform rounded-rect with a rounded inner outline. 04-golden-key.jpg (crop ref-esc.png) shows a rectangular brass plate whose top and bottom terminate in an ogee arch with distinct shoulders, an engraved inner frame following that same shape, and the screws set into the arch centres. REFERENCE-SPEC screen 04 calls it \"a brass keyhole plate with an arched top and bottom\".",
+        "fix": "Replace the rx=96 rect with a path: straight sides, arched/ogee top and bottom with shoulders, and give the inner engraved frame the same silhouette."
+      },
+      {
+        "severity": "major",
+        "what": "The seal legend collides with the bezel screw, and it still runs on the top arc instead of the bottom.",
+        "evidence": "Crop shots/sk/coinTL.png at 6x: the top-left bezel dot (a dark disc with an off-centre pale spot, no slot) overlaps the leading \"F\" of FIRE KNIGHTS, and the cream specular slug's top cap runs into the letterforms. In 04-golden-key.jpg the legend runs along the bottom arc, right-reading, with a small dot at 9 and 3 o'clock and clear space above and below it — nothing overlaps the type. The report claims \"no more self-collision\", but the collision has moved to the bezel screw.",
+        "fix": "Move the legend to the bottom arc (the labelAt work the report identified) and, whatever arc it sits on, inset the bezel dots and the specular so neither crosses a glyph."
+      },
+      {
+        "severity": "major",
+        "what": "On the one screen defined by \"no colour but gold\", the crest glyph is a saturated salmon-red emitter with a red halo — the loudest colour on the door. The reference crest is warm gold/amber.",
+        "evidence": "Sampled my flame at (390,200)=#FA7365 and (390,215)=#F56150, with the halo just off the glyph edge at (355,215)=#D56B4B. It is the most saturated and second-brightest element in the frame. 04-golden-key.jpg's crest is gold line art with amber flames on a lit gold disc — sampled (540,290)=#A27C4B, (440,300)=#68401E, and my cool/red scan finds zero red-dominant pixels anywhere in the reference. (Fair warning: REFERENCE-SPEC does sanction the crest glyph as one of three places team colour may appear, so this is a reference-vs-rule tension — but the reference image, which wins on material, keeps this particular crest gold, and the coin around my flame is olive-khaki #9C8043 rather than lit gold, which makes the red read even hotter.)",
+        "fix": "On the ceremony seal only, render the crest in gold/amber (or heavily gold-graded team colour) so the door contains one light temperature, and light the coin interior as gold so the emblem is not the only bright thing on it."
+      },
+      {
+        "severity": "minor",
+        "what": "The coin's specular is a hard-edged detached cream lozenge pasted on the bezel rather than a graded brass highlight.",
+        "evidence": "shots/sk/coinTL.png at 6x shows a rounded-cap cream bar (sampled #CFBD96 at device 296,205) starting abruptly under the top-left bezel dot and ending in a round cap mid-bezel, with a matching brown bar at lower right. The reference coin's highlight is a broad graded polish across the top of the bezel peaking at #FDF6E0, with no visible start or end cap.",
+        "fix": "Replace the two stroke-shaped highlights with a graded arc gradient on the bezel ring so it has no cap."
+      },
+      {
+        "severity": "minor",
+        "what": "Post construction artifacts: a circular seam scar crosses each post face, and the shadowed far-edge strip is drawn on the same edge as the bright inner strip so it protrudes as dark stubs above and below it.",
+        "evidence": "Crops shots/sk/post.png and post2.png at 5x: an outlined circle cuts visibly across the shaft near each end, and the bright inner strip has a darker offset segment above and below it. Source: the end pads are `r={15}` against `POST_W/2 = 14.5` (so they add only an outline, never a wider foot) and are stroked rgba(24,14,5,0.45); on the left post `inner = px + POST_W` puts the bright rgba(255,214,120,0.55) strip at the same right edge as the rgba(24,14,5,0.4) far-edge strip, which starts 6px higher and ends 6px lower. The reference handles have pads clearly wider than the shaft with their own contact shadow and no seam across the face.",
+        "fix": "Widen the end pads (r ≈ POST_W/2 + 3) and drop the stroke, and clip or offset the far-edge shadow so it never shares an edge with the inner highlight."
+      },
+      {
+        "severity": "minor",
+        "what": "The door's inset hairline rule runs straight through all six bolt heads and under the back-button chip, reading as an un-occluded guide line.",
+        "evidence": "shots/sk/top.png: a 1px vertical rule at each side crosses the exact centre of every bolt, and the top rounded corner arc passes through the top bolt and behind the back button. In 04-golden-key.jpg the inset panel is a chamfered edge that the rivets sit inside; no line crosses a rivet.",
+        "fix": "Break the hairline around each bolt, or inset it so hardware sits clear of it."
+      },
+      {
+        "severity": "minor",
+        "what": "The back control is a flat brass chip with no screws and no bevel — out of the screen's own hardware vocabulary, which it states explicitly (\"everything operable here is hardware\").",
+        "evidence": "shots/sk/top.png: a 46x26 flat tan rounded rect with a thin arrow, no bevel highlight, no screws, no contact shadow — and it is lighter than the seal bezel, so it pulls the eye to the empty top-left corner. The award nameplate 500px below it is, correctly, a bevelled plate with two slotted screws and engraved type. The reference has no back control at all (status bar in that band), so there is no reference for it — but the two controls on the same door do not read as the same machine.",
+        "fix": "Give the back control the same nameplate treatment at a smaller size: bevel, contact shadow, one slotted screw."
+      },
+      {
+        "severity": "minor",
+        "what": "The screen is not on the 8px grid CLAUDE.md requires; nearly every position is a hand-nudged odd value.",
+        "evidence": "Constants in KeyCeremony.tsx: DOOR_TOP 21, SEAM_Y 118, SEAL 132, EY0 252, EY1 434, KH_CY 318, SLOT_BOTTOM 400, POST_Y0 277, POST_H 141, POST_LX 70, POST_RX 291, ARC_Y 347, RAIL_TOP 700, KEY_SIZE 58. Only ACTION_Y 632 and ACTION_W 208 land on 8. Symmetry is fine (both posts sit 110.5px from centre), so this is discipline rather than a visible collision.",
+        "fix": "Snap the vertical rhythm (door top, seam, seal centre, escutcheon box, post box, rail, action plate) to multiples of 8 and let the keyhole geometry derive from that."
+      }
+    ]
+  },
+  {
+    "screen": "Team sheet (/#/team/:teamId)",
+    "changed_files": [
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/screens/TeamSheet.tsx",
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/components/Breaker.tsx",
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/components/ChargeTrack.tsx",
+      "/Users/ilyakarakotov/Documents/GitHub/junkyard-camp/src/components/KeyRail.tsx"
+    ],
+    "summary": "The screen is now one machine read top to bottom. A 148px team seal rides 19px above the top edge of a heavy brass double frame (BrassFrame band 8, a 12px slotted screw driven into each corner of the band, oxide gathered in the lower corners) over a recessed dark brushed field; inside it the equation sits on one shared baseline — 5.6 cream 29px, / 6.0 dim 15px, +, the key count, KEYS, up to three hanging gold KeyGlyphs then a plain +N, =, and the total at 44px with TOTAL tucked under its right edge. Five octagonal brass day tabs sit 8px under the frame, then six identical 60px chamfered plates spanning x 16→374 on an 8px grid, each with two 8px screws on its left edge, a ~42px engraved brass line-art glyph, an engraved hairline, a cream 17px label, and at the right either a 62×31 amber capsule toggle or — for punctuality, inline as row two — the recessed charge track with six amber lamps and the ornate seventh cog whose rim burns at 6/7, with `6 / 7 · 0.6 → 1.0` in mono amber hanging under the plate. A bare brass rail closes the screen on the wall: bright top lip, milled groove, six dark hooks with awarded keys hanging lit under a tight bloom, a screw at each far end and a chamfered `+ KEY` tab that is the button. Row plates were re-faced to the reference's sampled flat-then-cliff profile (#785638 down to #37231 5), which is what closed most of the material gap; every glowing thing on the screen is a lamp, a toggle track, a lit tab or a key, and there is no teal anywhere.",
+    "closed": [
+      "punctuality row placement — it is now row 2 of six identical 60px plates rendered from SCORED_CATEGORIES; the hoisted 172px block and the 7-cell activity time-chip grid are gone, the check-in interaction moved onto seven invisible buttons laid on CAPSULE_SOCKET_PCT with aria-label = activity label + time",
+      "binary row control — Breaker variant=\"toggle\" (62×31 recessed seat, brass bezel ring, emissive amber track with ON in lamp-hot on the track, 21px domed brass knob right, spill onto the plate; OFF = dead capsule, dim OFF, gunmetal knob left) now sits at the row's right end; the per-row score numeral is deleted",
+      "punctuality colour — every lamp, the cliff rim and the readout are amber; ChargeTrack is called without a colour override so it uses var(--color-lamp). No teal on the screen",
+      "team seal — TeamCrest at 148px with label={team.name}, absolutely centred at top 6px so it overhangs the frame's top edge (y=25) by 19px; the ScreenHeader, the separate crest/name/theme row and the tinted team name are all gone. Back affordance is a 44×44 chevron button at the page's top-left corner clear of the frame screw",
+      "header panel material and frame — BrassFrame band 7→8 with four 12px screws placed outside the frame element so the interior cannot clip them, rust in the band's lower corners, and an interior recess (linear-gradient #6b4a31→#3b291d, inset 0 3px 8px black) that samples darker than a row plate",
+      "category glyphs — CategoryGlyph exported from Breaker.tsx: six hand-drawn 48-viewBox line-art glyphs (gear+droplet, clock+gear, scroll+cross, clasped hands, brain+circuit with soldered nodes, striding caped figure), a 2.9px brass-gradient stroke over a 3.6px #2b1b0c copy offset (1.2,1.4) so each reads as raised metal. Rendered on all six rows including punctuality; the three-letter mono abbreviation is untouched for the board",
+      "key rail composition — KeyHookRail exported from KeyRail.tsx: one 358×29 brass bar drawn on the wall with overflow visible, a milled groove under the lit top lip, six recessed hook slots with brass tongues, keys hanging lit with a four-stop tight bloom, a slotted screw at each far end and the right 85px a chamfered notched `+ KEY` tab that is the button. The wrapping plate, the GOLDEN KEYS label, the director-mode sentence and the detached +Key button are gone; the gate now shows as cold unlit brass with aria-disabled",
+      "the equation — one flex items-baseline row, no BASE SCORE label, no nested KeyRail, no gold colour switch on the total; total at 44px cream with TOTAL absolutely positioned beneath its right edge",
+      "day rail position — DayRail variant=\"tabs\" now renders immediately after the header frame with marginTop 8",
+      "team colour spill — the only consumer of the team colour on this screen is TeamCrest, which derives it from teamId. Labels and numerals are cream; toggles are amber for every category",
+      "category row plate geometry — Plate chamfer 7, identical 60px height, 8px gaps, x=16 w=358 (verified in the DOM), two left-edge screws with different slot angles, an .engraved-v divider, cream label in both states, no EARNED/NOT EARNED sublabel",
+      "charge track construction — capsule form draws a genuine recessed well (much darker trough, hard dark top-left lip, lit lower lip), a leading en dash on the plate, engraved gauge ticks above and below with a lit lower lip each, a caret over the seventh, the seventh as a heavy brass annulus around a dark bore, and four 70° amber arcs pulsing at the cliff",
+      "charge readout — 9px mono, cream ticks, amber /, · and value, absolutely positioned at the punctuality plate's right edge hanging just below it in a widened 20px gutter; the → preview is drawn as an SVG arrow because JetBrains Mono's subset here has no U+2192 and the preview was silently rendering as '0.6 1.0'",
+      "screen margins and grid — px-4 everywhere, 8px row gaps, header/rows/rail all measured at x=16 w=358",
+      "Arrival lock notice — the translucent ringed box is replaced by a single engraved 8px tech-label reading ARRIVAL · NO SCORING; verified that Arrival disables all five binary plates and the key tab",
+      "hung-key bloom falloff — four stops on a steep ramp plus a short wall wash under the bow, on the dark wall rather than on bright brass"
+    ],
+    "left": [
+      "Image warmth is 39.4 against the reference's 44.3. The residue traces almost entirely to the team seal: sampled at matching points the reference coin's interior runs L118–221 warm gold, ours L10–150 dark team tint, and at 5% of the screen's area that alone accounts for roughly 5 of the 7-point meanR deficit. TeamCrest is read-only for me — see shared_needs.",
+      "The coin's circular legend loses its first and last letter on 15-character names (PRECIOUS PIECES renders as RECIOUS PIECE) because TeamCrest's bezel screws sit at 45°/135°, exactly under the legend arc, and both the screw head and the legend fill are dark. Read-only for me — see shared_needs.",
+      "The good-deed glyph reads as clasped hands between two cuffs rather than unmistakably as a handshake. Three compositions were tried and screenshotted; the straight-band version read as a ruler and the curled-finger version as a chain link. The current one is the best of the three at 42px but is still the weakest of the six glyphs.",
+      "The header frame band renders a little brighter than the reference's (sampled L~189 against ~155–200 depending on the spot). It comes from the shared .brass-band material, and darkening it would cost medianL, which is already 2 short.",
+      "The page is 844 CSS tall against the reference render's 699, so roughly 60px of wall sits below the key rail with nothing on it. The layout was scaled up to fill the viewport at reference proportions (rows 60px ≈ 7.1% of viewport height against the reference's 50px ≈ 7.2%) rather than leaving a 200px dead band."
+    ],
+    "shared_needs": [
+      "src/components/TeamCrest.tsx — at seal size the coin's interior is the last big material gap on this screen and the largest single contributor to its warmth deficit. REFERENCE-SPEC screen 05 says the coin is 'radial brushed gold'; the reference JPEG's interior samples (147,113,68) → (174,139,82) → (196,169,117), a warm mid-brown-to-gold field with the emblem luminous on top of it. The build renders shade(teamHex, -0.7…-0.9), which for precious is a near-black purple and for every team is L~10–40. Please give the interior a warm brushed-brass radial when `label` is set (the seal/coin case), keeping the team colour for the emblem and its bloom only — the board's small medallions can keep the dark tinted well.",
+      "src/components/TeamCrest.tsx — the four bezel screws sit at 45°/135°/225°/315° at r=25.4, which is exactly where the 250° legend arc (r=23.4) runs, and both the screw head (#2e2010) and the non-gold legend fill (#33240f) are dark. The result is that the first and last glyph of the legend vanish: PRECIOUS PIECES renders as RECIOUS PIECE, GOD'S PEARLS and FIRE KNIGHTS will do the same. Either move the screws to 0°/90°/180°/270° when `label` is set, or push them out to r≈27.5 clear of the type.",
+      "src/theme.css — `.grain > *` (around line 434) sets `position: relative; z-index: 1` on every direct child, which at equal specificity beats `.screw`'s own `position: absolute; z-index: 2` (line ~265) because it appears later in the sheet. Any `<Screw>` placed as a direct child of a `.grain` element therefore goes static and lands in the layout flow. I worked around it on this screen by passing Tailwind's `absolute` utility through Screw's className, but `BrassPlate` in chrome.tsx has the same latent bug in its `screws` branch. Either scope `.grain > *` (e.g. `.grain > *:not(.screw)`) or give `.screw` `position: absolute !important`.",
+      "src/components/chrome.tsx — `Screw` takes `className`, `slot` and `size` but no `style`, so absolute placement has to go through Tailwind arbitrary-value classes. A `style?: CSSProperties` passthrough would be a one-line, non-breaking addition. Also `BrassFrame` renders `CornerScrews` before its children and its children wrapper is `position: relative`, so at band widths under ~11px the interior paints over the inner half of each screw; I ended up passing `screws={false}` and placing my own screws as siblings of the frame."
+    ],
+    "stats": "/#/team/rustco 390x844 dpr2 full: warmth 39.4 · order true · medL 64 · midtone 37.0% · spec 2.33% · mean 81,60,41  —  reference 05-team-sheet.jpg: warmth 44.3 · order true · medL 66 · midtone 37.5% · spec 2.23% · mean 88,64,44 (start of this pass: warmth 33.4 · medL 59 · midtone 33.0% · spec 2.07%; the round-one build measured warmth 35 · medL 97 · midtone 56.1% · spec 1.08%)"
+  },
+  {
+    "screen": "Standings (/#/standings)",
+    "verdict": "does-not-match",
+    "findings": [
+      {
+        "severity": "blocking",
+        "what": "Nothing on this screen emits light onto its surroundings. Every meter is a lit column with a hard edge and zero spill, so the glow rule (\"an emitting source spilling light onto surrounding metal with tight physical falloff\") is not satisfied anywhere on the route. The report lists this as merely \"tightened\"; it is absent.",
+        "evidence": "Measured on my own shot at DPR2. Row 2 FORGED's lit column at (655,532) is rgb(152,215,113) — a bright green emitter. The plate 8px above it, at (655,506), is rgb(115,93,70). Row 8 RUST CO. at the same x has a DEAD DARK bore, rgb(36,30,25) at (655,1684), and the plate 8px above it at (655,1658) is rgb(116,94,72). The plate above a blazing green tube and the plate above a black one differ by 1/255. Same for INNOCENT: column rgb(242,216,130), plate above rgb(139,113,80) = the ordinary plate value, plate below rgb(95,74,54) = the ordinary bottom-gradient value. In design/reference/05-standings.png every tube floods its plate — the whole plate around the leader's tube reads teal-green and the collars pick up a cool cast.",
+        "fix": "Give GlassTube a spill layer outside the bore keyed to the fill colour and length — a radial/elliptical gradient painted on the plate under the tube, tightest at the lit column's own extent, dying to transparent within ~10px. It must be drawn outside the bore's overflow clip, or the clip has to go."
+      },
+      {
+        "severity": "blocking",
+        "what": "The leader's teal bolt casts no light on the two brass collars it terminates on, nor on the plate around them. CLAUDE.md: \"Arcs cast teal light onto the brown metal and brass they cross.\" The arc is decoration painted inside a window.",
+        "evidence": "The leader row's collars are byte-identical to a row with no arc at all. Left collar body sampled at (476,340) in row 1 (arc) = rgb(119,87,40); the same point in row 2 (no arc, y+192) = rgb(119,87,40). Right collar: rgb(119,87,40) in both. Plate 8px left of the left collar: row 1 rgb(127,104,82) vs row 2 rgb(128,105,83). Plate 8px above the tube shifts by only 12/255 in R−B (40 vs 52) and is still solidly warm at rgb(126,110,86). In the reference the plate and both collars around the arc are visibly washed cool.",
+        "fix": "Composite a teal light pass over the collars and the plate under/around the tube in the leading row only, driven by the same flicker frame as the bolt so it pulses with it. Warm brass under a teal discharge should shift green-grey, not stay rgb(119,87,40)."
+      },
+      {
+        "severity": "major",
+        "what": "The tube does not read as one cylinder, so its two brass posts read as detached hardware rather than the arc's endpoints. The bore is a pill with a radius equal to half its height; the collars are rounded-rect chips butted against it. At the top and bottom of every tube there is a visible wedge of bare brown plate between the collar's inner face and the glass.",
+        "evidence": "At 8x on the leader tube and on RUST CO.: the bore's rounded end curves away from the collar so bare plate shows between them for roughly the top and bottom third of the tube's height (~5 CSS px wide at the extremes); only the vertical centreline touches. The lit column is consequently a bar floating inside a black lozenge with its own ends clipped into lens shapes. The reference glass is a straight barrel with two specular rails along it that visibly continues BEHIND both collars, and each end holds a bright metal electrode on which the arc root explodes white-hot — ours has no electrode and the strands just fade into the rounded end.",
+        "fix": "Draw the bore full-width (no collar inset) with a small radius and paint the collars on top of it, and add an electrode plug inside each end for the arc to root on. This is the `boreOverlap` item already noted in the report's shared_needs — it is visible at 1x, not a nicety."
+      },
+      {
+        "severity": "major",
+        "what": "Numerals are not actually tabular. Oswald ships no `tnum` feature, so `font-variant-numeric: tabular-nums` is inert. The scores share a right edge but their digit stems and decimal points do not line up down the column — which is the whole point of the rule.",
+        "evidence": "From the live DOM at 390px, the eight 28px scores all end at right=356 but measure: 15.9 → 48.4px wide, 15.3 → 47.7, 14.3 → 48.1, 12.8 → 48.1, 11.8 → 44.7, 11.7 → 42.2, 11.5 → 44.3. 12.8 and 11.7 have identical glyph counts and differ by 5.9px, so their leading \"1\"s start at 307.9 vs 313.8 and their decimal points sit ~2.5px apart. CLAUDE.md requires \"Tabular numerals, right-aligned, sharing a column edge.\"",
+        "fix": "Either set the numeral column in JetBrains Mono (which is monospaced by construction), or hand-set each glyph in a fixed-width cell so the decimal point is positionally locked. Declaring tabular-nums on Oswald does nothing."
+      },
+      {
+        "severity": "major",
+        "what": "INNOCENT's golden key is invisible in its meter, and RUST CO. — which has zero keys — appears to have a gold cap. The key/base distinction the tube is supposed to encode fails on two of eight rows.",
+        "evidence": "At 8x, INNOCENT's fill is one unbroken yellow-gold ramp from collar to meniscus with no perceptible boundary, because the team token #FFD84D and the key gold #FFC63D are ~0.02 apart in hue; its readout says +1.0 of key but the tube shows none. On RUST CO. (+0.0 keys) the fill terminates in a hard pale bar measured at rgb(254,227,165) — the same cream-gold used as the key/meniscus colour elsewhere — so a keyless team's tube ends in what reads as a gold key segment. That pale bar also overhangs the lit column vertically by 1–2px on both edges.",
+        "fix": "Separate the key continuation from the base fill with a dark hairline gap or a notch rather than a colour change, so it survives INNOCENT's yellow; and drop or restyle the meniscus so it cannot be mistaken for the key cap on zero-key rows."
+      },
+      {
+        "severity": "major",
+        "what": "The rank well is a flat black hole, not a machined recess, and the reference's brass rank ring is missing entirely.",
+        "evidence": "Horizontal scan across the row-3 rank well at y=666: plate L=130 steps in ONE pixel to L=17, then a dead-flat rgb(22,15,12) for 72px, then steps back in one pixel. Vertically (x=90) the interior runs L=4 at the top to L=17 and holds flat — no `--well-rim` hairline on the bottom-right lip, no bevel, no ring. REFERENCE-SPEC part 4 requires inner shadow darkest at the top-left lip plus one `--well-rim` hairline bottom-right; in design/reference/05-standings.png the rank numeral sits inside a raised brass annulus within its own bracketed sub-panel, which we do not have at all.",
+        "fix": "Rebuild the rank as the Recess part with a real inner shadow and a bottom-right rim hairline, and put a brass ring around it so it reads as turned hardware instead of a punched hole."
+      },
+      {
+        "severity": "major",
+        "what": "The wall behind the hardware carries no material texture, and there is no rust patina anywhere on the screen — not in a crevice, not along a lower edge.",
+        "evidence": "Local-detail metrics on the left wall margin strip (x2–18, y400–1600) of my shot: |dL/dx| 0.55, |dL/dy| 0.38 — a mathematically smooth fill. The equivalent strip in the reference (x4–34, y600–2300) measures |dL/dx| 6.23, |dL/dy| 3.41, an order of magnitude more surface detail (grain and rust mottling). Clean plate patches: ours |dL/dx| 2.92 / |dL/dy| 5.60 against the reference's 4.2–4.4 / 10.3–15.2. At 10x zoom our plate faces and medallion interiors are smooth airbrushed gradients; every reference plate frame and screw seat is rusted and grained.",
+        "fix": "Add a tiled grain/noise layer to the wall and a patina layer confined to plate crevices, lower edges and screw seats. The overall material stats are already calibrated (warmth 29.8 / medL 58 / midtone 37.3 / spec 2.28 sits inside the v2 band of 30.9–44.3 / 64–66 / 37.5–39 / 2.23–2.46), so this is texture, not tone."
+      },
+      {
+        "severity": "minor",
+        "what": "The medallion is about two thirds of its reference relative size and its interior is a flat gradient, so the row's visual anchor is the black rank hole instead of the crest.",
+        "evidence": "Ours measures 63 device px across on a 176px-tall plate = 0.36 of row height. The reference medallion spans x≈248–418 (170 image px) on a 303px plate = 0.56. Ours also renders the glyph small inside a large empty disc; the reference glyph fills the interior and the disc is grained cast metal with four clearly-visible bezel screws.",
+        "fix": "Take the medallion to roughly half the plate height and let the glyph fill more of the interior."
+      },
+      {
+        "severity": "minor",
+        "what": "The activity lamps' glow is clipped by the well's border, and the glow language on this screen is inconsistent — these lamps bloom generously while the meters, the brightest emitters present, bloom not at all.",
+        "evidence": "Scan across the first FORGED lamp's halo at y=1888: rgb(22,16,10) warm wall at x=23, then a one-pixel step to rgb(9,11,4) green-tinted at x=24 where the well border is. The halo starts abruptly at the well edge with no ramp outside it — the well's overflow clip cuts a hard vertical edge through the green bloom on both FORGED rows.",
+        "fix": "Let the lamp spill escape the well, or shrink it so it dies inside; either way match its falloff radius to whatever the meters get, so one glow language governs the screen."
+      },
+      {
+        "severity": "minor",
+        "what": "Technical labels are set at 8px and 7px, below a usable floor on a 390px phone.",
+        "evidence": "From the DOM: STD·05, CUM and SEC·01 are all 8px JetBrains Mono at rgb(192,138,62) with 2.08px tracking; the toggle's OFF legend is 7px. CLAUDE.md asks for \"tiny monospaced technical labels\", but at 8px on the wall colour these are texture, not text.",
+        "fix": "Floor the technical labels at 9–10px; the tracking already gives them the instrument-panel read without going that small."
+      },
+      {
+        "severity": "minor",
+        "what": "The activity rows sit off the 8px grid at 33px pitch and land on half-pixel baselines, so their text renders subpixel-soft. The report claims \"three 32px rows\".",
+        "evidence": "DOM text tops for the three rows: 939.5, 972.5, 1005.5 — 33px pitch, non-integer positions. By contrast the eight team plates are exactly 88px tall on a 96px pitch, perfectly on-grid.",
+        "fix": "Make the row 32px and put the 1px divider inside it (border-box) rather than adding it to the pitch, and round the block's origin to an integer."
+      },
+      {
+        "severity": "minor",
+        "what": "The BIG SCREEN link is under the minimum touch target, and the back control is the one affordance on the screen with no hardware housing.",
+        "evidence": "DOM rects: BIG SCREEN anchor is 89x24. Everything else clears 44px (back button 44x44, row links 366x88, director button 366x60). The back control renders as a bare 2px stroked arrow floating on the wall — on a screen otherwise built entirely from screwed brass plates, brass rivets and recessed wells.",
+        "fix": "Take BIG SCREEN to 44px of hit area (padding is enough, the plate can stay visually 24px), and seat the back arrow in a small screwed brass tab so the screen stays one machine."
+      }
+    ]
+  },
+  {
+    "screen": "Board (/#/)",
+    "verdict": "does-not-match",
+    "findings": [
+      {
+        "severity": "blocking",
+        "what": "The 6/7 punctuality cliff is not surfaced at all — 6/7 and 7/7 rows are pixel-identical in any still frame, and identical even in motion under prefers-reduced-motion.",
+        "evidence": "In my screenshot, WARRIORS (aria-label \"Punctuality 7 of 7\") and PRECIOUS (\"Punctuality 6 of 7\") both render six lit amber sockets, a dash, and a lit brass cog with the same amber dashed ring. I cropped both cogs at 6x (shots/cog7.png, shots/cog6.png) and they are indistinguishable. Board.tsx:394-396 renders `CogKnob glow={ticks>=6}` for both, and the only 6/7 signal is `className={ticks===6 ? 'pulse-rim' : ''}` — and theme.css:594-606 makes pulse-rim nothing but `opacity: 0.3 -> 1`, applied to the whole knob, so at 6/7 the seventh control periodically fades to a 30% ghost (reads as disabled, not \"rimmed amber and pulsing\"). theme.css:642-647 sets `animation: none` under prefers-reduced-motion; I re-ran the board with reducedMotion:'reduce' and the computed opacity of the 6/7 wrapper is \"1\" — byte-identical to the 7/7 row. So on the big screen at the evening gathering, KNIGHTS (6/7, 0.4 points at risk) is unreadable against GEMS (7/7, banked). CLAUDE.md: \"Surface that tension: at 6/7 the seventh socket is rimmed and pulsing\" and \"Honor prefers-reduced-motion: keep state changes.\"",
+        "fix": "Make 6/7 a static state, not an animation: at ticks<7 the seventh position must render unlit/unearned (glow only at ticks===7) with a static amber rim + a static amber ring stroke at ticks===6. Animate an added rim element's opacity between 0.55 and 1 if you want the pulse, never the knob itself, and keep the rim visible at opacity 1 when the animation is suppressed."
+      },
+      {
+        "severity": "blocking",
+        "what": "The binary-cell glow repaints the plate face across the whole row in the team colour — measurably, in every row. It is not tight-falloff motivated light, it is a wash, and two rows end up with a non-warm plate face.",
+        "evidence": "I sampled the identical strip of plate face just below the recessed channel (dpr2 x 480-640, plate top + 37 CSS) in all eight rows of my screenshot and computed B-G (a neutral warm brass sits near -25, confirmed by the footer plate control at #8b7359, B-G -25.5): WARRIORS #986463 (B-G -0.7, rose), PRECIOUS #875f71 (B-G +18.0, violet — a 43-point swing off the control), GEMS #726d6a (B-G -3.4, R-G +5, i.e. neutral grey), KNIGHTS #93604a (-22), FORGED #7c7c46 (-53.8, olive), INNOCENT #92774c (-43.2). At 5x (shots/zz-cells.png) the pink halo covers the entire channel interior and continues onto the plate face below and to the right of it. In the reference at the same 3x (shots/zz-refcells.png) the cells are flat, crisp, uniform saturated pink squares in warm-rimmed sockets with effectively zero spill — the channel stays dark brown between adjacent cells and the plate face outside the channel is the same brass in every row. CLAUDE.md: \"Never apply glow as decoration... tight physical falloff\" and \"If a screenshot reads blue-grey, it is wrong\" — the GEMS row's plate face is now neutral grey and PRECIOUS's is violet.",
+        "fix": "Cut Lamp's spill radius hard for the board (the reported `spill` multiplier idea, at roughly 0.3-0.5, not 0.6) and clip the glow to the channel so it cannot reach the plate face at all. Separately, the lit cell needs a crisp 1px rim and a hard edge, not a blurred square."
+      },
+      {
+        "severity": "blocking",
+        "what": "Each lit binary cell has a yellow-white amber core inside the team-colour square, so the same amber lamp shows through pink, purple, blue, green and yellow glass.",
+        "evidence": "At 5x on the WARRIORS row (shots/zz-cells.png) every one of the five pink cells has a ~#ffd18a yellow-white blob at its centre, roughly a third of the cell's width. The reference cell (shots/zz-refcells.png) is a flat, evenly-filled pink square with at most a marginally lighter inner face of the same hue and no lighter core of any other colour. REFERENCE-SPEC line 115: \"Earned: a filled glowing square in the team color with a bright inner face.\"",
+        "fix": "Give Lamp's square variant a core derived from the passed colour (lighten the team colour toward white in its own hue) instead of the shared amber lamp-hot core, or drop the core entirely on the board and render a flat fill plus a bright inner-face inset."
+      },
+      {
+        "severity": "major",
+        "what": "Plate faces are ~40 L too bright and fall outside the band the spec's own definition of done mandates; the header is worse and reads pale khaki rather than bronze.",
+        "evidence": "Vertical luminance profile down a plate-face column (my screenshot x=60 dpr2, the strip between the plate's top chamfer and the rank chip): top chamfer peak 181, then face L 128-141 (#a08a70). The same relative column in the reference (x=160, row 3): chamfer peak 181, then face L 88-97 (#5f4c3d..#6b5748). Region means: build header inner panel #bba37c L165.1 vs reference #846d57 L112.0; build header overall mean L138.0 vs reference L96.8, with median hue 36.6deg (yellow-khaki) against the reference's 28.5deg (bronze). REFERENCE-SPEC line 258: \"Plate faces sample in the #6A5240-#98795E band\" — L 68-100. #a08a70 (L135) and #bba37c (L165) are both outside it. Your own report frames this as a shared theme.css item, but on this screen the header is 53 L points over the reference, not a rounding error.",
+        "fix": "Drop each `.plate` stop ~35-40 L (not the ~12 proposed) and `.brass-band`'s top two stops ~50 L, then re-measure the plate-face column against the reference profile rather than against the wide check-material band (medianL 42..100 is too loose to catch a 40-point error)."
+      },
+      {
+        "severity": "major",
+        "what": "The rank chip is a near-black cutout where the reference is a shallow machined recess in brass — an 18x luminance error, repeated eight times.",
+        "evidence": "Tight sample of the chip interior strip above the numeral: build #060504, mean L 4.9, max 20 — essentially pure black. Reference at the same place: #6f5845, mean L 91.8. At 6x/8x side by side (shots/zz-refrowscrew.png vs shots/zz-browscrew.png) the reference chip is plainly the plate's own brown, sunk, with a dark inner shadow along the top-left lip and a bright cream rim along the bottom-right; the build's chip is an opaque black rounded rectangle that reads as an LCD window. The reference reserves the dark window for the score readout only — reference score well interior #1d1510 L22.6 (clean sample, min 20 max 24) vs the build's #0e0c0b L12.4.",
+        "fix": "Stop using the same `Well` for the rank chip. Give it a recess whose floor is the plate colour darkened ~15%, with the inner shadow at the top-left and a --well-rim hairline at the bottom-right. Separately lift the score well's floor from L12 to L23 (#1d1510)."
+      },
+      {
+        "severity": "major",
+        "what": "There is no rust patina anywhere on the screen. The reference's most prominent single texture — orange oxide across the right two-thirds of the footer — is absent.",
+        "evidence": "Rust-hue census (hue 5-26deg, S>0.42, L 35-140) on matched regions: footer right — reference 26.19% of pixels vs build 0.52%; header — reference 2.60% vs build 0.00%; row-1 plate face — reference 8.04% vs build 2.32%. Visually confirmed at 1.45x: the reference footer (shots/zz-reffooter.png) carries clear orange-brown mottling from mid-plate rightward and the header's right end has rust streaks; my footer crop (shots/zz-footer.png) is uniform khaki with none. Both CLAUDE.md and REFERENCE-SPEC line 89 require \"rust patina in crevices and along lower edges.\"",
+        "fix": "Put oxide decals on the footer plate's right half and along the lower edges/corners of the header frame and the row plates, in the reference's hue band (roughly 5-26deg, S>0.42, L 35-130). Keep it to crevices and lower edges — do not wash the plate."
+      },
+      {
+        "severity": "major",
+        "what": "The key rail invents a bright brass bar with J-hooks, and it is the brightest object in the row. The reference has no bar, hangs full keys, and draws a dark key silhouette in every empty slot.",
+        "evidence": "At 6x (shots/build-keys.png) I see a pale brass bar (L~200, brighter than any plate or key) sitting outside the capsule — its top edge is above the capsule's top rim (Board.tsx:343, `top: -3`) and its two rivet ends protrude past the pill's left and right edges onto the plate face — carrying three small J-hooks with one small key, whose teeth cross below the capsule's bottom rim. At 3.5x the reference (shots/refkeys.png) has a narrow pill slot with no bar at all: two full-size lit gold keys and one full dark key silhouette, bows overhanging the slot's top lip, and nothing in the capsule out-glows the keys.",
+        "fix": "Remove the rail bar from the board variant (or drop its top stop to ~#a8823c so it cannot out-glow gold), remove the `lit &&` guard so empty capacity draws the dark key silhouette instead of a hook, and shrink the capsule to the reference's narrow slot so the key bodies overhang it rather than being clipped by it."
+      },
+      {
+        "severity": "major",
+        "what": "Rank chips read 01, 02, 03, 03, 05, 06, 07, 08 — duplicated 03 and no 04 anywhere on the board. This is the exact defect the spec calls out as already-wrong.",
+        "evidence": "DOM text of the eight chips: [\"01\",\"02\",\"03\",\"03\",\"05\",\"06\",\"07\",\"08\"], visible in my screenshot as two adjacent rows both stamped 03 (GEMS 6.0 and FORGED 6.0). The reference reads 01 through 08 with no repeats. REFERENCE-SPEC line 110-111: \"Rank chip — a recessed square well with a light border, `01`..`08` in cream tabular numerals. Sequential and correct; the build had duplicates.\" Nothing in the repo records competition ranking being accepted as an override, and the spec text is unambiguous. A board with no rank 04 on it reads as a bug to the camp director, not as a tie.",
+        "fix": "Render the row's position (1..8, always sequential) in the chip. If shared standing matters, express the tie some other way — a hairline tie bracket between the two rows, or an equals mark beside the score — and leave the chip strictly 01-08."
+      },
+      {
+        "severity": "major",
+        "what": "Lit punctuality sockets show no brass collar and no bore — they are bare amber domes. Your report claims the opposite was fixed.",
+        "evidence": "At 4x (shots/build-rail.png) each of WARRIORS' six lit sockets is a plain amber sphere with a white specular dot: no ring, no dark bore. The 14px brass collar and 8px bore exist in the DOM (Board.tsx:91-107) but the 8px Lamp's glow completely swamps them; the collar is only visible on the unlit sockets (PEARLS' sixth, RUST CO's fourth through sixth). The reference (shots/ref-row1.png) shows a machined brass ring with a dark bore on every socket without exception. Your report lists as closed: \"Punctuality sockets are now turned brass collars with a dark bore and the amber lamp inside the bore, matching the reference's machined rings\" — that is not what renders.",
+        "fix": "Shrink the lamp inside the bore (about 6px) and cut its spill so the collar survives ignition, or draw the collar as an overlay ring on top of the lamp so the ring is always the outermost thing."
+      },
+      {
+        "severity": "minor",
+        "what": "Fasteners are roughly 3x the reference's diameter, and the header's engraved frame lines are drawn straight across three of them.",
+        "evidence": "Measured from 6x/8x crops: build header fastener seat 26.7 source px = 13.3 CSS diameter; reference header rivet 10 source px = 3.6 CSS. Build row-plate screw head 25 source = 12.5 CSS; reference row-plate rivet 12 source = 4.3 CSS (shots/zz-refrowscrew.png shows a small domed brass rivet flush on the plate, no dark washer, no slot). In shots/zz-hdrleft.png the inner panel's top and bottom engraved hairlines pass over the top-left and bottom-left screw heads and a vertical chamfer hairline runs down through the middle rivet. The two footer screws at each end (36px plate, screwInset 7) have washers that nearly touch.",
+        "fix": "Take the corner fastener down to ~5-6 CSS and the header's mid rivet to ~4 CSS, drop the heavy dark washer ring, and either inset the octagon's engraved outline clear of the fasteners or paint the fasteners after the frame lines."
+      },
+      {
+        "severity": "minor",
+        "what": "The day rail's past-day socket carries a pale cream horizontal bar across its face that reads as a minus sign, and no socket has the reference's four notches.",
+        "evidence": "At 10x (shots/zz-sock1.png) the past-day socket is a pale khaki collar around a lighter dome with a distinct cream horizontal bar struck across its centre. The reference socket (shots/ref-rail2.png) is a brass ring with four dark notch slots at N/E/S/W and a clean recessed face; the lit one glows teal through the face and the notches; the future ones keep the brass collar over a dark bronze face. In the build the three future sockets are flat black bores. (The pitch itself is fine — 47 CSS, matching the reference — so your report's \"socket pitch is ~90px\" is stale.)",
+        "fix": "Remove the bar across the past socket, add the four notches to the socket housing, and give the future sockets a dark bronze face (~L40) inside the collar instead of a black hole."
+      },
+      {
+        "severity": "minor",
+        "what": "The row grid is off the 8px grid the spec and CLAUDE.md both demand, with fractional sub-pixel pitches.",
+        "evidence": "From the DOM: row height 76, row gap 10, so row tops land at 122, 208, 294, 380, 466, 552, 638, 724 — every one 2 mod 8. Board.tsx constants: PUNCT_PITCH 17.5, CELL_GAP 4.6, CH_L 98, CH_R 60, CH_H 30, DASH_X 224, COG_X 235, TIER2_TOP 42, TIER2_H 26, SCORE_W 48. CLAUDE.md: \"Strict 8px grid.\" REFERENCE-SPEC line 108: \"identical height, 8px gutters.\" The fractional pitches put the sockets and the binary cells on half-pixel edges, which is exactly the alignment rigor the brief says is why it reads expensive.",
+        "fix": "Take the row to 80px with an 8px gutter (8 rows = 704, which still fits inside 844 with the 48px header, 47px rail and 36px footer), and snap PUNCT_PITCH and CELL_GAP to whole pixels."
+      },
+      {
+        "severity": "minor",
+        "what": "Footer content is smaller and shorter than the reference's and drops the ID segment the spec specifies.",
+        "evidence": "Build barcode is 92x10 CSS with roughly 14 chunky bars (Board.tsx:206); the reference's spans source x 88-478 by y 1848-1890 = 141x15 CSS with roughly 40 fine full-height bars. Build status line reads \"STATUS: ONLINE / SYNC: 98% / VER: 2.2.1\"; the reference reads \"STATUS: ONLINE / SYNC: 98% / VER: 2.2.1 / ID: 987R 60H0\" (REFERENCE-SPEC line 126).",
+        "fix": "Widen the barcode to ~141x15 with finer, more varied bars and append the `/ ID: …` segment to the mono line."
+      }
+    ]
+  },
+  {
+    "screen": "Roll call — /#/call/punctuality (src/screens/RollCall.tsx, src/components/Lever.tsx)",
+    "verdict": "does-not-match",
+    "findings": [
+      {
+        "severity": "blocking",
+        "what": "The commit discharge does not light the row stack at all. The report's claim of \"teal light filling the wall gaps above\" is false — the rows are pixel-identical between rest and commit.",
+        "evidence": "I captured the seated frame myself (click ALL, pointer-drag the slider to y=830, screenshot while held → refute-commit.png; the frame is genuinely seated: white socket, 0.5/0.4 readouts, teal-flooded housing, \"RELEASE TO COMMIT\"). Rows 1–5 band (x30..750, y288..800) measures meanRGB #645140, L p50 89, p95 146, max 217 in BOTH the rest and the commit frame — identical to every digit. The wall gap below row 8 (x100..680, y1172..1184) is #0E0906 / L p50 10 / max 13 in BOTH frames. Reference: the same rows band goes #6F5644 → #755948, p95 192 → 219, max 250 → 255 (02 → 03), and the gap below row 8 goes #241710 (L 27) → #595345 (L 86) with blue lifted 16 → 69. The only thing that changes outside the housing in the build is row 8's bottom edge, #5C452F → #684A2F — red 92→104, green 69→74, blue 47→47, i.e. a WARM lift, the opposite of teal.",
+        "fix": "The discharge spill element in RollCall.tsx (~line 605) is confined to the housing. Give it enough height/blur to reach the row stack and let it tint the wall in every gutter, with a teal-biased colour so blue actually rises. REFERENCE-SPEC 03: \"teal light spills up onto the row plates above.\""
+      },
+      {
+        "severity": "blocking",
+        "what": "The tube has no white-hot core in either state — no blowout on commit, no white filament at rest.",
+        "evidence": "Commit tube core (build x300..500,y1390..1470) = mean #508982, L p50 117, p95 186, max 209 — it never reaches 255 anywhere. Reference 03's core (x420..720,y1470..1620) = mean #9EEBE5, L p50 216, p95 255, p99 255, max 255: over a quarter of that rect is fully blown out. At rest, reference 02's tube filament peaks at #ACF8F4 (L 247, p99 236) while the build's whole tube rect maxes at L 112 (p99 98). The build's resting tube also reads darker than the glass: interior mean #28261C (L≈38) vs the reference's #464C43 (L≈73), so it looks like a black slot with a dim scribble rather than lit glass.",
+        "fix": "CLAUDE.md requires two layers: \"thin white-hot core path + thicker teal glow beneath\". Add a genuine #FFFFFF core stroke to the arc path (and a saturated blowout sprite at the bore centre on commit), and lift the tube's glass interior so the housing plate reads through it."
+      },
+      {
+        "severity": "blocking",
+        "what": "The 6/7 punctuality cliff is not surfaced anywhere on the screen, contradicting the report's \"amber pulsing rim at 6/7\".",
+        "evidence": "Two teams sit at the cliff — aria-labels read \"Precious Pieces, 6 of 7 check-ins, already logged\" and \"Fire Knights, 6 of 7 check-ins, already logged\". Both are `disabled`, and RollCall.tsx:535 gates the rim on `!on && !done && ticks === 6`, so it never renders. Measured: PRECIOUS's 7th socket ring is #A38354 and KNIGHTS' is #A48253 — indistinguishable from PEARLS' two ordinary unlit sockets at #A38253, and actually dimmer than RUST CO.'s unlit rings. No amber (#ED9040) anywhere near them, no rim, no pulse. document.body.innerText for the whole page is \"PUNCTUALITY / LUNCH · 13:00 / WARRIORS … RUST CO. / ALL / 2 OPEN / PULL TO COMMIT\" — there is no \"0.6\", no \"1.0\", no \"→\".",
+        "fix": "CLAUDE.md: \"at 6/7 the seventh socket is rimmed and pulsing and the readout previews 0.6 → 1.0.\" Drop `!done` from the cliffRim condition (a logged 6/7 row is precisely the one whose seventh check-in is still at risk) and surface the 0.6 → 1.0 preview on the row, not only on the knob after selection."
+      },
+      {
+        "severity": "major",
+        "what": "The cog knob is a different part from the reference's, has no light direction, and geometrically collides with the row's right-hand corner screws.",
+        "evidence": "5× crops side by side. Reference: a raised brass gear — a thick bright annulus with sculpted teeth each individually lit from the top left, a recessed dark centre well, and a raised bright brass 8-point star inside the well. Build: a flat tan disc ringed by hard black-and-tan rectangular dashes of identical value at top-left and bottom-right (a dashed stroke, no light direction at all), two glassy crescent shines, and a DARK engraved 8-spoke glyph on a light face — contrast inverted from the reference's bright star in a dark recess, and no recessed centre. Collision: the knob spans x 641–733 (DPR2) while the right corner screws span x 716–743 — 17px of overlap (8.5 CSS px); in the reference the knob clears the screws with a clear brass margin.",
+        "fix": "Rebuild CogKnob as three layers (toothed brass annulus lit top-left / dark inner recess / raised bright star or cream numeral inside it) and shrink it or widen the plate's right padding so it stops overlapping the screws."
+      },
+      {
+        "severity": "major",
+        "what": "The tick gauges do not ignite on commit, and they are detached from the rails.",
+        "evidence": "Left tick column, same rect in each frame: build goes L p95 79 → 158, max 94 → 190 with the ignited column's mean colour #60523B (brass brown). Reference 02→03 goes L p95 71 → 244, max 129 → 251 — nearly half the ignited column reads as near-white amber. Position: in reference 02/03 the ticks are engraved down the vertical brass guide rails themselves; in the build they float on the housing wall well outboard of the rails, so nothing about them reads as part of the mechanism.",
+        "fix": "REFERENCE-SPEC 02: \"Two vertical brass rails … with engraved tick gauges down the outer side of each\" and 03: \"the tick gauges ignite amber\". Move the tick columns onto the rails and drive them to --color-lamp-hot (#FEDF97) on discharge."
+      },
+      {
+        "severity": "major",
+        "what": "Plate and brass specular are systematically missing and read neutral grey rather than warm brass — the flatness tell.",
+        "evidence": "Row-2 top chamfer band: reference (x140..990,y372..380) mean #987A63, L p95 192 / p99 224 / max 232. Build (x60..740,y288..298) mean #726250, L p95 146 / p99 166 / max 172 — the build's brightest chamfer pixel sits below the reference's 95th percentile. Warmth of the highlight itself: reference R−B 53, build R−B 34; the header plate's top chamfer samples #AB9C89 (nearly neutral) against the reference's #9A7D66 rising to #FBD7B7. Lever housing: build max L 213 vs reference 251 — --plate-spec #FFEED3, --brass-spec #FBE1B7 and --knurl-spec #FFEEC2 appear nowhere on this screen. (Plate FACE luminance is fine: build 84–96 vs reference 78–98, so this is purely the highlight, not the base.)",
+        "fix": "Push the 2px top-left chamfer to --plate-spec / --brass-spec at full value rather than a mid-brass tint, and give the brass parts a real peak highlight. The base plates don't need to move."
+      },
+      {
+        "severity": "major",
+        "what": "The lever footing is missing the reference's cast-brass modelling, and the housing has no bottom corner screws.",
+        "evidence": "2.4× crops. Reference footing: a stepped brass yoke base (raised where the rails land, dipping in the middle), bright specular streak along the top, and a RECESSED engraved nameplate with chamfered corners and a rivet at each end. Build: one slab split into three abutting panels with two visible vertical seams, the caption sitting on the middle panel with no nameplate border and no rivets, and the rail-end collars floating behind it rather than landing on it. Bottom corner screws: reference bottom-left corner rect (x80..140,y1830..1890) reads L p99 110 / max 223 — a bright brass screw head; the build's equivalent (x30..70,y1620..1670) reads L p99 53 / max 63 — nothing there. The build's housing has screws at the top two corners only. There is also zero rust patina in the build's housing where the reference has heavy rust down both guides and across the lower plate.",
+        "fix": "REFERENCE-SPEC definition of done: \"Screws, bevels, recesses and specular highlights are present on every plate.\" Add the two bottom screws, make the footing one stepped casting with a recessed riveted nameplate, and add rust in the housing's lower crevices."
+      },
+      {
+        "severity": "major",
+        "what": "A black status letterbox across the top of the lever housing that exists in neither reference and reads as a debug HUD.",
+        "evidence": "Build shows a flat near-black horizontal band spanning the housing with a brass \"ALL\" tab at the left and right-aligned mono \"2 OPEN\"; on commit it becomes \"CLEAR\" / \"2 TEAMS QUEUED\". It has no bevel, no brass frame and no inner-shadow rim, unlike every other recess on the screen (the LCD window, the sockets). Neither 02 nor 03 has anything in that position — the reference housing goes straight from its top corner screws to the grip's travel. Also on commit the footing caption changes to \"RELEASE TO COMMIT\" where reference 03 still reads \"PULL TO COMMIT\".",
+        "fix": "If the queued/committed counts must stay, cut them into a properly modelled recess (inner shadow at the top-left lip, --well-rim hairline bottom-right, thin brass frame) sized like the LCD window, or move them off the machine entirely. Keep the footing caption stable."
+      },
+      {
+        "severity": "major",
+        "what": "Header plate carries three controls the reference plate does not, the back chevron overlaps two corner screws, and the activity steppers are 10px-tall tap targets.",
+        "evidence": "DOM rects: back \"Back to board\" [27,32,22,22], \"Previous activity\" [341,32,22,10], \"Next activity\" [341,44,22,10]. A 5× crop of the top-left corner shows the chevron plate visibly occluding the lower-right edge of the upper screw and the upper-right edge of the lower screw. Reference 02/03 header plate holds the LCD window and four unobstructed corner screws and nothing else. The steppers are 10px tall on a 12px pitch — off the 8px grid and unusable with a finger on a 390px phone.",
+        "fix": "Move the chevron and steppers off the screw inset (or out of the header plate into the bezel), and give the steppers at least a 24px hit box each."
+      },
+      {
+        "severity": "major",
+        "what": "The punctuality socket track is roughly half the reference's relative weight, so each row is a small dotted strip inside a tall empty plate.",
+        "evidence": "Reference socket outer diameter 45px / 2.738 px-per-CSS = 16.4 CSS on a 41 CSS row = 40% of row height, pitch 22.6 CSS. Build: 27px / 2 = 13.5 CSS on a 56 CSS row = 24% of row height, pitch 18 CSS. Visible in the matched row crops: in the reference the seven sockets are the row's dominant band; in the build there are wide empty brass bands above and below them. This — not \"structural frame height\" as the report argues — is why the machine covers less of the frame.",
+        "fix": "Either bring rows to ~44–48px or scale the sockets up to ~17px with a 22px pitch so the track carries the row the way it does in the reference."
+      },
+      {
+        "severity": "minor",
+        "what": "On commit only one socket goes white-hot, and the knob readout is dark-on-light where the reference is cream-on-dark.",
+        "evidence": "Build INNOCENT reads 4 amber + 1 white + 2 dark; RUST CO. reads 3 orange + 1 white + 3 dark (wholeTrackHot is gated on ticks+1===7 at RollCall.tsx:460). Reference 03 turns the whole remaining track white: MYSTIC CIRCLE 5 white, FOREST STALKER 1 green + 4 white, TECHNO FORGE 1 green + 4 white. The build's readouts (0.5, 0.4) are dark brown numerals on the pale knob face; reference 03's 1.0 is large cream inside the knob's dark recessed centre.",
+        "fix": "Light the whole pull-adds range white-hot, and put the readout as cream in the knob's recess. (The values themselves are correct integer tenths.)"
+      },
+      {
+        "severity": "minor",
+        "what": "Medallion bezel loses its lower rim light and the crest is a solid fill rather than the reference's line art in a glossy dome.",
+        "evidence": "Vertical scan through the bezel: build top #AC8250 (L 133) → bottom #37251C (L 40), i.e. the lower bezel goes essentially black. Reference: top #B69571 (L 152) → bottom #8A7353 (L 115) — a full brass torus with a bounce along the bottom. The build shows two bezel dots where REFERENCE-SPEC calls for four at the diagonals, and the glyph is a solid filled diamond over a flat purple field where the reference is a luminous line-art crest over a glossy domed interior with a top specular.",
+        "fix": "Keep --well-rim-level bounce on the bezel's lower-right arc, add the missing two bezel screws, and switch the crest to line art on a domed interior."
+      },
+      {
+        "severity": "minor",
+        "what": "LCD window interior is half the reference's brightness and is still ringed by a saturated amber hairline.",
+        "evidence": "Vertical scan through the window: build interior runs #0C0806 → #241A12, median ≈ #1E150F (L 23), framed by a 2px #8A6A33 keyline. Reference interior is a consistent #3D2C24–#423127 (L ≈ 50) inside a ~6px modelled brass band with rust patina, i.e. more than twice as bright. The report claims the \"bright orange ring on pure black\" was replaced; measured, the ring is still a saturated 2px orange line against a near-black field.",
+        "fix": "Lift the window interior toward the reference's #3F2E25 and replace the keyline with a modelled brass band (lit top-left, --brass-lo bottom-right) so it reads as a frame rather than a stroke."
+      }
+    ]
+  },
+  {
+    "screen": "Team sheet (/#/team/rustco), 390×844 @dpr2, vs design/reference/v2/05-team-sheet.jpg",
+    "verdict": "does-not-match",
+    "findings": [
+      {
+        "severity": "blocking",
+        "what": "The team seal — the largest object on the screen — is a glowing orange lamp where the reference is a brushed-gold coin. Its material, its emblem drawing and its light hierarchy are all different.",
+        "evidence": "Cropped both seals at matching scale. Reference: the coin face is bright radial-brushed gold (sampled 236,212,160 on the ring specular; 196,165,109 on the ring body), with a raised rust-orange gear+flame+wrench emblem carrying gold specular edges on top of it, and the legend RUST REVIVAL CO. engraved DARK into the bright gold ring — every letter legible, high contrast, and the whole legend sits on the coin. Build: the interior is a dark brown well filled by a flat orange radial bloom with a crude ring of 12 rounded-rectangle 'teeth' and a plain orange disc plus a dark centre dot — it reads as a lit fan or a vent lamp, not an emblem. There is no flame, no wrench, no gear silhouette. Sampled the interior at 420,110 = (169,98,42) glowing orange against a dark well. The result is that the brightest, highest-chroma object on the whole screen is the coin's interior, whereas in the reference the coin is metal and the brightest cream is the total numeral — the hierarchy is inverted.",
+        "fix": "Give TeamCrest's seal case (label set) a warm radial brushed-brass interior in the --brass-hi/--brass band, and put the team colour only into a raised emblem drawn on top of it with a gold specular edge and a tight local bloom, not a full-disc glow. Redraw the emblem as a layered silhouette (gear ring behind, flame/wrench in front) rather than a ring of blocks."
+      },
+      {
+        "severity": "blocking",
+        "what": "The seal's circular legend is dark-on-dark and collides with the header frame's brass band; part of it is eaten by a bezel screw.",
+        "evidence": "In my screenshot the legend arc's baseline crosses the header frame's pale top band (band at y≈22–37 CSS; the letters RUST and CO. sit on and over it), so the type straddles two materials with a hard edge running through the letterforms. Sampled the legend fill area at 330,105 = (59,34,14) against a wall/ring of (101,71,48) and a band of (152,120,62) — the type is darker than both grounds but only by ~L20 against the ring, so at 390px it reads as smudge, not engraving. The top-left bezel screw sits directly on the leading R. The reference legend is dark engraving on an L~170–210 gold ring with nothing crossing it.",
+        "fix": "Put the legend on the coin's own bright brass ring (raise the ring luminance under the type) so the whole arc sits clear of the frame band, and move the bezel screws to 0/90/180/270 or out to r≈27.5 so they never land under the 250° legend arc."
+      },
+      {
+        "severity": "major",
+        "what": "Every plate's top chamfer is a blown-out near-white pinstripe in discontinuous flat segments — desaturated, ~85 L units brighter than the reference, and encoding no light direction.",
+        "evidence": "Scanned the cleanliness plate's top lip across x. Build (y=523): L136, 236, 236, 236, 179, 155, 156, 239, 239, 239, 188, 112, 154, 198, 197 — i.e. flat blocks of rgb(246,239,221) with abrupt steps down to L112–198 between them, and R−B of only 26 (near-neutral white). Reference (y=689): L123, 125, 127, 140, 152, 155, 139, 132, 127, 120 — a smooth warm swell, peak rgb(188,149,115), R−B 64–73. So the build's specular is both blown out and cold, and its bright/dark segments do not decay from the top-left; the brightest patch on the cleanliness plate is at x≈250 CSS, not at the left end.",
+        "fix": "Cap the chamfer highlight near --plate-spec-in-context (L ~150–160), warm it to R−B ≈ 65, widen it to ~3–4px, and make its intensity decay monotonically away from the plate's top-left corner instead of alternating in blocks."
+      },
+      {
+        "severity": "major",
+        "what": "The ON toggle does not emit. It has no recessed seat and almost no bloom spilling onto the plate, so the emissive amber track reads as a flat painted capsule.",
+        "evidence": "Measured the plate immediately left of a capsule on an ON row against the same point on an OFF row, at the same offset within the row. Reference: ON-row plate at (830,1105) = (107,66,35) L72, R−B 72; OFF-row plate at (830,1435) = (70,53,40) L56, R−B 30 — a +16 L, +42 warmth lift from the lamp. Build: ON-row plate at (590,878) = (113,78,52) L84, R−B 61; OFF-row plate at (590,582) = (105,74,51) L79, R−B 54 — only +5 L, +7 warmth. The 3.4× crop also shows the build capsule is a single flat tan hairline ring over an orange gradient, with no recessed seat, no dark top-left inner shadow and no lit lower-right lip, and the knob is a flat khaki-olive sphere (~#b5ad7e) fully inside the track with no cast shadow, where the reference knob is a machined brass cylinder standing proud of the capsule with a hard shadow beneath it.",
+        "fix": "Add the outer recessed seat (inner shadow top-left, --well-rim hairline bottom-right), thicken the brass bezel to ~3px with its own bevel, add a real box-shadow spill onto the plate sized to match the reference's +16 L / +42 warmth lift, and make the knob a vertically-brushed brass cylinder that overhangs the track with a contact shadow."
+      },
+      {
+        "severity": "major",
+        "what": "The punctuality lamps are plain filled amber balls overflowing a barely-visible trough, not brass-bezel sockets in a recessed channel; and the 6/7 cliff renders as four detached orange dashes floating beside the cog instead of the cog's rim burning.",
+        "evidence": "Compared the reference charge track to the build's at 2.2×, and shot /#/team/knights (seed day 1 = 6 ticks) to get the cliff state. Reference: each lamp is a brass bezel ring around a dark well with a small amber core, lamps clearly separated, sitting inside a channel whose brass floor is visible above and below them; the seventh is a heavy ornate annulus with rosette engraving and a continuous amber halo hugging its rim, light spilling onto the plate. Build: the lamps are solid amber spheres with only a thin dark rim, touching each other with no gaps, and they break above and below the dark trough so the well is visible only as a shadow to the left of lamp 1 — the recess reads as a crescent behind the first ball. The seventh cog is a plain brass ring with 8 rivet dots and no rosette, and at 6/7 the cliff is four short thick orange arc segments sitting OUTSIDE the cog with a visible gap between them and the metal — they read as stray dashes on the plate, not as a burning rim.",
+        "fix": "Draw each lamp as bezel + dark well + small amber core with ~4px gaps, shrink them so the channel's brass floor shows above and below, and replace the four detached arcs with a continuous rim glow drawn on the cog's own annulus plus a spill onto the plate."
+      },
+      {
+        "severity": "major",
+        "what": "The key rail's six hooks are flat dark-brown J-hooks dangling below the bar. The reference has no such object — its hooks are brass tongues seated flush in milled slots on the bar face.",
+        "evidence": "Cropped both rails. Reference: six rounded-rectangle brass tongues sitting in dark milled slots within the bar's own height; nothing hangs below the bar except the keys. Build: six dark brown J-shaped coat hooks protruding ~35 CSS px below the bar, rendered as flat silhouettes with no bevel, no specular, no brushing and no contact shadow — they are the flattest objects on the screen and they sit against the wall, not on the bar.",
+        "fix": "Replace the dangling J-hooks with the reference's flush brass tongues in recessed slots (dark milled slot, brass tongue with a top-left lit edge), and hang the keys from the tongues."
+      },
+      {
+        "severity": "major",
+        "what": "On the default load of this route the `+ KEY` tab — the reference's brightest cream element, and per CLAUDE.md the most important object in the app — renders as a dead grey-brown slab less than half the luminance of the bar it is attached to, and is disabled so it is not operable at all.",
+        "evidence": "DOM: the +KEY button is `disabled: true, aria-disabled: \"true\"` on /#/team/rustco with no seeding. Sampled the tab face at (650,1400) = (79,65,41) L66 against the same rail bar at (300,1400) = (179,135,62) L139 — the tab is L66 vs the bar's L139, a different and colder material. The label computes to cream rgb(237,227,210) but renders mid-grey through opacity. Reference: the tab is continuous with the bar (sampled 190,161,112 / 127,91,57 — same brass as the bar's 125,100,60) and `+ KEY` is bright cream heavy condensed.",
+        "fix": "Either don't gate the key tab on this route by default, or give the gated state a legible cold-brass treatment that still keeps the tab's material continuous with the bar; the current opacity knockdown makes the screen's primary action read as broken."
+      },
+      {
+        "severity": "major",
+        "what": "The seven punctuality check-in buttons overlap each other by 4–5px, so tapping a socket's right edge fires the next activity.",
+        "evidence": "DOM bounding boxes: lefts 215.2, 233.2, 251.1, 269, 287, 304.9, 335.2 with width 22 each. 215.2 + 22 = 237.2 > 233.2, and the same for every consecutive pair. aria-labels are per-activity (\"Morning exercise 08:30\", \"Breakfast 09:00\", …), so the overlap means the last-painted button wins and the wrong activity gets recorded. The buttons are also 22×40, under the 44px minimum.",
+        "fix": "Set each button's width to the socket pitch minus a gap (≤17px) or use a single row-wide control that maps x to a socket index, and enlarge the vertical hit area to 44px."
+      },
+      {
+        "severity": "minor",
+        "what": "Three of the six category glyphs read as a different object than the reference's.",
+        "evidence": "Side by side at matching scale. Good Deed — reference: an unmistakable three-quarter handshake, two hands clasped with visible fingers and cuffs. Build: two rectangles flanking a fist blob on a horizontal axis; it reads as a belt with a buckle or a dumbbell. Lesson Knowledge — reference: a brain in profile with a brainstem, circuit traces and round solder nodes. Build: a cloud/flower blob containing three wiggly worms, no profile, no stem, no nodes; it reads as a cauliflower. Behavior — reference: a hero standing square, hands on hips, cape flaring right. Build: a thin forward-leaning walking figure whose head is a detached circle with a visible gap above the shoulders, and no cape — it reads as a pedestrian-crossing pictogram, at a visibly thinner stroke weight than the other five glyphs.",
+        "fix": "Redraw the handshake with two interlocking hands and visible fingers; add a brain profile silhouette + stem + terminal node dots; give the behavior figure a joined head, planted stance and an actual cape, at the same 2.9px stroke as the rest of the set."
+      },
+      {
+        "severity": "minor",
+        "what": "The hung key's bloom is banded into three hard-edged concentric rings instead of a smooth falloff.",
+        "evidence": "On /#/team/knights (1 key) at 2.6× the key bow is surrounded by three visibly discrete concentric discs with hard boundaries, plus a second banded set around the shaft. The reference's two keys carry a single smooth continuous gold bloom with no visible steps.",
+        "fix": "Replace the four-stop radial with a many-stop or blurred layer so no stop boundary is visible at 2× — the banding is the classic ramp-with-too-few-stops artifact."
+      },
+      {
+        "severity": "minor",
+        "what": "About 116px — 14% of the viewport — of bare wall sits below the key rail, and the report understates it as \"roughly 60px\".",
+        "evidence": "DOM: rail bar 689→718, hook tips measured at y≈728 in the screenshot (px 1457 of 1688), document height 844. That is 116 CSS px of empty wall with nothing in it on /#/team/rustco (79px on /knights where a key hangs to ≈765). In the reference the rail is the last element and the keys reach within ~30 CSS px of the image's bottom edge.",
+        "fix": "Either grow the rail/rows to consume the remaining height or dock the rail to the bottom safe area so the composition closes the way the reference does."
+      },
+      {
+        "severity": "minor",
+        "what": "The back button's 44×44 hit box is positioned a quarter off-canvas, and the day tabs are 20px tall on a 37px off-grid pitch.",
+        "evidence": "DOM: the Back button is at top -6, left -6, 44×44 — 6px of it is outside the viewport on both axes, leaving ~38×38 reachable. Day tabs are 30×20 at lefts 106, 143, 180, 217, 254 — a 37px pitch with 7px gaps, neither a multiple of 8, and 20px tall against the project's 8px-grid and tap-target discipline.",
+        "fix": "Move the back button fully on-canvas (top 0, left 0 with the chevron inset) and put the tabs on a 32+8 = 40px pitch at ≥28px tall."
+      },
+      {
+        "severity": "minor",
+        "what": "The equation is a centred compact cluster with double the reference's side margins, so it does not span the header panel the way the reference's does.",
+        "evidence": "DOM on /#/team/knights: the equation's ink runs x 66.5 → 323.5 inside a frame that spans 16 → 374 — 50px of dead panel on each side. Measuring the reference JPEG, `5.6` starts at x≈130/1080 (≈47 CSS) and `7.6` ends at x≈960/1080 (≈347 CSS) inside a frame spanning ≈20 → 370 CSS — margins of ≈27 and ≈23. The reference reads as an edge-to-edge equation with the total hard right against the frame; the build reads as a centred label.",
+        "fix": "Justify the equation row (base hard left at the frame's inner margin, total hard right) rather than centring it."
+      },
+      {
+        "severity": "minor",
+        "what": "Plate brushing renders as regular hard horizontal stripes rather than fine irregular anisotropy.",
+        "evidence": "At 2.2–3.4× the build plates show evenly spaced light/dark bands at roughly a 5px pitch across the whole face, clearly periodic; in the reference crop at comparable scale the brushing is much finer, lower-contrast and irregular. At 1× the build's banding still reads as faint corrugation on the plate faces.",
+        "fix": "Halve the stripe contrast and randomise the pitch (or drop to a 1–2px repeating gradient with a noise overlay) so it reads as brushed metal rather than ribbing."
+      }
+    ]
+  }
+]

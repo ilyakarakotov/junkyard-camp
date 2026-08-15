@@ -7,24 +7,45 @@ GitHub Pages. Phase 1 (later) swaps the DataProvider for a shared backend so
 several leaders can score at once — never put storage calls in components.
 
 Aesthetic bar: AAA console game UI (Destiny 2 / Diablo IV register). Warm brown
-industrial salvage with electrical arcs. Reference PNGs in `design/reference/`
-are a taste target, not a pixel target.
+industrial salvage with electrical arcs.
+
+**The concept renders in `design/reference/v2/` are the current target**, and
+`design/REFERENCE-SPEC.md` is what they contain, written down — including colors
+sampled from the JPEGs with `scripts/sample-ref.mjs`. Read that spec before
+touching any surface. Where it and this file disagree about **material**, it
+wins; where they disagree about **rules or numbers**, this file wins. The older
+PNGs in `design/reference/` are round-one taste targets; `05-standings.png` is
+still the structural reference for `/standings`, which has no v2 render.
 
 ## Design system
 
 ### Tokens
 
+The plates are **mid-tone machined brass**, not dark panels. Sampled off the
+concept art at `#70624F`–`#967862`. A bevel needs a lit face to fall away from,
+so a plate that drifts back toward near-black takes every other material rule
+down with it. `scripts/check-material.mjs` fails the build if it does.
+
 ```
---bg            #16110D   warm near-black brown
---panel         #241C16   dark warm brown gunmetal
---panel-raised  #2E241C
---bevel         #4A3B2E   bevel highlight, catches key light
+--bg            #16110D   the wall: warm near-black brown
+--wall          #1D1510   the wall at centre screen, warmer
+--plate-hi      #94795E   plate face, top edge — the key light lands here
+--panel         #82684F   plate face, middle
+--panel-raised  #94795E
+--plate-lo      #654632   plate face, bottom edge, falling into shadow
+--bevel         #B99A73   bevel highlight, catches key light
+--plate-spec    #FFEED3   broken specular along the top chamfer
+--well          #1A120E   recess interior: sockets, readouts, meter channels
+--well-rim      #544740   the lit lower-right lip of a recess
 --brass         #C08A3E
+--brass-hi      #E8C795
+--brass-lo      #5A4526
+--knurl         #A98D64   knurled brass grip
 --rust          #8A5230
 --accent        #2FD9D0   teal — the only cool color on screen
 --accent-hot    #FFFFFF   arc core
 --text          #EDE3D2   cream
---text-dim      #8A7A68
+--text-dim      #A2907A
 
 --team-warriors  #FF5FB8   Pink Junkyard Warriors
 --team-precious  #B14DFF   Precious Pieces
@@ -37,7 +58,19 @@ are a taste target, not a pixel target.
 
 --key           #FFC63D   golden key emission
 --key-hot       #FFF4D0   key arc core
+
+--lamp          #ED9040   energized contact / thrown toggle
+--lamp-hot      #FEDF97   lamp core
+--lamp-dim      #C17530   a lit punctuality socket at rest
+--off-track     #614A39   toggle track, unpowered
+--off-knob      #543E2E   toggle knob, unpowered
 ```
+
+**Energized contacts are amber, not teal.** In every concept render teal appears
+only as electricity; a lit lamp, a thrown toggle, a filled punctuality socket is
+amber. Teal is still the arc color and still the only cool color on screen — it
+just never lights a lamp. The one exception is the board's day rail, where the
+current day is a teal *pilot lamp* seated in a brass rail.
 
 Team colours are machine-verified: all clear 4.5:1 on `#16110D`, minimum
 pairwise separation 0.145 OKLab, none collides with brass, arc-teal or body
@@ -89,8 +122,14 @@ This is what separates premium game UI from AI slop.
 The golden key ceremony (`/key/:teamId`) is the single deliberate exception to
 the colour rule: **no teal at all**. Its arcs are gold-white, its light is warm
 gold. Breaking the rule exactly once is what makes the rare thing feel rare — so
-hold the rule everywhere else, and never let gold act as an arc colour on any
-other screen.
+hold the rule everywhere else.
+
+One narrow carve-out, because the concept art shows it: on the big screen, a key
+hanging from its rail **crackles gold**. That is the key emitting its own light,
+not gold standing in as an arc colour — so it is allowed only where all three
+hold: it terminates on the rail collar and the key's own bow, it is short
+(under ~40px), and it never touches a meter, a column or a team's score. Gold
+appears nowhere else on `/display`, and nowhere at all on any other screen.
 
 ### Typography
 
@@ -251,4 +290,15 @@ score_events(id UUID, occurredAt, dayId, teamId, categoryId,
 - `npm test` — unit tests (scoring ladder, totals, compensating events)
 - `npm run shot -- <route> <outfile> [--viewport 390x844] [--dpr 3]` — Playwright
   screenshot; waits for fonts to load first
+- `npm run verify` — the whole gate: tests, build, and every check below
 - `node scripts/validate-tokens.mjs` — computed-style token validation
+- `node scripts/check-material.mjs` — asserts every route's material statistics
+  land inside the band measured off the concept art. This is the check that
+  catches a screen drifting back toward flat dark brown.
+- `node scripts/measure-material.mjs <image>…` — the same statistics for any
+  image, for comparing a screenshot against its reference by the numbers
+- `node scripts/sample-ref.mjs <image> "label:x,y,w,h"…` — sample average and
+  peak colors from regions of a reference, instead of guessing at them
+- `node scripts/check-dod.mjs` — definition-of-done assertions a screenshot
+  cannot prove (row heights, shared column edges, sort order, reduced motion)
+- `node scripts/check-motion.mjs` — asserts transform/opacity-only animation
