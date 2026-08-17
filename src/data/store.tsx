@@ -51,6 +51,14 @@ interface StoreValue {
    * today only, or any day for directors) must never sit in the outbox.
    */
   isEditableDay(dayId: string): boolean
+  /**
+   * The one day that is editable without a director's unlock — the camp's
+   * today, or the first scoring day before camp starts. Screens must label
+   * locks from this rather than re-deriving "today" from the date: the board's
+   * rail used its own strict date match and so padlocked every day during
+   * setup, including the day it would in fact accept scores for.
+   */
+  editableDayId: string | null
   /** Days a director has unlocked on this device (the banner turns amber). */
   unlockedDayIds: ReadonlySet<string>
   /** Directors only: unlock a past day to fix a mistake (behind a confirm). */
@@ -286,9 +294,14 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   const awardKey = useCallback<StoreValue['awardKey']>(
     async (dayId, teamId, note) => {
       if (!isEditableDay(dayId)) return
+      // Keys are the director's alone. RLS is the real boundary and the UI
+      // disables the control, but this is the one award a helper must never
+      // reach, so it does not rely on a screen being drawn correctly —
+      // `unlockDay` guards itself here for the same reason.
+      if (!isDirector) return
       await push([newEvent(dayId, teamId, 'golden_key', KEY_DECI, note ?? null)])
     },
-    [newEvent, push, isEditableDay],
+    [newEvent, push, isEditableDay, isDirector],
   )
 
   const undoBatch = useCallback<StoreValue['undoBatch']>(
@@ -322,6 +335,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       users,
       isDirector,
       isEditableDay,
+      editableDayId,
       unlockedDayIds,
       unlockDay,
       sync,
@@ -343,6 +357,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       users,
       isDirector,
       isEditableDay,
+      editableDayId,
       unlockedDayIds,
       unlockDay,
       sync,

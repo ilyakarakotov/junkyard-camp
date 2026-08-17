@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx'
 import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { dayScore } from './derive'
 import { formatDeci, punctualityDeci } from './scoring'
@@ -54,10 +55,17 @@ export function buildDayRows(day: Day, events: ScoreEvent[], teams: Team[]): (st
 }
 
 /** The Standings sheet: overall totals, base and keys split, rank. */
-export function buildStandingsRows(
-  rows: { teamId: string; baseDeci: number; keysDeci: number; keys: number; totalDeci: number; rank: number }[],
-  teams: Team[],
-): (string | number)[][] {
+/** One standings row, as `standings()` in derive.ts produces it. */
+export interface StandingsRow {
+  teamId: string
+  baseDeci: number
+  keysDeci: number
+  keys: number
+  totalDeci: number
+  rank: number
+}
+
+export function buildStandingsRows(rows: StandingsRow[], teams: Team[]): (string | number)[][] {
   const name = (id: string) => teams.find((t) => t.id === id)?.name ?? id
   return [
     ['Rank', 'Team', 'Base Points', 'Golden Keys', 'Key Points', 'Overall Total'],
@@ -189,6 +197,37 @@ export function buildEventsCsv(events: ScoreEvent[]): string {
     ),
   ]
   return lines.join('\n')
+}
+
+/*
+ * The workbook itself.
+ *
+ * This lives here rather than in the screen so that "opens in Excel with one
+ * sheet per day" is a testable claim: a unit test can build the book, write it
+ * to a buffer and read it back. Assembled in the screen it was only ever
+ * provable by hand.
+ *
+ * Sheet names are the day names, so `Standings` and `Audit` sit after them.
+ */
+export function buildWorkbook(
+  days: Day[],
+  teams: Team[],
+  categories: Category[],
+  users: AppUser[],
+  events: ScoreEvent[],
+  rows: StandingsRow[],
+): XLSX.WorkBook {
+  const wb = XLSX.utils.book_new()
+  for (const day of days) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildDayRows(day, events, teams)), day.name)
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildStandingsRows(rows, teams)), 'Standings')
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet(buildAuditSheetRows(events, teams, categories, users)),
+    'Audit',
+  )
+  return wb
 }
 
 /** Trigger a client-side download — no server involved. */

@@ -38,11 +38,28 @@ interface AuthValue {
   signOut(): Promise<void>
 }
 
-const LOCAL_USER: AuthUser = {
-  id: 'leader-1',
-  username: 'local',
-  displayName: 'Local',
-  role: 'director',
+/*
+ * Local mode runs as a director so every screen stays reachable. That leaves
+ * helper-mode unreachable without seeding a real account, which is exactly the
+ * half of the role split most worth looking at before camp — a helper must be
+ * able to see the key rail and understand it is not theirs.
+ *
+ * So local mode honours `?as=helper` in the URL. It is a demo seam, not a
+ * privilege boundary: it applies only when there is no backend, and when one is
+ * configured the role comes from `app_users` with RLS enforcing it server-side.
+ * Downgrade-only, so it can never manufacture a director.
+ */
+const localUser = (): AuthUser => {
+  const asHelper =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search).get('as') ===
+      'helper'
+  return {
+    id: 'leader-1',
+    username: 'local',
+    displayName: asHelper ? 'Local Helper' : 'Local',
+    role: asHelper ? 'helper' : 'director',
+  }
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
@@ -52,7 +69,7 @@ const asEmail = (username: string) => `${username.trim().toLowerCase()}@junkyard
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => getSupabaseClient(), [])
-  const [user, setUser] = useState<AuthUser | null>(supabase ? null : LOCAL_USER)
+  const [user, setUser] = useState<AuthUser | null>(supabase ? null : localUser())
   const [status, setStatus] = useState<'loading' | 'ready'>(supabase ? 'loading' : 'ready')
 
   useEffect(() => {

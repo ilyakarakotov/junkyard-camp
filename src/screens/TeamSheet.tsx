@@ -7,7 +7,6 @@ import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
 import { dayScore } from '../data/derive'
-import { isToday } from '../data/seed'
 import { BASE_CEILING_DECI, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { CategoryId } from '../data/types'
@@ -175,6 +174,7 @@ export default function TeamSheet() {
     removeCheckIn,
     isDirector,
     isEditableDay,
+    editableDayId,
     unlockedDayIds,
     ready,
   } = useStore()
@@ -193,7 +193,7 @@ export default function TeamSheet() {
   // Only today (or a director-unlocked day) is editable — the store refuses
   // the write anyway, so the controls must read inert before the tap.
   const locked = !isEditableDay(activeDay.id)
-  const unlockedHere = !isToday(activeDay) && unlockedDayIds.has(activeDay.id)
+  const unlockedHere = activeDay.id !== editableDayId && unlockedDayIds.has(activeDay.id)
   const keys = score.keys
 
   return (

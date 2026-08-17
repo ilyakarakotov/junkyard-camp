@@ -5,7 +5,6 @@ import TeamCrest from '../components/TeamCrest'
 import { Plate, Well, textureOffset } from '../components/chrome'
 import { dayScores, standings } from '../data/derive'
 import { formatDeci } from '../data/scoring'
-import { isToday } from '../data/seed'
 import { useStore } from '../data/store'
 import type { Team } from '../data/types'
 
@@ -273,6 +272,7 @@ export default function Board() {
     ready,
     isDirector,
     isEditableDay,
+    editableDayId,
     unlockedDayIds,
     unlockDay,
   } = useStore()
@@ -302,10 +302,19 @@ export default function Board() {
     [teams, overallByTeam],
   )
 
-  // Day locks: the pilot lamp marks the camp's actual today; every other
-  // scoring day is view-only behind a padlock, amber while a director's
-  // unlock holds on this device.
-  const todayId = days.find((d) => isToday(d))?.id
+  /*
+   * Day locks: the pilot lamp marks the day that actually accepts scores, and
+   * every other scoring day sits behind a padlock — amber while a director's
+   * unlock holds on this device.
+   *
+   * This reads `editableDayId` from the store rather than matching dates here.
+   * It used to do its own `isToday()` check, which disagrees with the store
+   * before camp opens: with no day matching today's date the rail padlocked all
+   * four scoring days while the store was happily accepting writes to Day 1 —
+   * so setup and testing showed a board that could be scored but claimed it
+   * could not be.
+   */
+  const todayId = editableDayId ?? undefined
   const lockedIds = useMemo(
     () => new Set(days.filter((d) => d.scored && d.id !== todayId).map((d) => d.id)),
     [days, todayId],

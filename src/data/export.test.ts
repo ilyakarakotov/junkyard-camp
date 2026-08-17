@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildAuditRows, buildDayRows, buildEventsCsv } from './export'
-import { reversalOf } from './derive'
+import * as XLSX from 'xlsx'
+import { buildAuditRows, buildDayRows, buildEventsCsv, buildWorkbook } from './export'
+import { reversalOf, standings } from './derive'
 import type { CategoryId, ScoreEvent, TeamId } from './types'
-import { DAYS, TEAMS } from './seed'
+import { CATEGORIES, DAYS, TEAMS } from './seed'
 
 let n = 0
 const ev = (
@@ -83,5 +84,48 @@ describe('export builders', () => {
     expect(lines[0]).toContain('occurred_at')
     expect(lines).toHaveLength(2)
     expect(lines[1]).toContain('cleanliness')
+  })
+})
+
+/*
+ * §10: "Excel export opens in Excel with one sheet per day matching the paper
+ * layout." The only honest way to assert that from a unit test is to write the
+ * book to a real xlsx buffer and read it back through the parser, so a
+ * malformed sheet name or a value xlsx refuses to serialise fails here rather
+ * than on the director's laptop.
+ */
+describe('the workbook', () => {
+  const events = [
+    ev('warriors', 'day1', 'cleanliness', 10),
+    ev('warriors', 'day1', 'punctuality', 1),
+    ev('gems', 'day1', 'golden_key', 10),
+    ev('gems', 'day2', 'behavior', 10, '2026-08-21T09:00:00.000Z'),
+  ]
+  const users = [
+    { id: 'a1', username: 'ilya', displayName: 'Ilya K.', role: 'director' as const },
+  ]
+  const book = () =>
+    buildWorkbook(DAYS, TEAMS, CATEGORIES, users, events, standings(events, DAYS, TEAMS))
+
+  it('round-trips through a real xlsx buffer', () => {
+    const buf = XLSX.write(book(), { type: 'buffer', bookType: 'xlsx' })
+    const reread = XLSX.read(buf, { type: 'buffer' })
+    expect(reread.SheetNames).toEqual([...DAYS.map((d) => d.name), 'Standings', 'Audit'])
+  })
+
+  it('carries one sheet per day, teams down the left', () => {
+    const wb = book()
+    const sheet = wb.Sheets['Day 1']
+    const rows = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, { header: 1 })
+    expect(rows[0][0]).toBe('Team')
+    // eight teams under the header, in roster order
+    expect(rows.slice(1).map((r) => r[0])).toEqual(TEAMS.map((t) => t.name))
+  })
+
+  it('splits base from keys on the standings sheet', () => {
+    const rows = XLSX.utils.sheet_to_json<(string | number)[]>(book().Sheets.Standings, { header: 1 })
+    expect(rows[0]).toEqual(['Rank', 'Team', 'Base Points', 'Golden Keys', 'Key Points', 'Overall Total'])
+    const gems = rows.slice(1).find((r) => r[1] === 'Hidden Gems')!
+    expect(gems[3]).toBe(1) // one key, counted — never a multiplier
   })
 })

@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, RequireAuth } from './data/auth'
 import { StoreProvider } from './data/store'
@@ -10,9 +11,17 @@ import TeamSheet from './screens/TeamSheet'
 import KeyCeremony from './screens/KeyCeremony'
 import Standings from './screens/Standings'
 import BigScreen from './screens/BigScreen'
-import Exports from './screens/Exports'
-import AuditLog from './screens/AuditLog'
-import Lab from './screens/Lab'
+
+/*
+ * Split off the three routes nobody opens while scoring. Exports and the audit
+ * log pull in `xlsx`, which is larger than the rest of the app put together —
+ * and §5.6 says the camp has spotty signal, so a helper waiting on morning line
+ * up should not be downloading a spreadsheet writer to award a check-in. The
+ * lab is a component bench that never ships anywhere useful.
+ */
+const Exports = lazy(() => import('./screens/Exports'))
+const AuditLog = lazy(() => import('./screens/AuditLog'))
+const Lab = lazy(() => import('./screens/Lab'))
 
 /**
  * StoreProvider mounts INSIDE the auth guard: the data layer's first fetch
@@ -31,18 +40,21 @@ export default function App() {
               <RequireAuth>
                 <StoreProvider>
                   <SyncChrome />
-                  <Routes>
-                    <Route path="/" element={<Board />} />
-                    <Route path="/menu" element={<Menu />} />
-                    <Route path="/call/:categoryId" element={<RollCall />} />
-                    <Route path="/team/:teamId" element={<TeamSheet />} />
-                    <Route path="/key/:teamId" element={<KeyCeremony />} />
-                    <Route path="/standings" element={<Standings />} />
-                    <Route path="/display" element={<BigScreen />} />
-                    <Route path="/exports" element={<Exports />} />
-                    <Route path="/audit" element={<AuditLog />} />
-                    <Route path="/lab" element={<Lab />} />
-                  </Routes>
+                  {/* the wall, while a split route arrives — never a spinner */}
+                  <Suspense fallback={<div className="min-h-dvh" />}>
+                    <Routes>
+                      <Route path="/" element={<Board />} />
+                      <Route path="/menu" element={<Menu />} />
+                      <Route path="/call/:categoryId" element={<RollCall />} />
+                      <Route path="/team/:teamId" element={<TeamSheet />} />
+                      <Route path="/key/:teamId" element={<KeyCeremony />} />
+                      <Route path="/standings" element={<Standings />} />
+                      <Route path="/display" element={<BigScreen />} />
+                      <Route path="/exports" element={<Exports />} />
+                      <Route path="/audit" element={<AuditLog />} />
+                      <Route path="/lab" element={<Lab />} />
+                    </Routes>
+                  </Suspense>
                 </StoreProvider>
               </RequireAuth>
             }
