@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import TeamCrest from '../components/TeamCrest'
 import { BrassRail, KeyGlyph, Plate, Screw, Well } from '../components/chrome'
-import { ArcBolt } from '../fx/Arc'
-import { dayScores } from '../data/derive'
+import { ArcBolt, usePrefersReducedMotion } from '../fx/Arc'
+import { dayScores, standings } from '../data/derive'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
-import type { DayScore, Team } from '../data/types'
+import type { Standing, Team } from '../data/types'
 
 /**
  * The evening gathering display. 16:9, landscape, read from across a room.
@@ -77,7 +77,12 @@ const SHELF_H = 142
 const CH_TOP = 560
 const CH_BOTTOM = 896
 const CH_INSET = 20
-const CAP = 10 // slots; 1 slot = 1.0 point. 6.0 of base plus four keys fits.
+/*
+ * One slot per point of the OVERALL camp total: 24.0 of base across the four
+ * scoring days, plus keys. 30 slots covers base + six keys; past that the
+ * meter saturates while the numerals stay exact (noted, accepted).
+ */
+const CAP = 30
 const PITCH = (CH_BOTTOM - CH_TOP) / CAP
 const SLOT_H = PITCH - 6
 
@@ -134,8 +139,9 @@ function oxide(band = 26, strength = 1) {
 }
 
 export default function BigScreen() {
-  const { teams, events, activeDay, ready } = useStore()
+  const { teams, days, events, activeDay, ready } = useStore()
   const [scale, setScale] = useState(1)
+  const reduced = usePrefersReducedMotion()
 
   useEffect(() => {
     const fit = () => setScale(Math.min(window.innerWidth / W, window.innerHeight / H))
@@ -146,23 +152,47 @@ export default function BigScreen() {
 
   const byId = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams])
   /*
-   * One day, not the camp: the title plate names a single day, so the columns
-   * have to read that day. A cumulative total would put 16 slots in the
-   * channel, and 16 slots are not countable from the back of a hall.
+   * The columns are the camp's OVERALL standings — one brick per point of the
+   * total — and each column also prints today's number beside it (§6.4).
+   * `standings` returns best-first already.
    */
-  const scores = useMemo(
-    () => [...dayScores(events, activeDay.id, teams)].sort((a, b) => b.totalDeci - a.totalDeci),
+  const scores = useMemo(() => standings(events, days, teams), [events, days, teams])
+  const todayByTeam = useMemo(
+    () => new Map(dayScores(events, activeDay.id, teams).map((s) => [s.teamId, s.totalDeci])),
     [events, activeDay.id, teams],
   )
 
-  if (!ready) return <div className="min-h-dvh" style={{ background: 'var(--color-bg)' }} />
-
   const leader = scores[0]
   const rest = scores.slice(1)
-  const placed: { score: DayScore; x: number; leader: boolean }[] = []
+  const placed: { score: Standing; x: number; leader: boolean }[] = []
   rest.slice(0, 4).forEach((s, i) => placed.push({ score: s, x: LEFT_X[i], leader: false }))
   if (leader) placed.push({ score: leader, x: LEADER_X, leader: true })
   rest.slice(4, 7).forEach((s, i) => placed.push({ score: s, x: RIGHT_X[i], leader: false }))
+
+  /*
+   * FLIP: when the order changes, a column first renders translated back to
+   * its previous slot, then slides home on the next frame. Transform-only, so
+   * it costs no layout; reduced motion snaps straight to the new slot.
+   */
+  const prevX = useRef<Map<string, number>>(new Map())
+  const [lag, setLag] = useState<Map<string, number>>(new Map())
+  useLayoutEffect(() => {
+    const next = new Map<string, number>()
+    for (const p of placed) {
+      const prev = prevX.current.get(p.score.teamId)
+      if (prev !== undefined && prev !== p.x) next.set(p.score.teamId, prev - p.x)
+    }
+    prevX.current = new Map(placed.map((p) => [p.score.teamId, p.x]))
+    if (next.size === 0 || reduced) return
+    setLag(next)
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setLag(new Map())),
+    )
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scores, reduced])
+
+  if (!ready) return <div className="min-h-dvh" style={{ background: 'var(--color-bg)' }} />
 
   const [themeName, themeLine] = activeDay.theme.split('—').map((s) => s.trim())
 
@@ -326,11 +356,34 @@ export default function BigScreen() {
           </div>
         </Plate>
 
-        {/* ---- eight columns, 4 · leader · 3 ---- */}
+        {/* ---- eight columns, 4 · leader · 3; rank changes slide (FLIP) ---- */}
         {placed.map(({ score, x, leader: isLeader }) => {
           const team = byId.get(score.teamId)
           if (!team) return null
-          return <Column key={score.teamId} score={score} team={team} x={x} isLeader={isLeader} />
+          const dx = lag.get(score.teamId)
+          return (
+            <div
+              key={score.teamId}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                transform: dx !== undefined && dx !== 0 ? `translateX(${dx}px)` : undefined,
+                transition:
+                  dx === undefined && !reduced
+                    ? 'transform 520ms cubic-bezier(0.22, 0.9, 0.3, 1)'
+                    : undefined,
+              }}
+            >
+              <Column
+                score={score}
+                team={team}
+                x={x}
+                isLeader={isLeader}
+                todayDeci={todayByTeam.get(score.teamId) ?? 0}
+              />
+            </div>
+          )
         })}
       </div>
     </div>
@@ -402,11 +455,13 @@ function Column({
   team,
   x,
   isLeader,
+  todayDeci,
 }: {
-  score: DayScore
+  score: Standing
   team: Team
   x: number
   isLeader: boolean
+  todayDeci: number
 }) {
   const color = `var(--color-team-${team.colorToken})`
   const top = isLeader ? LEADER_TOP : COL_TOP
@@ -790,6 +845,30 @@ function Column({
           }}
         />
         {oxide(14, 0.5)}
+        {/*
+         * TODAY's total, engraved into the footing: the second number §6.4 asks
+         * for, clear of the meter and the big overall numeral in the head.
+         * Dark cut with a lit lower lip, like the nameplate type.
+         */}
+        <div
+          aria-hidden
+          className="font-mono uppercase"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            textAlign: 'center',
+            fontSize: isLeader ? 26 : 22,
+            letterSpacing: '0.14em',
+            color: 'rgba(34,22,6,0.9)',
+            textShadow: '0 1.5px 0 rgba(255,247,222,0.6)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          Today {formatDeci(todayDeci)}
+        </div>
       </Plate>
 
       {isLeader && <LeaderRig x={x} w={w} />}

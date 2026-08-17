@@ -7,6 +7,7 @@ import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
 import { dayScore } from '../data/derive'
+import { isToday } from '../data/seed'
 import { BASE_CEILING_DECI, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { CategoryId } from '../data/types'
@@ -173,6 +174,8 @@ export default function TeamSheet() {
     addCheckIn,
     removeCheckIn,
     isDirector,
+    isEditableDay,
+    unlockedDayIds,
     ready,
   } = useStore()
 
@@ -185,7 +188,12 @@ export default function TeamSheet() {
   if (!ready || !team || !score) return <div className="min-h-dvh" />
 
   const label = (id: CategoryId) => categories.find((c) => c.id === id)?.label ?? id
-  const locked = !activeDay.scored
+  const glyphOf = (id: CategoryId) => categories.find((c) => c.id === id)?.glyph ?? ''
+  const teamColor = `var(--color-team-${team.colorToken})`
+  // Only today (or a director-unlocked day) is editable — the store refuses
+  // the write anyway, so the controls must read inert before the tap.
+  const locked = !isEditableDay(activeDay.id)
+  const unlockedHere = !isToday(activeDay) && unlockedDayIds.has(activeDay.id)
   const keys = score.keys
 
   return (
@@ -395,17 +403,41 @@ export default function TeamSheet() {
         variant="tabs"
         className="mt-[8px]"
       />
-      {locked && (
+      {!activeDay.scored ? (
         <div
           className="tech-label mt-[6px] text-center text-[8px]"
           style={{ textShadow: '0 1px 0 rgba(255,236,205,0.10)' }}
         >
           ARRIVAL · NO SCORING
         </div>
-      )}
+      ) : locked ? (
+        <div
+          className="tech-label mt-[6px] text-center text-[8px]"
+          style={{ textShadow: '0 1px 0 rgba(255,236,205,0.10)' }}
+        >
+          {activeDay.name.toUpperCase()} · LOCKED — VIEW ONLY
+        </div>
+      ) : unlockedHere ? (
+        <div
+          className="tech-label mt-[6px] text-center text-[8px]"
+          style={{ color: 'var(--color-lamp-hot)', textShadow: '0 1px 0 rgba(255,236,205,0.10)' }}
+        >
+          {activeDay.name.toUpperCase()} · UNLOCKED — EDITING ENABLED
+        </div>
+      ) : null}
 
       {/* ---- six identical plates; punctuality is one of them ---- */}
-      <div className="flex flex-col px-4" style={{ marginTop: locked ? 12 : 14, gap: GUT }}>
+      <div
+        className="flex flex-col px-4"
+        style={{
+          marginTop: locked || !activeDay.scored ? 12 : 14,
+          gap: GUT,
+          // A locked day reads inert at a glance: everything recessed and
+          // desaturated, no hover, no lit idle states.
+          opacity: locked ? 0.62 : 1,
+          filter: locked ? 'saturate(0.55)' : undefined,
+        }}
+      >
         {SCORED_CATEGORIES.map((c, rowIndex) => {
           const isPunctuality = c === 'punctuality'
           const on = (score.byCategory[c] ?? 0) > 0
@@ -434,11 +466,20 @@ export default function TeamSheet() {
                 <div className="flex h-full items-center" style={{ paddingLeft: 14, paddingRight: 12 }}>
                   <CategoryGlyph id={c} size={42} />
                   <div className="engraved-v" style={{ height: 32, marginLeft: 6, marginRight: 13 }} />
-                  <span
-                    className="font-display on-metal font-semibold uppercase"
-                    style={{ fontSize: 17, letterSpacing: '0.045em', color: 'var(--color-text)', lineHeight: 1 }}
-                  >
-                    {label(c)}
+                  <span className="flex flex-col justify-center">
+                    <span
+                      className="font-display on-metal font-semibold uppercase"
+                      style={{ fontSize: 17, letterSpacing: '0.045em', color: 'var(--color-text)', lineHeight: 1 }}
+                    >
+                      {label(c)}
+                    </span>
+                    {/* every scoring control states its point value */}
+                    <span
+                      className="tech-label"
+                      style={{ fontSize: 6.5, letterSpacing: '0.1em', marginTop: 3, whiteSpace: 'nowrap' }}
+                    >
+                      {isPunctuality ? '0.1 EACH · ALL 7 = 1.0' : '1.0 PT'}
+                    </span>
                   </span>
                   <span className="flex-1" />
                   {isPunctuality ? (
@@ -449,7 +490,16 @@ export default function TeamSheet() {
                       onRemove={() => removeCheckIn(activeDay.id, team.id)}
                     />
                   ) : (
-                    <Breaker variant="toggle" on={on} color="var(--color-lamp)" title={label(c)} />
+                    /* points being delivered, not a switch being flipped: the
+                        charge cell floods the team's colour on award */
+                    <Breaker
+                      variant="cell"
+                      on={on}
+                      color={teamColor}
+                      glyph={glyphOf(c)}
+                      title={label(c)}
+                      size={34}
+                    />
                   )}
                 </div>
               </Plate>
@@ -480,12 +530,48 @@ export default function TeamSheet() {
         className="px-4"
         style={{ marginTop: 'auto', paddingTop: 14, paddingBottom: KEY_DROP }}
       >
-        <KeyHookRail
-          keys={keys}
-          width={CONTENT}
-          disabled={locked || !isDirector}
-          onAdd={() => navigate(`/key/${team.id}`)}
-        />
+        {/* the key rail states its value like every other control — and the
+            count is read by counting lit keys, never a multiplier */}
+        <div className="flex items-center justify-between px-1" style={{ marginBottom: 4 }}>
+          <span className="tech-label" style={{ fontSize: 7, letterSpacing: '0.14em' }}>
+            GOLDEN KEYS · 1.0 PT EACH · NO LIMIT
+          </span>
+          <span
+            className="tech-label"
+            style={{ fontSize: 7, letterSpacing: '0.14em', color: 'var(--color-key)' }}
+          >
+            {keys} HELD
+          </span>
+        </div>
+        <div className="relative">
+          {/* helpers see the control greyed with a DIRECTOR tag — visible to
+              everyone, enabled only for directors, enforced by RLS */}
+          {!isDirector && (
+            <span
+              className="absolute font-mono uppercase"
+              style={{
+                right: 8,
+                top: -9,
+                zIndex: 4,
+                fontSize: 7,
+                letterSpacing: '0.16em',
+                padding: '1px 6px',
+                borderRadius: 2,
+                color: 'var(--color-text-dim)',
+                background: 'linear-gradient(180deg, #2c2013 0%, #1c130a 100%)',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.7), 0 1px 0 rgba(255,232,190,0.14)',
+              }}
+            >
+              Director
+            </span>
+          )}
+          <KeyHookRail
+            keys={keys}
+            width={CONTENT}
+            disabled={locked || !isDirector}
+            onAdd={() => navigate(`/key/${team.id}`)}
+          />
+        </div>
       </div>
     </div>
   )

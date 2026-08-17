@@ -487,10 +487,13 @@ export default function RollCall() {
   const { categoryId } = useParams<{ categoryId: string }>()
   const navigate = useNavigate()
   const reduced = usePrefersReducedMotion()
-  const { teams, categories, activeDay, events, commitRollCall, undoBatch, ready } = useStore()
+  const { teams, categories, activeDay, events, commitRollCall, undoBatch, isEditableDay, ready } = useStore()
 
   const category = categories.find((c) => c.id === categoryId)
   const isPunctuality = category?.kind === 'track'
+  // Only today (or a director-unlocked day) accepts writes; the rest is a
+  // view-only machine — rows inert, lever dead.
+  const locked = !isEditableDay(activeDay.id)
 
   const [selected, setSelected] = useState<Set<TeamId>>(new Set())
   const [batch, setBatch] = useState<CommitBatch | null>(null)
@@ -764,8 +767,70 @@ export default function RollCall() {
           </span>
         </Plate>
 
+        {/* ---- the category picker: six engraved chips on a brass rail, the
+                active one lit amber. Picking a category switches the route and
+                drops any half-made selection with it. ---- */}
+        <div
+          className="relative mx-1 mt-[6px] flex items-stretch justify-between"
+          role="tablist"
+          aria-label="Category"
+          style={{
+            height: 34,
+            padding: '4px 8px',
+            borderRadius: 5,
+            background:
+              'linear-gradient(180deg, #c6b2a3 0%, #a78d74 14%, #6e5647 32%, #5a4637 55%, #4e3c2c 80%, #332416 100%)',
+            boxShadow:
+              'inset 0 1px 0 rgba(255,244,214,0.35), inset 0 -1px 0 rgba(20,12,4,0.6), 0 2px 3px rgba(0,0,0,0.5)',
+            gap: 6,
+          }}
+        >
+          {categories
+            .filter((cat) => cat.id !== 'golden_key')
+            .map((cat) => {
+              const active = cat.id === category.id
+              return (
+                <button
+                  key={cat.id}
+                  role="tab"
+                  aria-selected={active}
+                  aria-label={cat.label}
+                  onClick={() => {
+                    if (active) return
+                    setSelected(new Set())
+                    navigate(`/call/${cat.id}`)
+                  }}
+                  className="relative flex flex-1 items-center justify-center font-mono uppercase"
+                  style={{
+                    borderRadius: 3,
+                    fontSize: 9,
+                    letterSpacing: '0.12em',
+                    color: active ? '#fff1d8' : 'rgba(34,22,9,0.88)',
+                    background: active
+                      ? 'linear-gradient(180deg, #7a3d0c 0%, #b5662a 46%, #8a4a16 100%)'
+                      : 'linear-gradient(180deg, #8a7050 0%, #75593c 55%, #5e4630 100%)',
+                    boxShadow: active
+                      ? 'inset 0 -1.5px 0 rgba(255,206,150,0.8), inset 0 0 0 1px rgba(255,168,96,0.35), 0 0 9px rgba(237,144,64,0.55)'
+                      : 'inset 0 1px 0 rgba(255,238,205,0.28), inset 0 -1px 2px rgba(20,12,4,0.55)',
+                    textShadow: active ? '0 1px 0 rgba(60,28,6,0.8)' : '0 1px 0 rgba(255,236,205,0.2)',
+                  }}
+                >
+                  {cat.glyph}
+                </button>
+              )
+            })}
+        </div>
+
         {/* ---- eight rows, whole plate is the hit area ---- */}
-        <div className="relative flex flex-col" style={{ gap: ROW_GAP }}>
+        <div
+          className="relative flex flex-col"
+          style={{
+            gap: ROW_GAP,
+            // a locked day is a view-only machine: recessed and desaturated
+            opacity: locked ? 0.62 : 1,
+            filter: locked ? 'saturate(0.55)' : undefined,
+          }}
+        >
           {teams.map((team, rowIndex) => {
             const done = doneFor(team.id)
             const on = selected.has(team.id)
@@ -800,7 +865,7 @@ export default function RollCall() {
                 as="button"
                 chamfer={6}
                 ariaPressed={on}
-                disabled={done}
+                disabled={done || locked}
                 onClick={() => toggle(team.id)}
                 ariaLabel={
                   isPunctuality
@@ -1002,7 +1067,13 @@ export default function RollCall() {
           a layer the discharge paints over.
         */}
         <div className="relative" style={{ zIndex: 2 }}>
-          <Lever pendingCount={selected.size} onFire={onFire} onDischarge={setDischarging} groove={groove} />
+          <Lever
+            pendingCount={selected.size}
+            disabled={locked}
+            onFire={onFire}
+            onDischarge={setDischarging}
+            groove={groove}
+          />
         </div>
 
         {/* the warm vignette: the wall's own falloff toward the bezel */}
