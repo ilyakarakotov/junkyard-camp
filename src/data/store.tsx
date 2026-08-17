@@ -9,7 +9,6 @@ import {
 } from 'react'
 import type { DataProvider } from './DataProvider'
 import type {
-  Activity,
   Category,
   CategoryId,
   CommitBatch,
@@ -20,8 +19,8 @@ import type {
 } from './types'
 import { getDeviceId } from './LocalStorageDataProvider'
 import { createDefaultProvider } from './provider'
-import { binaryEvent, checkedInActivityIds, liveEvents, reversalOf } from './derive'
-import { BINARY_DECI, KEY_DECI } from './scoring'
+import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
+import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
 import { DAYS, resolveActiveDay } from './seed'
 
 const DIRECTOR_KEY = 'director-mode'
@@ -30,7 +29,6 @@ interface StoreValue {
   teams: Team[]
   days: Day[]
   categories: Category[]
-  activities: Activity[]
   events: ScoreEvent[]
   ready: boolean
 
@@ -43,7 +41,7 @@ interface StoreValue {
   setDirectorMode(on: boolean): Promise<void>
 
   /**
-   * Backend sync readout for the board footer: is the network up, and how
+   * Backend sync readout for the unsynced chrome: is the network up, and how
    * many events are still waiting in the outbox. Null in local-only mode.
    */
   sync: { online: boolean; pending: number } | null
@@ -53,12 +51,13 @@ interface StoreValue {
     dayId: string,
     categoryId: CategoryId,
     teamIds: TeamId[],
-    activityId: string | null,
   ): Promise<CommitBatch>
   /** Team sheet: flip one binary on or off (off is a compensating event). */
   setBinary(dayId: string, teamId: TeamId, categoryId: CategoryId, on: boolean): Promise<void>
-  /** Team sheet: add or remove a single punctuality check-in. */
-  setCheckIn(dayId: string, teamId: TeamId, activityId: string, on: boolean): Promise<void>
+  /** Team detail: add one punctuality check-in (an ordinal tick). */
+  addCheckIn(dayId: string, teamId: TeamId): Promise<void>
+  /** Team detail: remove the most recent check-in (a compensating event). */
+  removeCheckIn(dayId: string, teamId: TeamId): Promise<void>
   /** Ceremony: award one golden key. */
   awardKey(dayId: string, teamId: TeamId, note?: string): Promise<void>
   /** Undo a committed batch within its 60-second window. */
@@ -73,7 +72,6 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   const [teams, setTeams] = useState<Team[]>([])
   const [days, setDays] = useState<Day[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [activities, setActivities] = useState<Activity[]>([])
   const [events, setEvents] = useState<ScoreEvent[]>([])
   const [ready, setReady] = useState(false)
   const [directorMode, setDirectorModeState] = useState(false)
@@ -88,15 +86,13 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       dp.getTeams(),
       dp.getDays(),
       dp.getCategories(),
-      dp.getActivities(),
       dp.getEvents(),
       dp.getSetting(DIRECTOR_KEY),
-    ]).then(([t, d, c, a, e, director]) => {
+    ]).then(([t, d, c, e, director]) => {
       if (!alive) return
       setTeams(t)
       setDays(d)
       setCategories(c)
-      setActivities(a)
       setEvents(e)
       setDirectorModeState(director === '1')
       setActiveDayId((cur) => (d.some((x) => x.id === cur) ? cur : resolveActiveDay(d, new Date()).id))
@@ -141,7 +137,6 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       teamId: TeamId,
       categoryId: CategoryId,
       deltaDeci: number,
-      activityId: string | null,
       note: string | null,
     ): ScoreEvent => ({
       id: crypto.randomUUID(),
@@ -150,9 +145,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       teamId,
       categoryId,
       deltaDeci,
-      activityId,
       note,
-      actorId: 'leader-1', // Phase 0 has no auth; Phase 1 supplies the signed-in leader.
+      actorId: 'leader-1', // Replaced by the signed-in user's UUID when auth is on.
       deviceId: getDeviceId(),
       reversesEventId: null,
       syncedAt: null,
@@ -170,21 +164,22 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   )
 
   const commitRollCall = useCallback<StoreValue['commitRollCall']>(
-    async (dayId, categoryId, teamIds, activityId) => {
+    async (dayId, categoryId, teamIds) => {
       const live = liveEvents(events)
       const batch: ScoreEvent[] = []
 
       for (const teamId of teamIds) {
         if (categoryId === 'punctuality') {
-          // One check-in per activity per team — re-committing is a no-op.
-          if (activityId && checkedInActivityIds(events, dayId, teamId).has(activityId)) continue
-          batch.push(newEvent(dayId, teamId, 'punctuality', 1, activityId, null))
+          // Ordinal ticks: each call adds one check-in, capped at seven —
+          // anything past the ladder is a wasted row.
+          if (checkInCount(events, dayId, teamId) >= MAX_CHECK_INS) continue
+          batch.push(newEvent(dayId, teamId, 'punctuality', 1, null))
         } else {
           const already = live.some(
             (e) => e.dayId === dayId && e.teamId === teamId && e.categoryId === categoryId,
           )
           if (already) continue
-          batch.push(newEvent(dayId, teamId, categoryId, BINARY_DECI, null, null))
+          batch.push(newEvent(dayId, teamId, categoryId, BINARY_DECI, null))
         }
       }
 
@@ -205,7 +200,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       if (on) {
         const already = binaryEvent(events, dayId, teamId, categoryId)
         if (already) return
-        await push([newEvent(dayId, teamId, categoryId, BINARY_DECI, null, null)])
+        await push([newEvent(dayId, teamId, categoryId, BINARY_DECI, null)])
       } else {
         const existing = binaryEvent(events, dayId, teamId, categoryId)
         if (!existing) return
@@ -215,29 +210,31 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [events, newEvent, push],
   )
 
-  const setCheckIn = useCallback<StoreValue['setCheckIn']>(
-    async (dayId, teamId, activityId, on) => {
-      const existing = liveEvents(events).find(
-        (e) =>
-          e.dayId === dayId &&
-          e.teamId === teamId &&
-          e.categoryId === 'punctuality' &&
-          e.activityId === activityId,
-      )
-      if (on) {
-        if (existing) return
-        await push([newEvent(dayId, teamId, 'punctuality', 1, activityId, null)])
-      } else {
-        if (!existing) return
-        await push([reversalOf(existing, getDeviceId(), 'Correction')])
-      }
+  const addCheckIn = useCallback<StoreValue['addCheckIn']>(
+    async (dayId, teamId) => {
+      if (checkInCount(events, dayId, teamId) >= MAX_CHECK_INS) return
+      await push([newEvent(dayId, teamId, 'punctuality', 1, null)])
     },
     [events, newEvent, push],
   )
 
+  const removeCheckIn = useCallback<StoreValue['removeCheckIn']>(
+    async (dayId, teamId) => {
+      // The mirror is ordered, so the last live tick is the most recent one.
+      const latest = liveEvents(events)
+        .filter(
+          (e) => e.dayId === dayId && e.teamId === teamId && e.categoryId === 'punctuality',
+        )
+        .at(-1)
+      if (!latest) return
+      await push([reversalOf(latest, getDeviceId(), 'Correction')])
+    },
+    [events, push],
+  )
+
   const awardKey = useCallback<StoreValue['awardKey']>(
     async (dayId, teamId, note) => {
-      await push([newEvent(dayId, teamId, 'golden_key', KEY_DECI, null, note ?? null)])
+      await push([newEvent(dayId, teamId, 'golden_key', KEY_DECI, note ?? null)])
     },
     [newEvent, push],
   )
@@ -272,7 +269,6 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       teams,
       days,
       categories,
-      activities,
       events,
       ready,
       activeDay,
@@ -282,7 +278,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       sync,
       commitRollCall,
       setBinary,
-      setCheckIn,
+      addCheckIn,
+      removeCheckIn,
       awardKey,
       undoBatch,
     }),
@@ -290,7 +287,6 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       teams,
       days,
       categories,
-      activities,
       events,
       ready,
       activeDay,
@@ -299,7 +295,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       sync,
       commitRollCall,
       setBinary,
-      setCheckIn,
+      addCheckIn,
+      removeCheckIn,
       awardKey,
       undoBatch,
     ],

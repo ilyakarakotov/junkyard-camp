@@ -1,4 +1,5 @@
-import type { Activity, Category, Day, ScoreEvent, Team, TeamId } from './types'
+import type { Category, Day, ScoreEvent, Team, TeamId } from './types'
+import { campToday } from './campday'
 
 /**
  * Eight teams, one pool, one champion. Hexes mirror theme.css and are
@@ -20,7 +21,9 @@ export const TEAMS: Team[] = [
 /**
  * Six scored categories plus the key. `glyph` is the engraved abbreviation on
  * the board column header — the physical object underneath carries the meaning,
- * so these stay terse.
+ * so these stay terse. The database spells the middle kind `punctuality`
+ * (supabase/schema.sql); the app's `CategoryKind` calls the same object
+ * `track` — the row mapper translates, the UI never sees the difference.
  */
 export const CATEGORIES: Category[] = [
   { id: 'cleanliness', key: 'cleanliness', label: 'Cleanliness', glyph: 'CLN', kind: 'binary', order: 0 },
@@ -33,74 +36,25 @@ export const CATEGORIES: Category[] = [
 ]
 
 /**
- * Camp runs Wed 19 Aug (Arrival, travel and settling in — no scoring) through
- * Sun 23 Aug. Day 1 is the first full day.
+ * The five days. Dates are placeholder consecutive dates — set the real camp
+ * dates here and in supabase/schema.sql with a single edit each. Arrival is
+ * travel and settling in — it carries no score.
  */
 export const DAYS: Day[] = [
-  { id: 'day-0', index: 0, name: 'Arrival', theme: "Creation — God's Perfect World Breaks", date: '2026-08-19', scored: false },
-  { id: 'day-1', index: 1, name: 'Day 1', theme: 'Nation — God Makes Eternal Promises', date: '2026-08-20', scored: true },
-  { id: 'day-2', index: 2, name: 'Day 2', theme: 'Kingdom — God Promises a Perfect Ruler', date: '2026-08-21', scored: true },
-  { id: 'day-3', index: 3, name: 'Day 3', theme: 'Savior — God Sends His Perfect Sacrifice', date: '2026-08-22', scored: true },
-  { id: 'day-4', index: 4, name: 'Day 4', theme: 'Redemption — God Promises a New Earth', date: '2026-08-23', scored: true },
+  { id: 'arrival', index: 0, name: 'Arrival', theme: "Creation — God's Perfect World Breaks", date: '2026-08-19', scored: false },
+  { id: 'day1', index: 1, name: 'Day 1', theme: 'Nation — God Makes Eternal Promises', date: '2026-08-20', scored: true },
+  { id: 'day2', index: 2, name: 'Day 2', theme: 'Kingdom — God Promises a Perfect Ruler', date: '2026-08-21', scored: true },
+  { id: 'day3', index: 3, name: 'Day 3', theme: 'Savior — God Sends His Perfect Sacrifice', date: '2026-08-22', scored: true },
+  { id: 'day4', index: 4, name: 'Day 4', theme: 'Redemption — God Promises a New Earth', date: '2026-08-23', scored: true },
 ]
-
-/** The seven scored check-ins on a full day. */
-const FULL_DAY_ACTIVITIES: { time: string; label: string }[] = [
-  { time: '08:30', label: 'Morning exercise' },
-  { time: '09:00', label: 'Breakfast' },
-  { time: '09:45', label: 'Morning line up' },
-  { time: '10:15', label: 'Lesson' },
-  { time: '13:00', label: 'Lunch' },
-  { time: '17:30', label: 'Dinner' },
-  { time: '19:30', label: 'Evening service' },
-]
-
-/** Arrival runs on its own shape and none of it scores. */
-const ARRIVAL_ACTIVITIES: { time: string; label: string }[] = [
-  { time: '14:00', label: 'Registration' },
-  { time: '17:30', label: 'Dinner' },
-  { time: '19:30', label: 'Opening service' },
-]
-
-export const ACTIVITIES: Activity[] = DAYS.flatMap((day) => {
-  const rows = day.scored ? FULL_DAY_ACTIVITIES : ARRIVAL_ACTIVITIES
-  return rows.map((a, i) => ({
-    id: `${day.id}-act-${i}`,
-    dayId: day.id,
-    time: a.time,
-    label: a.label,
-    scoresPunctuality: day.scored,
-  }))
-})
-
-export const activitiesForDay = (dayId: string) => ACTIVITIES.filter((a) => a.dayId === dayId)
-
-/** Minutes past midnight, for clock comparisons. */
-export function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
-}
 
 /**
- * Roll call auto-selects the activity nearest the current clock time —
- * opening it at 9:47 should already have "Morning line up · 9:45" chosen.
- */
-export function nearestActivity(activities: Activity[], now: Date): Activity | undefined {
-  const scored = activities.filter((a) => a.scoresPunctuality)
-  if (scored.length === 0) return undefined
-  const mins = now.getHours() * 60 + now.getMinutes()
-  return scored.reduce((best, a) =>
-    Math.abs(timeToMinutes(a.time) - mins) < Math.abs(timeToMinutes(best.time) - mins) ? a : best,
-  )
-}
-
-/**
- * Which day the rail opens on. During camp that is today; before camp the
- * first scoring day (so the board is never blank on Arrival), after camp the
- * last day.
+ * Which day the rail opens on. During camp that is the camp day (03:00
+ * rollover, see campday.ts); before camp the first scoring day (so the board
+ * is never blank on Arrival), after camp the last day.
  */
 export function resolveActiveDay(days: Day[], now: Date): Day {
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const today = campToday(now)
   const exact = days.find((d) => d.date === today)
   if (exact) return exact
   const scored = days.filter((d) => d.scored)
@@ -110,13 +64,22 @@ export function resolveActiveDay(days: Day[], now: Date): Day {
   return scored.find((d) => d.date >= today) ?? scored[scored.length - 1]
 }
 
+/**
+ * Only today is editable; every other day is view-only. Directors may unlock
+ * a day per device to fix a mistake (the RLS policy permits director inserts
+ * into any day) — the unlock itself is UI state, never a data change.
+ */
+export function isToday(day: Day, now: Date = new Date()): boolean {
+  return day.date === campToday(now)
+}
+
 // ---------------------------------------------------------------------------
-// Mock camp state. Phase 0 only — Phase 1 reads real events from the backend.
-//
-// Hand-authored rather than random so screenshots are byte-stable and so the
-// board demonstrates the cases that matter: a team sitting on the 6/7 cliff,
-// a team missing a visible category, and a leader who is ahead on KEYS while
-// trailing on base points.
+// Mock camp state, local-only mode only — the backed app starts from real
+// events ("all zeros by default") and SupabaseDataProvider drops these on
+// first start. Hand-authored rather than random so screenshots are byte-stable
+// and the board demonstrates the cases that matter: a team sitting on the
+// 6/7 cliff, a team missing a visible category, and a leader who is ahead on
+// KEYS while trailing on base points.
 // ---------------------------------------------------------------------------
 
 type DayPlan = {
@@ -129,7 +92,7 @@ const without = (...drop: string[]) => ALL5.filter((c) => !drop.includes(c))
 
 const PLANS: DayPlan[] = [
   {
-    dayId: 'day-1',
+    dayId: 'day1',
     rows: [
       { team: 'warriors', binaries: ALL5, ticks: 7, keys: 1 },
       { team: 'precious', binaries: ALL5, ticks: 6, keys: 1 },
@@ -142,7 +105,7 @@ const PLANS: DayPlan[] = [
     ],
   },
   {
-    dayId: 'day-2',
+    dayId: 'day2',
     rows: [
       { team: 'warriors', binaries: ALL5, ticks: 7, keys: 0 },
       { team: 'precious', binaries: ALL5, ticks: 7, keys: 2 },
@@ -156,7 +119,7 @@ const PLANS: DayPlan[] = [
   },
   {
     // Day 3 is mid-morning: cleanliness done at inspection, three check-ins in.
-    dayId: 'day-3',
+    dayId: 'day3',
     rows: [
       { team: 'warriors', binaries: ['cleanliness'], ticks: 3, keys: 0 },
       { team: 'precious', binaries: ['cleanliness'], ticks: 3, keys: 0 },
@@ -181,19 +144,18 @@ export function seedEvents(deviceId: string): ScoreEvent[] {
 
   for (const plan of PLANS) {
     const day = DAYS.find((d) => d.id === plan.dayId)!
-    const acts = activitiesForDay(day.id)
-    const stamp = (minutes: number) => `${day.date}T${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00.000Z`
+    const stamp = (minutes: number) =>
+      `${day.date}T${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00.000Z`
 
     for (const row of plan.rows) {
       for (const cat of row.binaries) {
         events.push({
           id: `seed-${day.id}-${row.team}-${cat}`,
-          occurredAt: stamp(timeToMinutes('11:00')),
+          occurredAt: stamp(11 * 60),
           dayId: day.id,
           teamId: row.team,
           categoryId: cat as ScoreEvent['categoryId'],
           deltaDeci: 10,
-          activityId: null,
           note: null,
           actorId,
           deviceId,
@@ -201,16 +163,15 @@ export function seedEvents(deviceId: string): ScoreEvent[] {
           syncedAt: null,
         })
       }
+      // Punctuality check-ins are ordinal ticks, an hour apart from 08:30.
       for (let i = 0; i < row.ticks; i++) {
-        const act = acts[i]
         events.push({
           id: `seed-${day.id}-${row.team}-punct-${i}`,
-          occurredAt: stamp(timeToMinutes(act.time)),
+          occurredAt: stamp(8 * 60 + 30 + i * 60),
           dayId: day.id,
           teamId: row.team,
           categoryId: 'punctuality',
           deltaDeci: 1,
-          activityId: act.id,
           note: null,
           actorId,
           deviceId,
@@ -221,12 +182,11 @@ export function seedEvents(deviceId: string): ScoreEvent[] {
       for (let k = 0; k < row.keys; k++) {
         events.push({
           id: `seed-${day.id}-${row.team}-key-${k}`,
-          occurredAt: stamp(timeToMinutes('20:15')),
+          occurredAt: stamp(20 * 60 + 15),
           dayId: day.id,
           teamId: row.team,
           categoryId: 'golden_key',
           deltaDeci: 10,
-          activityId: null,
           note: 'Evening gathering',
           actorId,
           deviceId,

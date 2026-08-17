@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Lever from '../components/Lever'
 import TeamCrest from '../components/TeamCrest'
 import { CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { usePrefersReducedMotion } from '../fx/Arc'
-import { checkInCount, checkedInActivityIds, hasBinary } from '../data/derive'
+import { checkInCount, hasBinary } from '../data/derive'
 import { BINARY_DECI, MAX_CHECK_INS, formatDeci, punctualityDeci } from '../data/scoring'
 import { useStore } from '../data/store'
-import { nearestActivity } from '../data/seed'
 import type { CommitBatch, TeamId } from '../data/types'
 
 /**
@@ -488,23 +487,10 @@ export default function RollCall() {
   const { categoryId } = useParams<{ categoryId: string }>()
   const navigate = useNavigate()
   const reduced = usePrefersReducedMotion()
-  const { teams, categories, activities, activeDay, events, commitRollCall, undoBatch, ready } = useStore()
+  const { teams, categories, activeDay, events, commitRollCall, undoBatch, ready } = useStore()
 
   const category = categories.find((c) => c.id === categoryId)
   const isPunctuality = category?.kind === 'track'
-
-  const dayActivities = useMemo(
-    () => activities.filter((a) => a.dayId === activeDay.id && a.scoresPunctuality),
-    [activities, activeDay.id],
-  )
-
-  // Auto-select the activity nearest the clock. Opening at 9:47 should already
-  // have "Morning line up · 9:45" chosen.
-  const [activityId, setActivityId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!isPunctuality || dayActivities.length === 0) return
-    setActivityId((cur) => cur ?? nearestActivity(dayActivities, new Date())?.id ?? null)
-  }, [isPunctuality, dayActivities])
 
   const [selected, setSelected] = useState<Set<TeamId>>(new Set())
   const [batch, setBatch] = useState<CommitBatch | null>(null)
@@ -538,16 +524,16 @@ export default function RollCall() {
     return () => clearInterval(iv)
   }, [batch])
 
-  /** Already logged today — re-committing is a no-op, so the row reads as done. */
+  /** Already maxed out today — the row reads as done and can't be selected. */
   const doneFor = useCallback(
     (teamId: TeamId): boolean => {
       if (!category) return false
       if (isPunctuality) {
-        return activityId ? checkedInActivityIds(events, activeDay.id, teamId).has(activityId) : false
+        return checkInCount(events, activeDay.id, teamId) >= MAX_CHECK_INS
       }
       return hasBinary(events, activeDay.id, teamId, category.id)
     },
-    [category, isPunctuality, activityId, events, activeDay.id],
+    [category, isPunctuality, events, activeDay.id],
   )
 
   const toggle = (teamId: TeamId) => {
@@ -564,14 +550,6 @@ export default function RollCall() {
     const next = new Set<TeamId>()
     for (const t of teams) if (!doneFor(t.id)) next.add(t.id)
     setSelected(next.size === selected.size ? new Set() : next)
-  }
-
-  const stepActivity = (dir: -1 | 1) => {
-    if (dayActivities.length === 0) return
-    const i = dayActivities.findIndex((a) => a.id === activityId)
-    const next = dayActivities[(i + dir + dayActivities.length) % dayActivities.length]
-    setActivityId(next.id)
-    setSelected(new Set())
   }
 
   const onFire = async () => {
@@ -591,7 +569,7 @@ export default function RollCall() {
     }
     setLanded(landing)
 
-    const committed = await commitRollCall(activeDay.id, category.id, ids, activityId)
+    const committed = await commitRollCall(activeDay.id, category.id, ids)
     setSelected(new Set())
     setBatch(committed)
 
@@ -624,7 +602,6 @@ export default function RollCall() {
 
   if (!ready || !category) return <div className="min-h-dvh" />
 
-  const activity = dayActivities.find((a) => a.id === activityId)
   const selectableCount = teams.filter((t) => !doneFor(t.id)).length
 
   /* The lever housing's top brass margin: select-all at the left, the queued or
@@ -778,37 +755,13 @@ export default function RollCall() {
                 className="tech-label mt-[3px] block text-center"
                 style={{ fontSize: 9.5, letterSpacing: '0.12em', color: '#e0cbab', opacity: 0.95 }}
               >
-                {activity ? `${activity.label} · ${activity.time}` : activeDay.name}
+                {activeDay.name}
               </span>
               {selectableCount === 0 && (
-                <span className="sr-only">All eight teams are already logged for this activity</span>
+                <span className="sr-only">All eight teams are already logged for today</span>
               )}
             </Well>
           </span>
-
-          {/* activity steppers: a pair of engraved brass rockers side by side,
-              each a 24px hit box on the 8px grid */}
-          {isPunctuality && (
-            <span
-              className="absolute flex items-center"
-              style={{ right: 24, top: '50%', marginTop: -12, gap: 2 }}
-            >
-              <Rocker
-                w={22}
-                h={24}
-                label="Previous activity"
-                onClick={() => stepActivity(-1)}
-                d="M14 7 L9 12 L14 17"
-              />
-              <Rocker
-                w={22}
-                h={24}
-                label="Next activity"
-                onClick={() => stepActivity(1)}
-                d="M8 7 L13 12 L8 17"
-              />
-            </span>
-          )}
         </Plate>
 
         {/* ---- eight rows, whole plate is the hit area ---- */}

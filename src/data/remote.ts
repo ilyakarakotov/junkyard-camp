@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { ScoreEvent } from './types'
 
 /**
@@ -18,18 +18,19 @@ export interface ScoreEventRow {
   day_id: string
   team_id: string
   category_id: string
-  delta_deci: number
-  activity_id: string | null
-  note: string | null
+  /** deci-points for binary/key, CHECK-INS for punctuality — never summed. */
+  delta: number
+  /** The signed-in user's auth UUID; RLS requires it to be the writer. */
   actor_id: string
-  device_id: string
+  device_id: string | null
   reverses_event_id: string | null
-  /** Stamped by the database on insert — never sent by the client. */
-  synced_at: string
+  note: string | null
+  /** Stamped by the database on arrival — never sent by the client. */
+  created_at: string
 }
 
-/** What the client sends. `synced_at` is omitted so the DB default applies. */
-export type ScoreEventInsert = Omit<ScoreEventRow, 'synced_at'>
+/** What the client sends. `created_at` is omitted so the DB default applies. */
+export type ScoreEventInsert = Omit<ScoreEventRow, 'created_at'>
 
 export function toRow(e: ScoreEvent): ScoreEventInsert {
   return {
@@ -38,12 +39,11 @@ export function toRow(e: ScoreEvent): ScoreEventInsert {
     day_id: e.dayId,
     team_id: e.teamId,
     category_id: e.categoryId,
-    delta_deci: e.deltaDeci,
-    activity_id: e.activityId,
-    note: e.note,
+    delta: e.deltaDeci,
     actor_id: e.actorId,
     device_id: e.deviceId,
     reverses_event_id: e.reversesEventId,
+    note: e.note,
   }
 }
 
@@ -54,13 +54,13 @@ export function fromRow(r: ScoreEventRow): ScoreEvent {
     dayId: r.day_id,
     teamId: r.team_id as ScoreEvent['teamId'],
     categoryId: r.category_id as ScoreEvent['categoryId'],
-    deltaDeci: r.delta_deci,
-    activityId: r.activity_id,
+    deltaDeci: r.delta,
     note: r.note,
     actorId: r.actor_id,
-    deviceId: r.device_id,
+    deviceId: r.device_id ?? '',
     reversesEventId: r.reverses_event_id,
-    syncedAt: r.synced_at,
+    // created_at doubles as the outbox marker: a row the server has is synced.
+    syncedAt: r.created_at,
   }
 }
 
@@ -80,18 +80,35 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * Build the Supabase-backed store, or null when env is missing. Opens a
+ * The app holds one client: auth session, data and realtime all ride on it.
+ * Sign in once for the whole camp — the session persists in localStorage and
+ * refreshes itself; the only sign-out is the explicit menu item.
+ */
+let client: SupabaseClient | null = null
+
+export function getSupabaseClient(): SupabaseClient | null {
+  const url = import.meta.env.VITE_SUPABASE_URL
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+  if (!url || !key) return null
+  if (!client) {
+    client = createClient(url, key, {
+      auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage },
+    })
+  }
+  return client
+}
+
+/**
+ * Build the Supabase-backed event store, or null when env is missing. Opens a
  * realtime channel, so call it lazily — never from a constructor that a
  * discarded StrictMode render might run.
  */
 export function createSupabaseEventStore(): RemoteEventStore | null {
-  const url = import.meta.env.VITE_SUPABASE_URL
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  if (!url || !key) return null
+  const supabase = getSupabaseClient()
+  if (!supabase) return null
 
-  const client = createClient(url, key)
   let cb: ((row: ScoreEventRow) => void) | null = null
-  const channel = client
+  const channel = supabase
     .channel('score-events-feed')
     .on(
       'postgres_changes',
@@ -102,12 +119,12 @@ export function createSupabaseEventStore(): RemoteEventStore | null {
 
   return {
     async fetchAll() {
-      const { data, error } = await client.from('score_events').select('*').range(0, 9999)
+      const { data, error } = await supabase.from('score_events').select('*').range(0, 9999)
       if (error) throw new Error(error.message)
       return data as ScoreEventRow[]
     },
     async upsert(rows) {
-      const { error } = await client
+      const { error } = await supabase
         .from('score_events')
         .upsert(rows, { onConflict: 'id', ignoreDuplicates: true })
       if (error) throw new Error(error.message)
@@ -116,7 +133,7 @@ export function createSupabaseEventStore(): RemoteEventStore | null {
       cb = fn
     },
     close() {
-      void client.removeChannel(channel)
+      void supabase.removeChannel(channel)
     },
   }
 }

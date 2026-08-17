@@ -14,7 +14,7 @@ import { ArcBolt, usePrefersReducedMotion } from '../fx/Arc'
 import { recentActivity, standings } from '../data/derive'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
-import type { Activity, Category, ScoreEvent, Standing, Team } from '../data/types'
+import type { Category, ScoreEvent, Standing, Team } from '../data/types'
 
 /**
  * Cumulative standings across every scored day.
@@ -444,8 +444,7 @@ function useArcFlicker(active: boolean): number {
 }
 
 export default function Standings() {
-  const { teams, days, events, categories, activities, directorMode, setDirectorMode, ready } =
-    useStore()
+  const { teams, days, events, categories, directorMode, setDirectorMode, ready } = useStore()
   const rows = useMemo(() => standings(events, days, teams), [events, days, teams])
   const byId = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams])
   const feed = useMemo(() => recentActivity(events, 3), [events])
@@ -505,7 +504,7 @@ export default function Standings() {
           })}
         </div>
 
-        <ActivityFeed feed={feed} byId={byId} categories={categories} activities={activities} />
+        <ActivityFeed feed={feed} byId={byId} categories={categories} />
 
         {/* director mode gates the key ceremony so it can't be fat-fingered */}
         <div className="mx-3 mt-4">
@@ -1363,12 +1362,10 @@ function ActivityFeed({
   feed,
   byId,
   categories,
-  activities,
 }: {
   feed: { event: ScoreEvent; reversed: boolean }[]
   byId: Map<string, Team>
   categories: Category[]
-  activities: Activity[]
 }) {
   if (feed.length === 0) return null
   return (
@@ -1402,12 +1399,7 @@ function ActivityFeed({
         {feed.map(({ event, reversed }, i) => {
           const team = byId.get(event.teamId)
           const category = categories.find((c) => c.id === event.categoryId)
-          const activity = event.activityId
-            ? activities.find((a) => a.id === event.activityId)
-            : undefined
-          const reason = activity
-            ? `${activity.label} · ${activity.time}`
-            : (category?.label ?? 'Adjustment')
+          const reason = category?.label ?? 'Adjustment'
           return (
             <div
               key={event.id}

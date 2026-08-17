@@ -6,7 +6,7 @@ import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
-import { checkedInActivityIds, dayScore } from '../data/derive'
+import { dayScore } from '../data/derive'
 import { BASE_CEILING_DECI, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { CategoryId } from '../data/types'
@@ -166,12 +166,12 @@ export default function TeamSheet() {
     teams,
     days,
     categories,
-    activities,
     activeDay,
     setActiveDayId,
     events,
     setBinary,
-    setCheckIn,
+    addCheckIn,
+    removeCheckIn,
     directorMode,
     ready,
   } = useStore()
@@ -179,14 +179,6 @@ export default function TeamSheet() {
   const team = teams.find((t) => t.id === teamId)
   const score = useMemo(
     () => (team ? dayScore(events, activeDay.id, team.id) : undefined),
-    [events, activeDay.id, team],
-  )
-  const dayActivities = useMemo(
-    () => activities.filter((a) => a.dayId === activeDay.id && a.scoresPunctuality),
-    [activities, activeDay.id],
-  )
-  const checkedIn = useMemo(
-    () => (team ? checkedInActivityIds(events, activeDay.id, team.id) : new Set<string>()),
     [events, activeDay.id, team],
   )
 
@@ -452,12 +444,9 @@ export default function TeamSheet() {
                   {isPunctuality ? (
                     <PunctualityControl
                       ticks={score.ticks}
-                      activities={dayActivities}
-                      checkedIn={checkedIn}
                       locked={locked}
-                      onToggle={(activityId, next) =>
-                        setCheckIn(activeDay.id, team.id, activityId, next)
-                      }
+                      onAdd={() => addCheckIn(activeDay.id, team.id)}
+                      onRemove={() => removeCheckIn(activeDay.id, team.id)}
                     />
                   ) : (
                     <Breaker variant="toggle" on={on} color="var(--color-lamp)" title={label(c)} />
@@ -605,25 +594,27 @@ function Equation({
  * buttons laid on the socket centres it publishes. The seventh socket sits off
  * the six's rhythm on purpose, so an evenly-spaced overlay would not line up
  * with the thing it toggles — hence reading the centres from the component.
+ *
+ * Check-ins are ordinal ticks: a filled socket drains the most recent tick,
+ * and only the next empty socket adds one — there is no "which activity" any
+ * more, only how far along the rail the team is.
  */
 function PunctualityControl({
   ticks,
-  activities,
-  checkedIn,
   locked,
-  onToggle,
+  onAdd,
+  onRemove,
 }: {
   ticks: number
-  activities: { id: string; label: string; time: string }[]
-  checkedIn: Set<string>
   locked: boolean
-  onToggle: (activityId: string, next: boolean) => void
+  onAdd: () => void
+  onRemove: () => void
 }) {
   const width = 162
   /*
    * Socket pitch is ~18px, so a 22px-wide target overlapped its neighbour by
    * 4px and the last one painted won — tapping a socket's right edge recorded
-   * the *next* activity. Targets are the pitch minus a 1px gap, and the full
+   * the *next* socket. Targets are the pitch minus a 1px gap, and the full
    * row height vertically, which is where the reachable area comes from.
    */
   const pitch = ((CAPSULE_SOCKET_PCT[1] - CAPSULE_SOCKET_PCT[0]) / 100) * width
@@ -632,10 +623,10 @@ function PunctualityControl({
     <span className="relative block shrink-0" style={{ width }}>
       <ChargeTrack ticks={ticks} width={width} capsule />
       <span className="absolute" style={{ left: 0, right: 0, top: -12, bottom: -12 }}>
-        {activities.map((a, i) => {
-          const on = checkedIn.has(a.id)
-          const pct = CAPSULE_SOCKET_PCT[i] ?? 0
-          const last = i === activities.length - 1
+        {CAPSULE_SOCKET_PCT.map((pct, i) => {
+          const on = i < ticks
+          const next = i === ticks
+          const last = i === CAPSULE_SOCKET_PCT.length - 1
           /*
            * The seventh sits off the six's rhythm with a gap in front of it, so
            * it takes everything from the sixth's right edge to the end of the
@@ -659,11 +650,13 @@ function PunctualityControl({
               }
           return (
             <button
-              key={a.id}
-              disabled={locked}
+              key={i}
+              disabled={locked || (!on && !next)}
               aria-pressed={on}
-              aria-label={`${a.label} ${a.time}`}
-              onClick={() => onToggle(a.id, !on)}
+              aria-label={
+                last ? `Final check-in — worth 0.4` : `Check-in ${i + 1} of ${CAPSULE_SOCKET_PCT.length}`
+              }
+              onClick={() => (on ? onRemove() : onAdd())}
               className="absolute"
               style={style}
             />

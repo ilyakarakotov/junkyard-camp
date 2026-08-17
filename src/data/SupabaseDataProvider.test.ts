@@ -1,19 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SupabaseDataProvider } from './SupabaseDataProvider'
 import { EVENTS_KEY } from './LocalStorageDataProvider'
+import { MemoryOutbox } from './outbox'
 import { fromRow, toRow, type RemoteEventStore, type ScoreEventInsert, type ScoreEventRow } from './remote'
 import type { CategoryId, ScoreEvent, TeamId } from './types'
 
 /**
- * The sync engine is tested against a fake RemoteEventStore — no network, no
- * supabase-js client. `window`/`navigator`/`localStorage` are stubbed because
- * vitest runs in a node environment.
+ * The sync engine is tested against a fake RemoteEventStore and an in-memory
+ * outbox — no network, no supabase-js client, no IndexedDB.
+ * `window`/`navigator`/`localStorage` are stubbed because vitest runs in a
+ * node environment.
  */
 
 let n = 0
 const ev = (
   teamId: TeamId = 'gems',
-  dayId = 'day-1',
+  dayId = 'day1',
   categoryId: CategoryId = 'good_deed',
   deltaDeci = 10,
 ): ScoreEvent => ({
@@ -23,7 +25,6 @@ const ev = (
   teamId,
   categoryId,
   deltaDeci,
-  activityId: null,
   note: null,
   actorId: 'leader-1',
   deviceId: 'test-device',
@@ -31,9 +32,9 @@ const ev = (
   syncedAt: null,
 })
 
-const asRow = (e: ScoreEvent, syncedAt = '2026-08-20T09:00:01.000Z'): ScoreEventRow => ({
+const asRow = (e: ScoreEvent, createdAt = '2026-08-20T09:00:01.000Z'): ScoreEventRow => ({
   ...toRow(e),
-  synced_at: syncedAt,
+  created_at: createdAt,
 })
 
 class FakeRemote implements RemoteEventStore {
@@ -51,7 +52,7 @@ class FakeRemote implements RemoteEventStore {
     if (this.failUpsert) throw new Error('offline')
     const now = new Date().toISOString()
     for (const r of rows) {
-      if (!this.rows.some((x) => x.id === r.id)) this.rows.push({ ...r, synced_at: now })
+      if (!this.rows.some((x) => x.id === r.id)) this.rows.push({ ...r, created_at: now })
     }
   }
 
@@ -83,13 +84,15 @@ function storageStub() {
 
 let provider: SupabaseDataProvider
 let remote: FakeRemote
+let outbox: MemoryOutbox
 
 beforeEach(() => {
   vi.stubGlobal('localStorage', storageStub())
   vi.stubGlobal('window', { addEventListener: () => {}, removeEventListener: () => {} })
   vi.stubGlobal('navigator', { onLine: true })
   remote = new FakeRemote()
-  provider = new SupabaseDataProvider(remote)
+  outbox = new MemoryOutbox()
+  provider = new SupabaseDataProvider(remote, outbox)
 })
 
 afterEach(() => {
@@ -125,14 +128,14 @@ describe('SupabaseDataProvider', () => {
     const events = await provider.getEvents()
     expect(events[0].syncedAt).not.toBeNull()
     expect(remote.rows).toHaveLength(1)
-    // snake_case mapping, and the client never sends synced_at
+    // snake_case mapping, and the client never sends created_at
     expect(remote.upsertCalls.at(-1)?.[0]).toMatchObject({
       id: e.id,
-      day_id: 'day-1',
+      day_id: 'day1',
       team_id: 'gems',
-      delta_deci: 10,
+      delta: 10,
     })
-    expect(remote.upsertCalls.at(-1)?.[0]).not.toHaveProperty('synced_at')
+    expect(remote.upsertCalls.at(-1)?.[0]).not.toHaveProperty('created_at')
   })
 
   it('is idempotent by event id — a retry is a no-op, not a double award', async () => {
@@ -146,6 +149,18 @@ describe('SupabaseDataProvider', () => {
     expect(remote.upsertCalls[0]).toHaveLength(1)
   })
 
+  it('writes awards to the outbox first and drains it on flush', async () => {
+    remote.failUpsert = true
+    await provider.appendEvent(ev())
+    // Durable before any network attempt — the airplane-mode guarantee.
+    await vi.waitFor(async () => expect(await outbox.all()).toHaveLength(1))
+
+    remote.failUpsert = false
+    await provider.flush()
+    expect(await outbox.all()).toHaveLength(0)
+    expect(remote.rows).toHaveLength(1)
+  })
+
   it('merges realtime inserts from other devices and notifies once', async () => {
     const listener = vi.fn()
     provider.subscribe(listener)
@@ -157,7 +172,7 @@ describe('SupabaseDataProvider', () => {
 
     const events = await provider.getEvents()
     expect(events.map((e) => e.id)).toEqual([incoming.id])
-    expect(events[0].syncedAt).toBe(incoming.synced_at)
+    expect(events[0].syncedAt).toBe(incoming.created_at)
     expect(listener.mock.calls.length).toBe(before + 1)
 
     // A duplicate delivery changes nothing and stays silent.
@@ -194,10 +209,10 @@ describe('SupabaseDataProvider', () => {
     const real = ev()
     localStorage.setItem(
       EVENTS_KEY,
-      JSON.stringify([{ ...ev(), id: 'seed-day-1-gems-good_deed' }, real]),
+      JSON.stringify([{ ...ev(), id: 'seed-day1-gems-good_deed' }, real]),
     )
 
-    const p = new SupabaseDataProvider(remote)
+    const p = new SupabaseDataProvider(remote, new MemoryOutbox())
     const events = await p.getEvents() // start runs the one-time migration
     expect(events.map((e) => e.id)).toEqual([real.id])
 
@@ -209,7 +224,7 @@ describe('SupabaseDataProvider', () => {
 
 describe('row mapping', () => {
   it('round-trips camelCase ScoreEvent <-> snake_case row', () => {
-    const e = { ...ev(), activityId: 'day-1-act-2', note: 'Evening gathering' }
+    const e = { ...ev(), note: 'Evening gathering' }
     const row = asRow(e)
     expect(row).toMatchObject({
       id: e.id,
@@ -217,14 +232,13 @@ describe('row mapping', () => {
       day_id: e.dayId,
       team_id: e.teamId,
       category_id: e.categoryId,
-      delta_deci: e.deltaDeci,
-      activity_id: e.activityId,
+      delta: e.deltaDeci,
       note: e.note,
       actor_id: e.actorId,
       device_id: e.deviceId,
       reverses_event_id: null,
     })
-    expect(toRow(e)).not.toHaveProperty('synced_at')
-    expect(fromRow(row)).toEqual({ ...e, syncedAt: row.synced_at })
+    expect(toRow(e)).not.toHaveProperty('created_at')
+    expect(fromRow(row)).toEqual({ ...e, syncedAt: row.created_at })
   })
 })

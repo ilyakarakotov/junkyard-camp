@@ -63,18 +63,14 @@ export interface Day {
   scored: boolean
 }
 
-export interface Activity {
-  id: string
-  dayId: string
-  /** HH:MM, 24-hour. Roll call auto-selects the one nearest the clock. */
-  time: string
-  label: string
-  scoresPunctuality: boolean
-}
-
 /**
  * Append-only score event. Corrections are compensating events
  * (`reversesEventId` + negative delta) — never an edit, never a delete.
+ *
+ * `deltaDeci` means different units per category kind, by design: deci-points
+ * (±10) for binary and key categories, CHECK-INS (±1) for punctuality. The
+ * scored value of punctuality is `PUNCTUALITY_DECI[clamp(ticks,0,7)]`, never
+ * the sum of deltas.
  */
 export interface ScoreEvent {
   /** Client-generated UUID — duplicate submission is a no-op, not a double award. */
@@ -83,15 +79,16 @@ export interface ScoreEvent {
   dayId: string
   teamId: TeamId
   categoryId: CategoryId
-  /** Integer tenths. +1 per punctuality check-in, ±10 for binaries and keys. */
+  /** Integer tenths for binary/key; ±1 check-ins for punctuality. */
   deltaDeci: number
-  /** Set on punctuality check-ins so a day's activities can be audited. */
-  activityId: string | null
   note: string | null
+  /** The signed-in user's auth UUID in backed mode. */
   actorId: string
   deviceId: string
   /** Set on compensating events; never edit or delete the original. */
   reversesEventId: string | null
+  /** Null while the event sits in the outbox; stamped when the server has it
+   * (the row's `created_at`). This is the outbox flag, not a scored value. */
   syncedAt: string | null
 }
 

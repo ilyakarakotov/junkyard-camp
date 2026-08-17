@@ -100,21 +100,6 @@ export function checkInCount(events: ScoreEvent[], dayId: string, teamId: TeamId
   ).length
 }
 
-/** Which activities a team has already been checked in for today. */
-export function checkedInActivityIds(
-  events: ScoreEvent[],
-  dayId: string,
-  teamId: TeamId,
-): Set<string> {
-  const ids = new Set<string>()
-  for (const e of liveEvents(events)) {
-    if (e.dayId === dayId && e.teamId === teamId && e.categoryId === 'punctuality' && e.activityId) {
-      ids.add(e.activityId)
-    }
-  }
-  return ids
-}
-
 /** Whether a binary category is currently earned. */
 export function hasBinary(
   events: ScoreEvent[],
@@ -211,7 +196,6 @@ export function reversalOf(original: ScoreEvent, deviceId: string, note = 'Undo'
     teamId: original.teamId,
     categoryId: original.categoryId,
     deltaDeci: -original.deltaDeci,
-    activityId: original.activityId,
     note,
     actorId: original.actorId,
     deviceId,

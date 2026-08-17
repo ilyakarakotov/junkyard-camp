@@ -15,8 +15,8 @@ import {
   reversalOf,
   standings,
 } from './derive'
-import type { CategoryId, Day, ScoreEvent, Team, TeamId } from './types'
-import { CATEGORIES, DAYS, TEAMS, nearestActivity, resolveActiveDay } from './seed'
+import type { CategoryId, ScoreEvent, Team, TeamId } from './types'
+import { CATEGORIES, DAYS, TEAMS, resolveActiveDay } from './seed'
 
 let n = 0
 const ev = (
@@ -24,7 +24,6 @@ const ev = (
   dayId: string,
   categoryId: CategoryId,
   deltaDeci: number,
-  activityId: string | null = null,
 ): ScoreEvent => ({
   id: `e${++n}`,
   occurredAt: '2026-08-20T09:00:00.000Z',
@@ -32,7 +31,6 @@ const ev = (
   teamId,
   categoryId,
   deltaDeci,
-  activityId,
   note: null,
   actorId: 'a1',
   deviceId: 'd1',
@@ -40,8 +38,7 @@ const ev = (
   syncedAt: null,
 })
 
-const tick = (teamId: TeamId, dayId: string, i: number) =>
-  ev(teamId, dayId, 'punctuality', 1, `act-${i}`)
+const tick = (teamId: TeamId, dayId: string, _i: number) => ev(teamId, dayId, 'punctuality', 1)
 
 describe('punctuality ladder', () => {
   it('pays 0.1 per check-in for the first six', () => {
@@ -95,7 +92,7 @@ describe('integer-tenths rendering', () => {
 })
 
 describe('day scoring', () => {
-  const D = 'day-1'
+  const D = 'day1'
   const T: TeamId = 'warriors'
 
   it('caps the six categories at 6.0', () => {
@@ -146,23 +143,23 @@ describe('day scoring', () => {
   })
 
   it('isolates days from each other', () => {
-    const events = [ev(T, 'day-1', 'cleanliness', 10), ev(T, 'day-2', 'cleanliness', 10)]
-    expect(dayScore(events, 'day-1', T).baseDeci).toBe(10)
-    expect(dayScore(events, 'day-2', T).baseDeci).toBe(10)
+    const events = [ev(T, 'day1', 'cleanliness', 10), ev(T, 'day2', 'cleanliness', 10)]
+    expect(dayScore(events, 'day1', T).baseDeci).toBe(10)
+    expect(dayScore(events, 'day2', T).baseDeci).toBe(10)
   })
 
   it('does not carry punctuality across days', () => {
     const events = [
-      ...Array.from({ length: 7 }, (_, i) => tick(T, 'day-1', i)),
-      ...Array.from({ length: 2 }, (_, i) => tick(T, 'day-2', i)),
+      ...Array.from({ length: 7 }, (_, i) => tick(T, 'day1', i)),
+      ...Array.from({ length: 2 }, (_, i) => tick(T, 'day2', i)),
     ]
-    expect(dayScore(events, 'day-1', T).byCategory.punctuality).toBe(10)
-    expect(dayScore(events, 'day-2', T).byCategory.punctuality).toBe(2)
+    expect(dayScore(events, 'day1', T).byCategory.punctuality).toBe(10)
+    expect(dayScore(events, 'day2', T).byCategory.punctuality).toBe(2)
   })
 })
 
 describe('compensating events', () => {
-  const D = 'day-1'
+  const D = 'day1'
   const T: TeamId = 'gems'
 
   it('cancels a binary with a reversal rather than an edit', () => {
@@ -256,10 +253,10 @@ describe('five-day camp totals', () => {
 
   it('ranks by total and shares a rank on ties', () => {
     const events: ScoreEvent[] = [
-      ev('warriors', 'day-1', 'cleanliness', 10),
-      ev('warriors', 'day-1', 'behavior', 10),
-      ev('gems', 'day-1', 'cleanliness', 10),
-      ev('precious', 'day-1', 'cleanliness', 10),
+      ev('warriors', 'day1', 'cleanliness', 10),
+      ev('warriors', 'day1', 'behavior', 10),
+      ev('gems', 'day1', 'cleanliness', 10),
+      ev('precious', 'day1', 'cleanliness', 10),
     ]
     const rows = standings(events, DAYS, TEAMS)
     expect(rows[0].teamId).toBe('warriors')
@@ -276,9 +273,9 @@ describe('five-day camp totals', () => {
   it('separates base points from key points', () => {
     const T: TeamId = 'innocent'
     const events = [
-      ev(T, 'day-1', 'cleanliness', 10),
-      ev(T, 'day-1', 'golden_key', 10),
-      ev(T, 'day-2', 'golden_key', 10),
+      ev(T, 'day1', 'cleanliness', 10),
+      ev(T, 'day1', 'golden_key', 10),
+      ev(T, 'day2', 'golden_key', 10),
     ]
     const row = standings(events, DAYS, TEAMS).find((r) => r.teamId === T)!
     expect(row.baseDeci).toBe(10)
@@ -300,55 +297,14 @@ describe('roster and categories', () => {
     expect(CATEGORIES.filter((c) => c.kind === 'track')).toHaveLength(1)
     expect(CATEGORIES.filter((c) => c.kind === 'key')).toHaveLength(1)
   })
-
-  it('gives every scoring day seven punctuality activities', () => {
-    for (const d of DAYS.filter((x: Day) => x.scored)) {
-      const acts = DAYS_ACTIVITY_COUNT(d.id)
-      expect(acts).toBe(7)
-    }
-  })
-})
-
-// Imported here rather than at the top so the helper reads next to its use.
-import { ACTIVITIES } from './seed'
-const DAYS_ACTIVITY_COUNT = (dayId: string) =>
-  ACTIVITIES.filter((a) => a.dayId === dayId && a.scoresPunctuality).length
-
-describe('clock-driven selection', () => {
-  const day1 = DAYS[1]
-  const acts = ACTIVITIES.filter((a) => a.dayId === day1.id)
-  const at = (h: number, m: number) => {
-    const d = new Date(2026, 7, 20, h, m, 0)
-    return d
-  }
-
-  it('picks "Morning line up · 9:45" when opened at 9:47', () => {
-    const a = nearestActivity(acts, at(9, 47))
-    expect(a?.time).toBe('09:45')
-    expect(a?.label).toBe('Morning line up')
-  })
-
-  it('picks the nearest activity either side of the clock', () => {
-    expect(nearestActivity(acts, at(8, 20))?.time).toBe('08:30') // before the first
-    expect(nearestActivity(acts, at(8, 50))?.time).toBe('09:00')
-    expect(nearestActivity(acts, at(11, 0))?.time).toBe('10:15') // closer than 13:00
-    expect(nearestActivity(acts, at(12, 0))?.time).toBe('13:00') // now 13:00 is closer
-    expect(nearestActivity(acts, at(23, 30))?.time).toBe('19:30') // after the last
-  })
-
-  it('returns nothing for a day with no scoring activities', () => {
-    const arrival = ACTIVITIES.filter((a) => a.dayId === DAYS[0].id)
-    expect(arrival.length).toBeGreaterThan(0)
-    expect(nearestActivity(arrival, at(19, 0))).toBeUndefined()
-  })
 })
 
 describe('day rail resolution', () => {
   const on = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12, 0, 0)
 
   it('selects today during camp', () => {
-    expect(resolveActiveDay(DAYS, on(2026, 8, 21)).id).toBe('day-2')
-    expect(resolveActiveDay(DAYS, on(2026, 8, 23)).id).toBe('day-4')
+    expect(resolveActiveDay(DAYS, on(2026, 8, 21)).id).toBe('day2')
+    expect(resolveActiveDay(DAYS, on(2026, 8, 23)).id).toBe('day4')
   })
 
   it('selects Arrival on Arrival, even though it does not score', () => {
@@ -358,10 +314,10 @@ describe('day rail resolution', () => {
   })
 
   it('falls back to the first scoring day before camp', () => {
-    expect(resolveActiveDay(DAYS, on(2026, 8, 14)).id).toBe('day-1')
+    expect(resolveActiveDay(DAYS, on(2026, 8, 14)).id).toBe('day1')
   })
 
   it('falls back to the last scoring day after camp', () => {
-    expect(resolveActiveDay(DAYS, on(2026, 9, 1)).id).toBe('day-4')
+    expect(resolveActiveDay(DAYS, on(2026, 9, 1)).id).toBe('day4')
   })
 })

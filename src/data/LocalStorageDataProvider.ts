@@ -1,9 +1,9 @@
 import type { DataProvider } from './DataProvider'
-import type { Activity, Category, Day, ScoreEvent, Team } from './types'
-import { ACTIVITIES, CATEGORIES, DAYS, TEAMS, seedEvents } from './seed'
+import type { Category, Day, ScoreEvent, Team } from './types'
+import { CATEGORIES, DAYS, TEAMS, seedEvents } from './seed'
 
 /** Shared with SupabaseDataProvider — the mirror must live under one key. */
-export const EVENTS_KEY = 'jr:events:v2'
+export const EVENTS_KEY = 'jr:events:v3'
 const DEVICE_KEY = 'jr:device-id'
 export const SETTING_PREFIX = 'jr:setting:'
 
@@ -18,7 +18,7 @@ export function getDeviceId(): string {
 
 /**
  * Phase 0 storage: the append-only event log lives in one localStorage key.
- * Roster, days, categories and activities are static seed data. A `storage`
+ * Roster, days and categories are static seed data. A `storage`
  * listener keeps other tabs (the big screen) live without a backend.
  */
 export class LocalStorageDataProvider implements DataProvider {
@@ -47,10 +47,6 @@ export class LocalStorageDataProvider implements DataProvider {
 
   async getCategories(): Promise<Category[]> {
     return CATEGORIES
-  }
-
-  async getActivities(): Promise<Activity[]> {
-    return ACTIVITIES
   }
 
   async getEvents(): Promise<ScoreEvent[]> {

@@ -1,7 +1,8 @@
 import type { DataProvider } from './DataProvider'
-import type { Activity, Category, Day, ScoreEvent, Team } from './types'
+import type { Category, Day, ScoreEvent, Team } from './types'
 import { EVENTS_KEY, SETTING_PREFIX } from './LocalStorageDataProvider'
-import { ACTIVITIES, CATEGORIES, DAYS, TEAMS } from './seed'
+import { CATEGORIES, DAYS, TEAMS } from './seed'
+import { IdbOutbox, type OutboxStore } from './outbox'
 import {
   createSupabaseEventStore,
   fromRow,
@@ -16,26 +17,29 @@ const isSeedEvent = (e: ScoreEvent) => e.id.startsWith('seed-')
 
 /**
  * Phase 1 storage: a localStorage mirror the UI always reads (instant,
- * offline-safe), with Supabase as the shared replica behind it.
+ * offline-safe), an IndexedDB outbox every award is written to FIRST, and
+ * Supabase as the shared replica behind both.
  *
- * - Writes land in the mirror first and notify immediately; anything with
- *   `syncedAt: null` is the outbox and is pushed on every append, on
- *   `online`, on a 15s interval, and on boot. Push is an idempotent upsert by
- *   client-generated UUID, so a retry can never double-award.
+ * - Writes land in the outbox (durable) and the mirror (immediate UI) before
+ *   any network attempt. The flusher drains the outbox on every write, on
+ *   `window.online`, and on a 15s interval while anything is pending, via an
+ *   upsert idempotent by client-generated UUID — a retry can never
+ *   double-award. Scoring is never blocked by the network.
  * - A realtime INSERT subscription merges other leaders' events into the
  *   mirror, so several leaders can score at once and the big screen stays
- *   live.
+ *   live within about a second.
  * - The roster stays static seed data: it is fixed camp data that must work
- *   offline anyway.
+ *   offline anyway (the same rows are seeded into Supabase for the FKs).
  *
- * Construction is side-effect-light; the network starts on first use
- * (`ensureStarted`), so a discarded StrictMode render opens no channel.
+ * Construction is side-effect-light; the network and the database open on
+ * first use (`ensureStarted`), so a discarded StrictMode render opens nothing.
  */
 export class SupabaseDataProvider implements DataProvider {
   private listeners = new Set<() => void>()
   private cache: ScoreEvent[] | null = null
   /** undefined = not yet attempted (lazy); null = unavailable. */
   private store: RemoteEventStore | null | undefined
+  private outboxStore: OutboxStore | null | undefined
   private started = false
   private timer: ReturnType<typeof setInterval> | null = null
   private online = true
@@ -44,13 +48,19 @@ export class SupabaseDataProvider implements DataProvider {
   private flushQueued = false
   private inFlight: Promise<void> = Promise.resolve()
 
-  constructor(store?: RemoteEventStore | null) {
+  constructor(store?: RemoteEventStore | null, outbox?: OutboxStore | null) {
     this.store = store
+    this.outboxStore = outbox
   }
 
   private remote(): RemoteEventStore | null {
     if (this.store === undefined) this.store = createSupabaseEventStore()
     return this.store
+  }
+
+  private outbox(): OutboxStore | null {
+    if (this.outboxStore === undefined) this.outboxStore = new IdbOutbox()
+    return this.outboxStore
   }
 
   async getTeams(): Promise<Team[]> {
@@ -63,10 +73,6 @@ export class SupabaseDataProvider implements DataProvider {
 
   async getCategories(): Promise<Category[]> {
     return CATEGORIES
-  }
-
-  async getActivities(): Promise<Activity[]> {
-    return ACTIVITIES
   }
 
   async getEvents(): Promise<ScoreEvent[]> {
@@ -90,6 +96,7 @@ export class SupabaseDataProvider implements DataProvider {
       fresh.push(e)
     }
     if (fresh.length === 0) return
+    await this.outbox()?.put(fresh) // durable FIRST — then local state
     this.write([...events, ...fresh])
     this.notify()
     void this.flush()
@@ -110,12 +117,12 @@ export class SupabaseDataProvider implements DataProvider {
     return () => this.listeners.delete(listener)
   }
 
-  /** Extra surface beyond DataProvider, for the board footer's sync readout. */
+  /** Extra surface beyond DataProvider, for the unsynced chrome. */
   getSyncState(): { online: boolean } {
     return { online: this.online }
   }
 
-  /** Push every unsynced event. Re-entrant: callers join the in-flight run. */
+  /** Push everything in the outbox. Re-entrant: callers join the in-flight run. */
   flush(): Promise<void> {
     if (this.flushing) {
       this.flushQueued = true
@@ -135,7 +142,7 @@ export class SupabaseDataProvider implements DataProvider {
     return this.inFlight
   }
 
-  /** Tear down timers, listeners and the realtime channel. Tests use this. */
+  /** Tear down timers, listeners, the realtime channel and the database. */
   close(): void {
     if (this.timer !== null) clearInterval(this.timer)
     this.timer = null
@@ -146,6 +153,7 @@ export class SupabaseDataProvider implements DataProvider {
     }
     this.started = false
     this.store?.close()
+    this.outboxStore?.close()
   }
 
   // -------------------------------------------------------------------------
@@ -159,10 +167,15 @@ export class SupabaseDataProvider implements DataProvider {
     window.addEventListener('offline', this.handleOffline)
     window.addEventListener('storage', this.handleStorage)
     const remote = this.remote()
-    if (!remote) return
-    remote.onInsert((row) => this.mergeRemote([fromRow(row)]))
-    void this.refreshFromServer().then(() => this.flush())
-    this.timer = setInterval(() => void this.flush(), FLUSH_MS)
+    // Realtime registration is synchronous: an insert that lands while the
+    // async boot chain is still reconciling must not be missed.
+    if (remote) remote.onInsert((row) => this.mergeRemote([fromRow(row)]))
+    void (async () => {
+      await this.reconcileOutbox()
+      await this.refreshFromServer()
+      await this.flush()
+    })()
+    if (remote) this.timer = setInterval(() => void this.flush(), FLUSH_MS)
   }
 
   private handleOnline = (): void => {
@@ -189,6 +202,29 @@ export class SupabaseDataProvider implements DataProvider {
     if (events.some(isSeedEvent)) this.write(events.filter((e) => !isSeedEvent(e)))
   }
 
+  /**
+   * The outbox and the mirror must agree. Both directions are healed here:
+   * outbox events missing from the mirror (a crash between the two writes)
+   * are merged in, and unsynced mirror events missing from the outbox are
+   * re-queued.
+   */
+  private async reconcileOutbox(): Promise<void> {
+    const outbox = this.outbox()
+    if (!outbox) return
+    const pending = await outbox.all()
+    const pendingIds = new Set(pending.map((e) => e.id))
+    const mirrorIds = new Set(this.read().map((e) => e.id))
+    const missing = pending.filter((e) => !mirrorIds.has(e.id))
+    if (missing.length > 0) {
+      this.write(
+        [...this.read(), ...missing].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
+      )
+      this.notify()
+    }
+    const stranded = this.read().filter((e) => e.syncedAt === null && !pendingIds.has(e.id))
+    if (stranded.length > 0) await outbox.put(stranded)
+  }
+
   private async refreshFromServer(): Promise<void> {
     const remote = this.remote()
     if (!remote) return
@@ -203,7 +239,7 @@ export class SupabaseDataProvider implements DataProvider {
 
   /**
    * Union by id; a server row beats a local copy only when the local one is
-   * still unsynced (the server's `syncedAt` is authoritative). The mirror
+   * still unsynced (the server's `created_at` is authoritative). The mirror
    * stays sorted by occurredAt, matching seed.ts.
    */
   private mergeRemote(remoteEvents: ScoreEvent[]): void {
@@ -224,14 +260,16 @@ export class SupabaseDataProvider implements DataProvider {
 
   private async flushOnce(): Promise<void> {
     const remote = this.remote()
-    if (!remote) return
-    const pending = this.read().filter((e) => e.syncedAt === null)
+    const outbox = this.outbox()
+    if (!remote || !outbox) return
+    const pending = await outbox.all()
     if (pending.length === 0) return
     try {
       await remote.upsert(pending.map(toRow))
     } catch {
-      return // still offline — events stay pending, nothing is lost
+      return // still offline — events stay in the outbox, nothing is lost
     }
+    await outbox.delete(pending.map((e) => e.id))
     const stamp = new Date().toISOString()
     const done = new Set(pending.map((e) => e.id))
     this.write(this.read().map((e) => (done.has(e.id) ? { ...e, syncedAt: stamp } : e)))

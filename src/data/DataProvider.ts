@@ -1,4 +1,4 @@
-import type { Activity, Category, Day, ScoreEvent, Team } from './types'
+import type { Category, Day, ScoreEvent, Team } from './types'
 
 /**
  * The single seam between the app and storage. Phase 0 implements this over
@@ -12,7 +12,6 @@ export interface DataProvider {
   getTeams(): Promise<Team[]>
   getDays(): Promise<Day[]>
   getCategories(): Promise<Category[]>
-  getActivities(): Promise<Activity[]>
   getEvents(): Promise<ScoreEvent[]>
 
   /** Idempotent by event id: appending an existing id is a no-op. */
