@@ -33,15 +33,36 @@ export default function DayRail({
   onSelect,
   variant = 'tabs',
   className = '',
+  todayId,
+  lockedIds,
+  unlockedIds,
 }: {
   days: Day[]
   activeId: string
   onSelect: (id: string) => void
   variant?: 'tabs' | 'sockets'
   className?: string
+  /**
+   * The camp's actual today (03:00 rollover): its socket is the pilot lamp,
+   * whether or not it is the one being viewed. Absent, the lamp follows the
+   * selection as before.
+   */
+  todayId?: string
+  /** Locked days show a padlock on the socket — view-only (§6.1). */
+  lockedIds?: ReadonlySet<string>
+  /** Director-unlocked days keep the padlock, turned amber. */
+  unlockedIds?: ReadonlySet<string>
 }) {
   return variant === 'sockets' ? (
-    <SocketRail days={days} activeId={activeId} onSelect={onSelect} className={className} />
+    <SocketRail
+      days={days}
+      activeId={activeId}
+      onSelect={onSelect}
+      className={className}
+      todayId={todayId}
+      lockedIds={lockedIds}
+      unlockedIds={unlockedIds}
+    />
   ) : (
     <TabRail days={days} activeId={activeId} onSelect={onSelect} className={className} />
   )
@@ -52,6 +73,30 @@ export default function DayRail({
 const SOCKET = 24 // outer bezel diameter; the reference measures 23.7 CSS px
 const RING = 4 // bezel width; reference 4.3
 const BAR = 7 // rail bar, of which 1px is the specular top lip
+
+/**
+ * A padlock seated on a socket's face: the day is view-only. Dark engraved
+ * brass while locked; amber once a director has unlocked the day on this
+ * device (the banner carries the same state).
+ */
+function Padlock({ unlocked }: { unlocked: boolean }) {
+  const metal = unlocked ? 'var(--color-lamp)' : '#221407'
+  const lip = unlocked ? 'var(--color-lamp-hot)' : 'rgba(255,232,190,0.4)'
+  return (
+    <svg
+      width={11}
+      height={12}
+      viewBox="0 0 12 13"
+      aria-hidden
+      className="absolute"
+      style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+    >
+      <path d="M3.5 6 V4.2 a2.5 2.5 0 0 1 5 0 V6" fill="none" stroke={metal} strokeWidth={1.7} />
+      <rect x={2.4} y={5.6} width={7.2} height={5.6} rx={1.1} fill={metal} />
+      <rect x={2.4} y={10.2} width={7.2} height={1} rx={0.5} fill={lip} />
+    </svg>
+  )
+}
 
 /**
  * Four notches cut through the bezel at the compass points. On an unlit socket
@@ -97,11 +142,17 @@ function SocketRail({
   activeId,
   onSelect,
   className,
+  todayId,
+  lockedIds,
+  unlockedIds,
 }: {
   days: Day[]
   activeId: string
   onSelect: (id: string) => void
   className: string
+  todayId?: string
+  lockedIds?: ReadonlySet<string>
+  unlockedIds?: ReadonlySet<string>
 }) {
   const uid = useId()
   const activeIndex = days.findIndex((d) => d.id === activeId)
@@ -150,8 +201,11 @@ function SocketRail({
       <div className="relative flex items-center justify-center gap-[3px] py-[7px]">
         {days.map((d, i) => {
           const selected = d.id === activeId
-          // Arrival can be selected but never lights: there is nothing to score.
-          const lit = selected && d.scored
+          // The pilot lamp marks the camp's actual today; without a todayId it
+          // follows the selection, as the team-sheet tabs have always read.
+          const lit = todayId !== undefined ? d.id === todayId : selected && d.scored
+          const locked = lockedIds?.has(d.id) ?? false
+          const unlocked = unlockedIds?.has(d.id) ?? false
           const past = i < activeIndex
           const bright = past || selected
           return (
@@ -159,7 +213,7 @@ function SocketRail({
               key={d.id}
               role="tab"
               aria-selected={selected}
-              aria-label={`${d.name}${d.scored ? '' : ' (no scoring)'}`}
+              aria-label={`${d.name}${d.scored ? '' : ' (no scoring)'}${locked ? ' (locked — view only)' : ''}`}
               onClick={() => onSelect(d.id)}
               className="relative flex h-11 w-11 items-center justify-center"
             >
@@ -225,6 +279,9 @@ function SocketRail({
                   }}
                 />
                 <Notches lit={lit} />
+                {/* a locked day is view-only: the padlock sits on the face, and
+                    turns amber while a director's unlock holds on this device */}
+                {locked && <Padlock unlocked={unlocked} />}
                 {/*
                  * A non-scoring day is a blanked socket: the face is plugged and
                  * an engraved bar is cut across it. Nothing to award here.

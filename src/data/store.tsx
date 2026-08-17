@@ -23,6 +23,7 @@ import { useAuth, type AuthUser } from './auth'
 import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
 import { DAYS, resolveActiveDay } from './seed'
+import { campToday } from './campday'
 
 interface StoreValue {
   teams: Team[]
@@ -39,6 +40,17 @@ interface StoreValue {
   user: AuthUser | null
   /** Directors award golden keys and may unlock past days; helpers cannot. */
   isDirector: boolean
+
+  /**
+   * Only today is editable; every other day is view-only. The store refuses
+   * writes to locked days — an event the server would reject (RLS permits
+   * today only, or any day for directors) must never sit in the outbox.
+   */
+  isEditableDay(dayId: string): boolean
+  /** Days a director has unlocked on this device (the banner turns amber). */
+  unlockedDayIds: ReadonlySet<string>
+  /** Directors only: unlock a past day to fix a mistake (behind a confirm). */
+  unlockDay(dayId: string): void
 
   /**
    * Backend sync readout for the unsynced chrome: is the network up, and how
@@ -115,8 +127,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   }, [])
 
   // Only a backend-aware provider (SupabaseDataProvider.getSyncState) gets a
-  // sync readout; in local-only mode `sync` stays null and the board footer
-  // keeps its decorative line.
+  // sync readout; in local-only mode `sync` stays null and the unsynced
+  // chrome hides itself.
   const syncAware = 'getSyncState' in dp
   const sync = useMemo(
     () =>
@@ -124,6 +136,37 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
         ? { online, pending: events.filter((e) => e.syncedAt === null).length }
         : null,
     [syncAware, online, events],
+  )
+
+  // Day locks. Per-device by design: a director unlocks the device in hand to
+  // fix a mistake, and the RLS policy already permits director inserts into
+  // any day — the lock is UI state, never a data change.
+  //
+  // The camp's "today": an exact camp-date match. Before camp starts the
+  // first scoring day stands in — the same fallback the rail resolves with —
+  // so setup, demos and the gates have a day they can score. After camp,
+  // nothing is editable without a director's unlock.
+  const editableDayId = useMemo(() => {
+    const today = campToday()
+    const exact = days.find((d) => d.date === today)
+    if (exact) return exact.scored ? exact.id : null
+    if (days.length > 0 && today < days[0].date) return days.find((d) => d.scored)?.id ?? null
+    return null
+  }, [days])
+  const [unlockedDayIds, setUnlockedDayIds] = useState<ReadonlySet<string>>(new Set())
+  const isEditableDay = useCallback(
+    (dayId: string) => {
+      if (dayId === editableDayId) return true
+      return isDirector && unlockedDayIds.has(dayId)
+    },
+    [editableDayId, isDirector, unlockedDayIds],
+  )
+  const unlockDay = useCallback(
+    (dayId: string) => {
+      if (!isDirector) return
+      setUnlockedDayIds((s) => new Set(s).add(dayId))
+    },
+    [isDirector],
   )
 
   const newEvent = useCallback(
@@ -161,6 +204,9 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
 
   const commitRollCall = useCallback<StoreValue['commitRollCall']>(
     async (dayId, categoryId, teamIds) => {
+      if (!isEditableDay(dayId)) {
+        return { eventIds: [], categoryId, dayId, teamIds, at: Date.now() }
+      }
       const live = liveEvents(events)
       const batch: ScoreEvent[] = []
 
@@ -188,11 +234,12 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
         at: Date.now(),
       }
     },
-    [events, newEvent, push],
+    [events, newEvent, push, isEditableDay],
   )
 
   const setBinary = useCallback<StoreValue['setBinary']>(
     async (dayId, teamId, categoryId, on) => {
+      if (!isEditableDay(dayId)) return
       if (on) {
         const already = binaryEvent(events, dayId, teamId, categoryId)
         if (already) return
@@ -203,19 +250,21 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
         await push([reversalOf(existing, getDeviceId(), 'Correction')])
       }
     },
-    [events, newEvent, push],
+    [events, newEvent, push, isEditableDay],
   )
 
   const addCheckIn = useCallback<StoreValue['addCheckIn']>(
     async (dayId, teamId) => {
+      if (!isEditableDay(dayId)) return
       if (checkInCount(events, dayId, teamId) >= MAX_CHECK_INS) return
       await push([newEvent(dayId, teamId, 'punctuality', 1, null)])
     },
-    [events, newEvent, push],
+    [events, newEvent, push, isEditableDay],
   )
 
   const removeCheckIn = useCallback<StoreValue['removeCheckIn']>(
     async (dayId, teamId) => {
+      if (!isEditableDay(dayId)) return
       // The mirror is ordered, so the last live tick is the most recent one.
       const latest = liveEvents(events)
         .filter(
@@ -225,18 +274,20 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       if (!latest) return
       await push([reversalOf(latest, getDeviceId(), 'Correction')])
     },
-    [events, push],
+    [events, push, isEditableDay],
   )
 
   const awardKey = useCallback<StoreValue['awardKey']>(
     async (dayId, teamId, note) => {
+      if (!isEditableDay(dayId)) return
       await push([newEvent(dayId, teamId, 'golden_key', KEY_DECI, note ?? null)])
     },
-    [newEvent, push],
+    [newEvent, push, isEditableDay],
   )
 
   const undoBatch = useCallback<StoreValue['undoBatch']>(
     async (batch) => {
+      if (!isEditableDay(batch.dayId)) return
       const byId = new Map(events.map((e) => [e.id, e]))
       const reversals = batch.eventIds
         .map((id) => byId.get(id))
@@ -244,7 +295,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
         .map((e) => reversalOf(e, getDeviceId()))
       await push(reversals)
     },
-    [events, push],
+    [events, push, isEditableDay],
   )
 
   const activeDay = useMemo(
@@ -263,6 +314,9 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       setActiveDayId,
       user,
       isDirector,
+      isEditableDay,
+      unlockedDayIds,
+      unlockDay,
       sync,
       commitRollCall,
       setBinary,
@@ -280,6 +334,9 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       activeDay,
       user,
       isDirector,
+      isEditableDay,
+      unlockedDayIds,
+      unlockDay,
       sync,
       commitRollCall,
       setBinary,

@@ -1,7 +1,9 @@
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, RequireAuth } from './data/auth'
 import { StoreProvider } from './data/store'
+import SyncChrome from './components/SyncChrome'
 import SignIn from './screens/SignIn'
+import Menu from './screens/Menu'
 import Board from './screens/Board'
 import RollCall from './screens/RollCall'
 import TeamSheet from './screens/TeamSheet'
@@ -26,8 +28,10 @@ export default function App() {
             element={
               <RequireAuth>
                 <StoreProvider>
+                  <SyncChrome />
                   <Routes>
                     <Route path="/" element={<Board />} />
+                    <Route path="/menu" element={<Menu />} />
                     <Route path="/call/:categoryId" element={<RollCall />} />
                     <Route path="/team/:teamId" element={<TeamSheet />} />
                     <Route path="/key/:teamId" element={<KeyCeremony />} />

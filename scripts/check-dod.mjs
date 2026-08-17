@@ -206,7 +206,16 @@ await reduced.close()
  * flattens the hierarchy and costs those three their signal.
  */
 await goto('/')
-const SHORT_NAMES = ['WARRIORS', 'PRECIOUS', 'GEMS', 'PEARLS', 'KNIGHTS', 'INNOCENT', 'FORGED', 'RUST CO.']
+const SHORT_NAMES = [
+  'Pink Junkyard Warriors',
+  'Precious Pieces',
+  'Hidden Gems',
+  "God's Pearls",
+  'Fire Knights',
+  'Innocent',
+  'Forged',
+  'Rust Revival Co.',
+]
 const tinted = await page.evaluate((names) => {
   const cream = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim()
   const toRgb = (hex) => {
