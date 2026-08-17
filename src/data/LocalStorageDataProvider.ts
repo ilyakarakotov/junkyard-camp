@@ -2,9 +2,10 @@ import type { DataProvider } from './DataProvider'
 import type { Activity, Category, Day, ScoreEvent, Team } from './types'
 import { ACTIVITIES, CATEGORIES, DAYS, TEAMS, seedEvents } from './seed'
 
-const EVENTS_KEY = 'jr:events:v2'
+/** Shared with SupabaseDataProvider — the mirror must live under one key. */
+export const EVENTS_KEY = 'jr:events:v2'
 const DEVICE_KEY = 'jr:device-id'
-const SETTING_PREFIX = 'jr:setting:'
+export const SETTING_PREFIX = 'jr:setting:'
 
 export function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_KEY)
@@ -62,8 +63,14 @@ export class LocalStorageDataProvider implements DataProvider {
 
   async appendEvents(incoming: ScoreEvent[]): Promise<void> {
     const events = this.read()
+    // Idempotent by event id — both against the log and within the batch.
     const known = new Set(events.map((e) => e.id))
-    const fresh = incoming.filter((e) => !known.has(e.id)) // idempotent retry
+    const fresh: ScoreEvent[] = []
+    for (const e of incoming) {
+      if (known.has(e.id)) continue
+      known.add(e.id)
+      fresh.push(e)
+    }
     if (fresh.length === 0) return
     this.write([...events, ...fresh])
     this.notify()

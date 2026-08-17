@@ -700,7 +700,7 @@ function FooterBarcode({ width = 141, height = 14 }: { width?: number; height?: 
 }
 
 export default function Board() {
-  const { teams, days, categories, activeDay, setActiveDayId, events, ready } = useStore()
+  const { teams, days, categories, activeDay, setActiveDayId, events, ready, sync } = useStore()
   const navigate = useNavigate()
 
   const scores = useMemo(() => dayScores(events, activeDay.id, teams), [events, activeDay.id, teams])
@@ -721,6 +721,17 @@ export default function Board() {
     [teams, byTeam],
   )
   const label = (id: CategoryId) => categories.find((c) => c.id === id)?.label ?? id
+  /*
+   * The footer's instrument line is real when a backend is wired: network
+   * state, and the share of the event log that has reached Supabase. In
+   * local-only mode `sync` is null and the decorative string stays as
+   * rendered in the concept art.
+   */
+  const statusLine = sync
+    ? `Status: ${sync.online ? 'online' : 'offline'} / sync: ${
+        events.length === 0 ? 100 : Math.round(((events.length - sync.pending) / events.length) * 100)
+      }% / ver: 2.2.1 / id: 987R 60H0`
+    : 'Status: online / sync: 98% / ver: 2.2.1 / id: 987R 60H0'
 
   if (!ready) return <div className="min-h-dvh" />
 
@@ -890,7 +901,7 @@ export default function Board() {
           className="absolute bottom-[4px] left-[16px] font-mono uppercase"
           style={{ fontSize: 6.5, letterSpacing: '0.05em', color: '#2a1c0c', opacity: 0.88 }}
         >
-          Status: online / sync: 98% / ver: 2.2.1 / id: 987R 60H0
+          {statusLine}
         </span>
         <nav className="absolute right-[22px] top-[5px] flex gap-3">
           {[

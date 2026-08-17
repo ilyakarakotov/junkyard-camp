@@ -64,8 +64,9 @@ node scripts/drag-shot.mjs         lever stroke frames
 
 ## Architecture
 
-Phase 0 is UI-complete on mock data in localStorage. Phase 1 swaps the
-`DataProvider` for a shared backend so several leaders can score at once.
+Every screen runs against a shared Supabase backend (offline-tolerant, with a
+localStorage mirror and an outbox). With no backend configured the app runs
+local-only — same code path, no sync.
 
 - Totals are **always derived** from an append-only event log; nothing computed
   is stored.
@@ -73,6 +74,33 @@ Phase 0 is UI-complete on mock data in localStorage. Phase 1 swaps the
   never an edit, never a delete.
 - Event ids are client-generated UUIDs, so an offline retry is idempotent.
 - All storage goes through `src/data/DataProvider.ts`. **Zero storage calls in
-  components.**
+  components.** `src/data/provider.ts` picks the backend.
+
+## Backend (Supabase)
+
+The app shares one table — the append-only `score_events` log; the roster is
+fixed camp data bundled with the app. Setup:
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In its SQL editor, run `supabase/schema.sql` (table, row-level security,
+   realtime publication — all in the one file).
+3. Copy `.env.example` to `.env` and fill in
+   `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+   (Project Settings → API) for local dev. For the GitHub Pages build, set the
+   same two names under repo **Settings → Secrets and variables → Actions**
+   (URL as a variable, anon key as a secret); the deploy workflow bakes them
+   in at build time.
+
+The anon key is safe to ship in the client: RLS allows reading and appending
+events, and nothing else (no updates, no deletes).
+
+Without these variables the app builds and runs exactly as before, in
+local-only mode — scores stay on the device and nothing syncs.
+
+**Offline tolerance.** The UI always reads a local mirror, so every screen
+works with the network down. Awards made offline queue locally (the board
+footer shows the pending count), sync automatically when the network returns,
+and can't double-award — retries reuse the same client-generated event id.
+Other leaders' awards arrive live over a realtime subscription.
 
 See `CLAUDE.md` for the design system and the full data model.

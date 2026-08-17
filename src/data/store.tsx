@@ -18,7 +18,8 @@ import type {
   Team,
   TeamId,
 } from './types'
-import { LocalStorageDataProvider, getDeviceId } from './LocalStorageDataProvider'
+import { getDeviceId } from './LocalStorageDataProvider'
+import { createDefaultProvider } from './provider'
 import { binaryEvent, checkedInActivityIds, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI } from './scoring'
 import { DAYS, resolveActiveDay } from './seed'
@@ -41,6 +42,12 @@ interface StoreValue {
   directorMode: boolean
   setDirectorMode(on: boolean): Promise<void>
 
+  /**
+   * Backend sync readout for the board footer: is the network up, and how
+   * many events are still waiting in the outbox. Null in local-only mode.
+   */
+  sync: { online: boolean; pending: number } | null
+
   /** Roll call: commit a whole column of teams in one gesture. */
   commitRollCall(
     dayId: string,
@@ -62,7 +69,7 @@ const StoreContext = createContext<StoreValue | null>(null)
 
 /** The only place a DataProvider is instantiated. Components use hooks below. */
 export function StoreProvider({ children, provider }: { children: ReactNode; provider?: DataProvider }) {
-  const dp = useMemo<DataProvider>(() => provider ?? new LocalStorageDataProvider(), [provider])
+  const dp = useMemo<DataProvider>(() => provider ?? createDefaultProvider(), [provider])
   const [teams, setTeams] = useState<Team[]>([])
   const [days, setDays] = useState<Day[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -101,6 +108,32 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unsub()
     }
   }, [dp])
+
+  // Network state for the sync readout. The provider flushes its outbox on
+  // `online` itself; this just mirrors the flag into UI state.
+  const [online, setOnline] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const on = () => setOnline(true)
+    const off = () => setOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
+
+  // Only a backend-aware provider (SupabaseDataProvider.getSyncState) gets a
+  // sync readout; in local-only mode `sync` stays null and the board footer
+  // keeps its decorative line.
+  const syncAware = 'getSyncState' in dp
+  const sync = useMemo(
+    () =>
+      syncAware
+        ? { online, pending: events.filter((e) => e.syncedAt === null).length }
+        : null,
+    [syncAware, online, events],
+  )
 
   const newEvent = useCallback(
     (
@@ -246,6 +279,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       setActiveDayId,
       directorMode,
       setDirectorMode,
+      sync,
       commitRollCall,
       setBinary,
       setCheckIn,
@@ -262,6 +296,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       activeDay,
       directorMode,
       setDirectorMode,
+      sync,
       commitRollCall,
       setBinary,
       setCheckIn,

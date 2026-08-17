@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [claude/new-session-nom1rf, claude/new-session-k83dh8, main]
+    branches: [claude/new-session-nom1rf, claude/new-session-k83dh8, main, v2-app]
     paths-ignore: ['design/**', 'shots/**']
   workflow_dispatch:
 
@@ -24,7 +24,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Supabase env is baked in at build time. Both are safe to expose in the
+      # client (the anon key is gated by row-level security); when either is
+      # unset the build falls back to local-only mode.
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true

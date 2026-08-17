@@ -2,9 +2,10 @@
 
 Team points scoreboard, mobile web app. Leadership awards points to eight teams
 across six named categories per day. A big screen shows live standings at the
-evening gathering. Phase 0: UI-complete, mock data, no auth, localStorage,
-GitHub Pages. Phase 1 (later) swaps the DataProvider for a shared backend so
-several leaders can score at once — never put storage calls in components.
+evening gathering. Phase 1: every screen runs against a shared Supabase backend
+(offline-tolerant — a localStorage mirror with an outbox), falling back to
+local-only mode when no backend is configured. Never put storage calls in
+components.
 
 Aesthetic bar: AAA console game UI (Destiny 2 / Diablo IV register). Warm brown
 industrial salvage with electrical arcs.
@@ -267,14 +268,33 @@ score_events(id UUID, occurredAt, dayId, teamId, categoryId,
   counting events.
 - Undo and the activity feed are both views over the log.
 - All data access goes through the `DataProvider` interface
-  (`src/data/DataProvider.ts`); Phase 0 implementation is localStorage.
-  **Zero storage calls in components.**
+  (`src/data/DataProvider.ts`). **Zero storage calls in components.**
+  `src/data/provider.ts` picks the implementation: `SupabaseDataProvider`
+  when `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are baked in at build
+  time, else `LocalStorageDataProvider`.
+
+### Phase 1 backend (Supabase)
+
+Only `score_events` is shared — the roster is fixed camp data and ships in the
+app (`src/data/seed.ts`). One table, defined in `supabase/schema.sql`: RLS on,
+anon read + anon insert, **no update/delete** (append-only enforced by
+policy), added to the realtime publication.
+
+`SupabaseDataProvider` keeps a localStorage mirror the UI always reads
+(instant, offline-safe). Unsynced events (`syncedAt: null`) are the outbox;
+they flush on every append, on `online`, on a 15s interval and on boot, via an
+upsert idempotent by client UUID. A realtime INSERT subscription merges other
+leaders' events, so several leaders can score at once and the big screen is
+live. Phase-0 seed events are dropped on first start so mock data never
+reaches the real log. The board footer's `status / sync` line is live when
+the backend is configured, decorative otherwise.
 
 ## Project layout
 
 - `src/theme.css` — Tailwind v4 `@theme` tokens (the only place colors are defined)
 - `src/data/` — types, `scoring.ts` (the integer-tenths core), DataProvider,
-  LocalStorageDataProvider, derive, seed, React store
+  LocalStorageDataProvider, SupabaseDataProvider + `remote.ts` (the Supabase
+  seam), `provider.ts` (picks the backend), derive, seed, React store
 - `src/fx/` — Arc system (`Arc.tsx`, path generation)
 - `src/components/` — award mechanics (Breaker, ChargeTrack, KeyRail), Lever,
   crests, shared chrome
