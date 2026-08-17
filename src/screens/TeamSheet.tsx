@@ -172,7 +172,7 @@ export default function TeamSheet() {
     setBinary,
     addCheckIn,
     removeCheckIn,
-    directorMode,
+    isDirector,
     ready,
   } = useStore()
 
@@ -483,7 +483,7 @@ export default function TeamSheet() {
         <KeyHookRail
           keys={keys}
           width={CONTENT}
-          disabled={locked || !directorMode}
+          disabled={locked || !isDirector}
           onAdd={() => navigate(`/key/${team.id}`)}
         />
       </div>

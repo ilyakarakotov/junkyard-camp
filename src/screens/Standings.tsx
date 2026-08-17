@@ -444,7 +444,7 @@ function useArcFlicker(active: boolean): number {
 }
 
 export default function Standings() {
-  const { teams, days, events, categories, directorMode, setDirectorMode, ready } = useStore()
+  const { teams, days, events, categories, ready } = useStore()
   const rows = useMemo(() => standings(events, days, teams), [events, days, teams])
   const byId = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams])
   const feed = useMemo(() => recentActivity(events, 3), [events])
@@ -505,11 +505,6 @@ export default function Standings() {
         </div>
 
         <ActivityFeed feed={feed} byId={byId} categories={categories} />
-
-        {/* director mode gates the key ceremony so it can't be fat-fingered */}
-        <div className="mx-3 mt-4">
-          <DirectorSwitch on={directorMode} onToggle={() => void setDirectorMode(!directorMode)} />
-        </div>
       </div>
     </div>
   )
@@ -1447,116 +1442,3 @@ function ActivityFeed({
   )
 }
 
-/* ---- Director mode ------------------------------------------------------ */
-
-/**
- * A two-position industrial switch, not a platform pill: recessed track with
- * true inner shadow, a knurled lever that slides, engraved OFF / ON ticks.
- * Energized reads **amber** — gold on this screen belongs to the keys alone.
- */
-function DirectorSwitch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  return (
-    <Plate
-      as="button"
-      chamfer={8}
-      screws
-      screwInset={7}
-      onClick={onToggle}
-      ariaPressed={on}
-      ariaLabel="Director mode"
-    >
-      {/*
-        The same brushing, pitting, oxide and form shadow the eight rows above
-        carry. Without it this plate measured |dL/dx| 0.63 against 2.38 on a row
-        face and sat 13 L brighter than them — a featureless tan ramp bolted to
-        the bottom of a machined screen.
-      */}
-      <PlateSurface />
-      {/* the panel's own stamp, matching the title block's — this strip is a
-          named part of the machine, not a settings row someone forgot */}
-      <span
-        aria-hidden
-        className="tech-label absolute text-[9px] leading-none"
-        style={{ right: 22, top: 7, letterSpacing: '0.24em', color: 'var(--color-brass)' }}
-      >
-        SEC·01
-      </span>
-      <span
-        className="relative flex w-full items-center justify-between"
-        style={{ padding: '18px 22px 14px', zIndex: 1 }}
-      >
-        <span className="flex items-center gap-3 text-left">
-          {/* the pilot lamp, seated in its own recess: lit means the ceremony
-              is unlocked, and its spill onto the plate says so across the room */}
-          <span
-            className="well flex shrink-0 items-center justify-center"
-            style={{ width: 18, height: 18, borderRadius: 99 }}
-          >
-            <Lamp on={on} size={10} intensity={0.9} />
-          </span>
-          <span className="block">
-            <span
-              className="font-display on-metal block text-[14px] font-semibold uppercase leading-none"
-              style={{ letterSpacing: '0.08em' }}
-            >
-              Director mode
-            </span>
-            <span className="tech-label mt-[3px] block text-[9px] leading-none">
-              Unlocks the golden key ceremony
-            </span>
-          </span>
-        </span>
-        <span
-          className="relative shrink-0 rounded-[3px]"
-          style={{
-            width: 62,
-            height: 28,
-            background: on
-              ? 'linear-gradient(180deg, #7a3d0c 0%, #ed9040 55%, #6d3406 100%)'
-              : 'linear-gradient(180deg, #120c06 0%, #1d1409 55%, #130d06 100%)',
-            boxShadow: on
-              ? 'inset 0 2px 5px rgba(0,0,0,0.55), 0 0 10px rgba(237,144,64,0.5)'
-              : 'inset 0 2px 5px rgba(0,0,0,0.9), inset 0 -1px 0 rgba(255,236,205,0.08)',
-          }}
-        >
-          {/*
-            One legend, engraved on the exposed half of the track — the knob
-            covers the other half, so a label there would simply be hidden. The
-            lit track carries dark type; the dead track carries dim cream.
-          */}
-          <span
-            className="tech-label absolute top-1/2 text-[9px] leading-none"
-            style={{
-              [on ? 'left' : 'right']: 6,
-              transform: 'translateY(-50%)',
-              letterSpacing: '0.1em',
-              color: on ? 'rgba(48,20,2,0.85)' : undefined,
-              textShadow: on ? '0 1px 0 rgba(255,222,160,0.35)' : undefined,
-              opacity: on ? 1 : 0.8,
-            }}
-          >
-            {on ? 'ON' : 'OFF'}
-          </span>
-          <span
-            className="absolute top-[3px] rounded-[2px]"
-            style={{
-              left: 3,
-              transform: `translateX(${on ? 30 : 0}px)`,
-              width: 26,
-              height: 22,
-              background:
-                'repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0 1px, transparent 1px 4px),' +
-                (on
-                  ? 'linear-gradient(180deg, #fedf97 0%, #ed9040 34%, #8a4a12 100%)'
-                  : 'linear-gradient(180deg, #6d5a45 0%, #3a2d1e 40%, #1a120a 100%)'),
-              boxShadow: on
-                ? 'inset 0 1px 0 rgba(255,252,238,0.85), inset 0 -2px 3px rgba(90,44,4,0.6), 0 2px 4px rgba(0,0,0,0.7)'
-                : 'inset 0 1px 0 rgba(255,236,205,0.3), inset 0 -2px 3px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.7)',
-              transition: 'transform 180ms cubic-bezier(0.3, 0.9, 0.4, 1)',
-            }}
-          />
-        </span>
-      </span>
-    </Plate>
-  )
-}

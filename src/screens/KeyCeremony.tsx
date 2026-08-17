@@ -383,7 +383,7 @@ function DoorBolt({ left, top, slot = 24 }: { left: number; top: number; slot?: 
 export default function KeyCeremony() {
   const { teamId } = useParams<{ teamId: string }>()
   const navigate = useNavigate()
-  const { teams, activeDay, events, awardKey, directorMode, ready } = useStore()
+  const { teams, activeDay, events, awardKey, isDirector, ready } = useStore()
   const reduced = usePrefersReducedMotion()
 
   const team = teams.find((t) => t.id === teamId)
@@ -403,8 +403,8 @@ export default function KeyCeremony() {
 
   useEffect(() => {
     if (!ready) return
-    if (!directorMode) navigate(`/team/${teamId}`, { replace: true })
-  }, [ready, directorMode, navigate, teamId])
+    if (!isDirector) navigate(`/team/${teamId}`, { replace: true })
+  }, [ready, isDirector, navigate, teamId])
 
   if (!ready || !team) return <div className="min-h-dvh" />
 

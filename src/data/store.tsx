@@ -19,11 +19,10 @@ import type {
 } from './types'
 import { getDeviceId } from './LocalStorageDataProvider'
 import { createDefaultProvider } from './provider'
+import { useAuth, type AuthUser } from './auth'
 import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
 import { DAYS, resolveActiveDay } from './seed'
-
-const DIRECTOR_KEY = 'director-mode'
 
 interface StoreValue {
   teams: Team[]
@@ -36,9 +35,10 @@ interface StoreValue {
   activeDay: Day
   setActiveDayId(id: string): void
 
-  /** Gates the golden key ceremony so it can't be fat-fingered. */
-  directorMode: boolean
-  setDirectorMode(on: boolean): Promise<void>
+  /** The signed-in staff account (a local director in local-only mode). */
+  user: AuthUser | null
+  /** Directors award golden keys and may unlock past days; helpers cannot. */
+  isDirector: boolean
 
   /**
    * Backend sync readout for the unsynced chrome: is the network up, and how
@@ -69,12 +69,12 @@ const StoreContext = createContext<StoreValue | null>(null)
 /** The only place a DataProvider is instantiated. Components use hooks below. */
 export function StoreProvider({ children, provider }: { children: ReactNode; provider?: DataProvider }) {
   const dp = useMemo<DataProvider>(() => provider ?? createDefaultProvider(), [provider])
+  const { user, isDirector } = useAuth()
   const [teams, setTeams] = useState<Team[]>([])
   const [days, setDays] = useState<Day[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [events, setEvents] = useState<ScoreEvent[]>([])
   const [ready, setReady] = useState(false)
-  const [directorMode, setDirectorModeState] = useState(false)
   const [activeDayId, setActiveDayId] = useState<string>(() => resolveActiveDay(DAYS, new Date()).id)
 
   useEffect(() => {
@@ -82,22 +82,17 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     const refresh = () => {
       void dp.getEvents().then((e) => alive && setEvents(e))
     }
-    void Promise.all([
-      dp.getTeams(),
-      dp.getDays(),
-      dp.getCategories(),
-      dp.getEvents(),
-      dp.getSetting(DIRECTOR_KEY),
-    ]).then(([t, d, c, e, director]) => {
-      if (!alive) return
-      setTeams(t)
-      setDays(d)
-      setCategories(c)
-      setEvents(e)
-      setDirectorModeState(director === '1')
-      setActiveDayId((cur) => (d.some((x) => x.id === cur) ? cur : resolveActiveDay(d, new Date()).id))
-      setReady(true)
-    })
+    void Promise.all([dp.getTeams(), dp.getDays(), dp.getCategories(), dp.getEvents()]).then(
+      ([t, d, c, e]) => {
+        if (!alive) return
+        setTeams(t)
+        setDays(d)
+        setCategories(c)
+        setEvents(e)
+        setActiveDayId((cur) => (d.some((x) => x.id === cur) ? cur : resolveActiveDay(d, new Date()).id))
+        setReady(true)
+      },
+    )
     const unsub = dp.subscribe(refresh)
     return () => {
       alive = false
@@ -146,12 +141,13 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       categoryId,
       deltaDeci,
       note,
-      actorId: 'leader-1', // Replaced by the signed-in user's UUID when auth is on.
+      // RLS requires actor_id = auth.uid() — you write as yourself, always.
+      actorId: user?.id ?? 'leader-1',
       deviceId: getDeviceId(),
       reversesEventId: null,
       syncedAt: null,
     }),
-    [],
+    [user],
   )
 
   const push = useCallback(
@@ -251,14 +247,6 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [events, push],
   )
 
-  const setDirectorMode = useCallback(
-    async (on: boolean) => {
-      setDirectorModeState(on)
-      await dp.setSetting(DIRECTOR_KEY, on ? '1' : '0')
-    },
-    [dp],
-  )
-
   const activeDay = useMemo(
     () => days.find((d) => d.id === activeDayId) ?? days[0] ?? DAYS[1],
     [days, activeDayId],
@@ -273,8 +261,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       ready,
       activeDay,
       setActiveDayId,
-      directorMode,
-      setDirectorMode,
+      user,
+      isDirector,
       sync,
       commitRollCall,
       setBinary,
@@ -290,8 +278,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       events,
       ready,
       activeDay,
-      directorMode,
-      setDirectorMode,
+      user,
+      isDirector,
       sync,
       commitRollCall,
       setBinary,
