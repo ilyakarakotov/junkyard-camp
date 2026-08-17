@@ -1,5 +1,5 @@
 import type { DataProvider } from './DataProvider'
-import type { Category, Day, ScoreEvent, Team } from './types'
+import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { CATEGORIES, DAYS, TEAMS, seedEvents } from './seed'
 
 /** Shared with SupabaseDataProvider — the mirror must live under one key. */
@@ -51,6 +51,11 @@ export class LocalStorageDataProvider implements DataProvider {
 
   async getEvents(): Promise<ScoreEvent[]> {
     return this.read()
+  }
+
+  /** Local mode has no staff directory — actors fall back to their ids. */
+  async getUsers(): Promise<AppUser[]> {
+    return []
   }
 
   async appendEvent(event: ScoreEvent): Promise<void> {

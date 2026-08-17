@@ -1,11 +1,12 @@
 import type { DataProvider } from './DataProvider'
-import type { Category, Day, ScoreEvent, Team } from './types'
+import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { EVENTS_KEY, SETTING_PREFIX } from './LocalStorageDataProvider'
 import { CATEGORIES, DAYS, TEAMS } from './seed'
 import { IdbOutbox, type OutboxStore } from './outbox'
 import {
   createSupabaseEventStore,
   fromRow,
+  getSupabaseClient,
   toRow,
   type RemoteEventStore,
 } from './remote'
@@ -78,6 +79,22 @@ export class SupabaseDataProvider implements DataProvider {
   async getEvents(): Promise<ScoreEvent[]> {
     this.ensureStarted()
     return this.read()
+  }
+
+  /** The staff directory from app_users — the audit log's actor names. */
+  async getUsers(): Promise<AppUser[]> {
+    const supabase = getSupabaseClient()
+    if (!supabase) return []
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('id, username, display_name, role')
+    if (error || !data) return []
+    return data.map((r) => ({
+      id: r.id as string,
+      username: r.username as string,
+      displayName: r.display_name as string,
+      role: r.role as AppUser['role'],
+    }))
   }
 
   async appendEvent(event: ScoreEvent): Promise<void> {

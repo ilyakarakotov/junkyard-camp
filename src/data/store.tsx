@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { DataProvider } from './DataProvider'
 import type {
+  AppUser,
   Category,
   CategoryId,
   CommitBatch,
@@ -35,6 +36,9 @@ interface StoreValue {
   /** The day the rail is pointed at. Defaults by clock, then user-driven. */
   activeDay: Day
   setActiveDayId(id: string): void
+
+  /** The staff directory (audit log names); empty in local-only mode. */
+  users: AppUser[]
 
   /** The signed-in staff account (a local director in local-only mode). */
   user: AuthUser | null
@@ -86,6 +90,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   const [days, setDays] = useState<Day[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [events, setEvents] = useState<ScoreEvent[]>([])
+  const [users, setUsers] = useState<AppUser[]>([])
   const [ready, setReady] = useState(false)
   const [activeDayId, setActiveDayId] = useState<string>(() => resolveActiveDay(DAYS, new Date()).id)
 
@@ -94,13 +99,14 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     const refresh = () => {
       void dp.getEvents().then((e) => alive && setEvents(e))
     }
-    void Promise.all([dp.getTeams(), dp.getDays(), dp.getCategories(), dp.getEvents()]).then(
-      ([t, d, c, e]) => {
+    void Promise.all([dp.getTeams(), dp.getDays(), dp.getCategories(), dp.getEvents(), dp.getUsers()]).then(
+      ([t, d, c, e, u]) => {
         if (!alive) return
         setTeams(t)
         setDays(d)
         setCategories(c)
         setEvents(e)
+        setUsers(u)
         setActiveDayId((cur) => (d.some((x) => x.id === cur) ? cur : resolveActiveDay(d, new Date()).id))
         setReady(true)
       },
@@ -313,6 +319,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       activeDay,
       setActiveDayId,
       user,
+      users,
       isDirector,
       isEditableDay,
       unlockedDayIds,
@@ -333,6 +340,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       ready,
       activeDay,
       user,
+      users,
       isDirector,
       isEditableDay,
       unlockedDayIds,

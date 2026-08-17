@@ -92,6 +92,14 @@ export interface ScoreEvent {
   syncedAt: string | null
 }
 
+/** A staff account — the audit log's "who". */
+export interface AppUser {
+  id: string
+  username: string
+  displayName: string
+  role: 'helper' | 'director'
+}
+
 /** One team's six categories for one day, all derived from the log. */
 export interface DayScore {
   teamId: TeamId

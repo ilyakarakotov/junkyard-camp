@@ -1,4 +1,4 @@
-import type { Category, Day, ScoreEvent, Team } from './types'
+import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 
 /**
  * The single seam between the app and storage. Phase 0 implements this over
@@ -13,6 +13,9 @@ export interface DataProvider {
   getDays(): Promise<Day[]>
   getCategories(): Promise<Category[]>
   getEvents(): Promise<ScoreEvent[]>
+
+  /** The staff directory, for the audit log's actor names. Empty in local mode. */
+  getUsers(): Promise<AppUser[]>
 
   /** Idempotent by event id: appending an existing id is a no-op. */
   appendEvent(event: ScoreEvent): Promise<void>

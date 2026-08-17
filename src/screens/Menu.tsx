@@ -16,6 +16,8 @@ export default function Menu() {
     { to: '/call/punctuality', label: 'Quick Roll Call', note: '8 teams · one pull' },
     { to: '/display', label: 'Dashboard', note: 'The projector' },
     { to: '/standings', label: 'Standings', note: 'The camp so far' },
+    { to: '/exports', label: 'Exports & Analytics', note: 'Excel · charts' },
+    { to: '/audit', label: 'Audit Log', note: 'Who gave what' },
   ]
 
   return (

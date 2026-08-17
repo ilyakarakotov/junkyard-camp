@@ -10,6 +10,8 @@ import TeamSheet from './screens/TeamSheet'
 import KeyCeremony from './screens/KeyCeremony'
 import Standings from './screens/Standings'
 import BigScreen from './screens/BigScreen'
+import Exports from './screens/Exports'
+import AuditLog from './screens/AuditLog'
 import Lab from './screens/Lab'
 
 /**
@@ -37,6 +39,8 @@ export default function App() {
                     <Route path="/key/:teamId" element={<KeyCeremony />} />
                     <Route path="/standings" element={<Standings />} />
                     <Route path="/display" element={<BigScreen />} />
+                    <Route path="/exports" element={<Exports />} />
+                    <Route path="/audit" element={<AuditLog />} />
                     <Route path="/lab" element={<Lab />} />
                   </Routes>
                 </StoreProvider>
