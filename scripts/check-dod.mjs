@@ -4,7 +4,20 @@ import { chromium } from 'playwright-core'
 import { chromiumPath } from './chromium.mjs'
 
 const BASE = process.env.BASE ?? 'http://localhost:5173/junkyard-camp/'
-const MOBILE = ['/', '#/call/punctuality', '#/call/good_deed', '#/team/precious', '#/standings']
+// Phase 7 additions (§6.5-6.7): check-acceptance.mjs already covers these
+// three for scroll/multiplier, but that script belongs to another agent, and
+// duplicating the check here costs nothing and keeps this gate self-contained
+// for every route the material gate now covers too.
+const MOBILE = [
+  '/',
+  '#/call/punctuality',
+  '#/call/good_deed',
+  '#/team/precious',
+  '#/standings',
+  '#/menu',
+  '#/exports',
+  '#/audit',
+]
 
 const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })

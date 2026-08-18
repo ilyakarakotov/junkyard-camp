@@ -23,6 +23,11 @@ const ROUTES = [
     set: ['jr:setting:director-mode=1'],
   },
   { route: '#/standings', label: 'standings', viewport: [390, 844], full: true },
+  // Phase 7 additions (§6.5-6.7): shipped without a v2 concept render, so
+  // nothing was gating them and they were free to drift dark.
+  { route: '#/menu', label: 'menu', viewport: [390, 844], full: true },
+  { route: '#/exports', label: 'exports', viewport: [390, 844], full: true },
+  { route: '#/audit', label: 'audit log', viewport: [390, 844], full: true },
   { route: '#/display', label: 'big screen', viewport: [1920, 1080], full: false },
 ]
 

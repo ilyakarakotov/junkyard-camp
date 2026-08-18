@@ -1,15 +1,9 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
-import { CornerScrews, Plate, ScreenFrame } from '../components/chrome'
+import { CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { dayScore, keyCount, standings } from '../data/derive'
-import {
-  buildAuditSheetRows,
-  buildDayRows,
-  buildEventsCsv,
-  buildStandingsRows,
-  downloadFile,
-} from '../data/export'
+import { buildEventsCsv, buildWorkbook, downloadFile } from '../data/export'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { Day, ScoreEvent, Team } from '../data/types'
@@ -29,23 +23,11 @@ export default function Exports() {
 
   if (!ready) return <div className="min-h-dvh" />
 
-  const exportExcel = () => {
-    const wb = XLSX.utils.book_new()
-    for (const day of days) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildDayRows(day, events, teams)), day.name)
-    }
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.aoa_to_sheet(buildStandingsRows(rows, teams)),
-      'Standings',
+  const exportExcel = () =>
+    XLSX.writeFile(
+      buildWorkbook(days, teams, categories, users, events, rows),
+      'junkyard-redemption.xlsx',
     )
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.aoa_to_sheet(buildAuditSheetRows(events, teams, categories, users)),
-      'Audit',
-    )
-    XLSX.writeFile(wb, 'junkyard-redemption.xlsx')
-  }
 
   const exportCsv = () =>
     downloadFile('junkyard-events.csv', buildEventsCsv(events), 'text/csv;charset=utf-8')
@@ -117,12 +99,63 @@ function SectionTitle({ text }: { text: string }) {
   )
 }
 
+/**
+ * Broken specular along the top chamfer, lifted from Standings' row plate:
+ * `.plate`'s own built-in top edge tops out at 0.5 alpha, which composites to
+ * ~L172 over this face — under the reference's specular floor. Every screen
+ * that clears it (Board, RollCall, Standings) adds its own brighter, irregular
+ * highlight on top rather than relying on the shared default.
+ */
+function TopSpecular({ left = 11, right = 11 }: { left?: number; right?: number }) {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute"
+      style={{
+        left,
+        right,
+        top: 1,
+        height: 2,
+        background:
+          'linear-gradient(90deg, transparent 0%,' +
+          ' color-mix(in oklab, var(--color-plate-spec) 88%, transparent) 8%,' +
+          ' color-mix(in oklab, var(--color-plate-spec) 52%, transparent) 44%,' +
+          ' color-mix(in oklab, var(--color-plate-spec) 22%, transparent) 88%,' +
+          ' transparent 100%)',
+      }}
+    />
+  )
+}
+
+/**
+ * A chart is a readout, not a face — same distinction Board draws between its
+ * plate and its score windows. A chart drawn straight onto `.plate` is mostly
+ * flat brass with a few thin lines over it, which is what pushed this route's
+ * midtone% to 74% (check-material.mjs): the brass housing stays, but the
+ * chart itself now sits in a `Well`, the same recessed-glass language every
+ * other readout in the app uses — and it doubles as the "backlit chip" the
+ * glow rule asks an emissive gauge fill to be.
+ */
 function Panel({ children }: { children: React.ReactNode }) {
   return (
     <Plate chamfer={8} screws={false} style={{ height: 'auto' }}>
-      <CornerScrews inset={5} size={8} />
-      <div className="relative z-[1]" style={{ padding: '12px 14px' }}>
-        {children}
+      {/* Default (11px) heads, not the row-scale 8px: these panels are the
+          biggest single plates on the screen, on par with a Standings row. */}
+      <CornerScrews inset={7} />
+      <TopSpecular />
+      {/*
+       * Padding, not the well's own margin: a block child's vertical margin
+       * collapses straight through a parent with no padding/border of its own
+       * (`.plate` has neither), so `margin: 8` on the Well rendered flush with
+       * the plate's own top/bottom edges — painting over TopSpecular, since
+       * both share the `.grain > *` z-index and the well comes later in the
+       * DOM. Horizontal margins never collapse, which is why the left/right
+       * gaps looked fine and this went unnoticed.
+       */}
+      <div style={{ padding: 8 }}>
+        <Well radius={4} className="relative z-[1]" style={{ padding: '10px 12px' }}>
+          {children}
+        </Well>
       </div>
     </Plate>
   )
@@ -247,6 +280,7 @@ function Heatmap({ teams, events, dayId }: { teams: Team[]; events: ScoreEvent[]
 
 /** How many teams hit a perfect 7 each scoring day. */
 function PerfectSevens({ teams, events, days }: { teams: Team[]; events: ScoreEvent[]; days: Day[] }) {
+  const gradId = useId()
   const W = 320
   const H = 110
   const counts = days.map(
@@ -255,6 +289,16 @@ function PerfectSevens({ teams, events, days }: { teams: Team[]; events: ScoreEv
   const barW = (W - 40) / days.length - 14
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }} role="img" aria-label="Perfect sevens by day">
+      <defs>
+        {/* a perfect 7 is an energized-lamp event (§ the punctuality cliff),
+            so the bar gets the same hot-to-lamp ramp a lit socket does rather
+            than a flat fill */}
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--color-lamp-hot)" />
+          <stop offset="30%" stopColor="var(--color-lamp)" />
+          <stop offset="100%" stopColor="var(--color-lamp-dim)" />
+        </linearGradient>
+      </defs>
       {counts.map((c, i) => {
         const h = (c / 8) * (H - 34)
         return (
@@ -265,7 +309,7 @@ function PerfectSevens({ teams, events, days }: { teams: Team[]; events: ScoreEv
               width={barW}
               height={h}
               rx={2}
-              fill="var(--color-lamp)"
+              fill={`url(#${gradId})`}
               opacity={c > 0 ? 1 : 0.25}
             />
             <text x={20 + i * ((W - 40) / days.length) + 7 + barW / 2} y={H - 26 - h} textAnchor="middle" fontSize={9} fill="var(--color-text)" fontFamily="var(--font-mono)">
@@ -283,12 +327,24 @@ function PerfectSevens({ teams, events, days }: { teams: Team[]; events: ScoreEv
 
 /** Keys held per team, gold bars. */
 function KeysChart({ teams, events }: { teams: Team[]; events: ScoreEvent[] }) {
+  const gradId = useId()
   const W = 320
   const rowH = 17
   const counts = teams.map((t) => ({ t, keys: keyCount(events, t.id) }))
   const max = Math.max(1, ...counts.map((c) => c.keys))
   return (
     <svg viewBox={`0 0 ${W} ${teams.length * rowH + 4}`} style={{ width: '100%', display: 'block' }} role="img" aria-label="Golden keys by team">
+      <defs>
+        {/* the same hot-core ramp KeyGlyph paints a key with (chrome.tsx) — a
+            held-keys tally is the golden key's own emission, not a flat gold
+            swatch, and CLAUDE.md's glow rule asks for that spill everywhere
+            a key actually appears */}
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--color-key-hot)" />
+          <stop offset="35%" stopColor="var(--color-key)" />
+          <stop offset="100%" stopColor="#8e5c0d" />
+        </linearGradient>
+      </defs>
       {counts.map(({ t, keys }, i) => (
         <g key={t.id}>
           <text x={0} y={i * rowH + 11.5} fontSize={7} fill="var(--color-text)" fontFamily="var(--font-mono)">
@@ -302,7 +358,7 @@ function KeysChart({ teams, events }: { teams: Team[]; events: ScoreEvent[] }) {
               width={((W - 92) * keys) / max}
               height={rowH - 6}
               rx={2}
-              fill="var(--color-key)"
+              fill={`url(#${gradId})`}
               style={{ filter: 'drop-shadow(0 0 3px rgba(255,198,61,0.55))' }}
             />
           )}
