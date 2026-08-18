@@ -62,17 +62,67 @@ create index on score_events (occurred_at desc);
 -- side so the client and the database always agree on what "today" is.
 -- ---------------------------------------------------------------------------
 
-create or replace function camp_today() returns date language sql stable as $$
+create or replace function camp_today() returns date
+  language sql stable set search_path = public as $$
   select ((now() at time zone 'America/Los_Angeles') - interval '3 hours')::date;
 $$;
 
-create or replace function is_director() returns boolean language sql stable as $$
-  select coalesce((select role = 'director' from app_users where id = auth.uid()), false);
+-- Which day accepts writes without a director's unlock. This mirrors
+-- store.tsx's editableDayId exactly, and it must: comparing a day's date to
+-- camp_today() directly means that before camp opens no date matches, so every
+-- helper insert is refused while the client happily accepts it — the award
+-- shows on the phone, the server rejects it, and the outbox grows forever with
+-- nothing telling the helper why.
+create or replace function camp_editable_day() returns text
+  language sql stable set search_path = public as $$
+  select case
+    when exists (select 1 from days where date = camp_today())
+      then (select id from days where date = camp_today() and scored)
+    when camp_today() < (select min(date) from days)
+      then (select id from days where scored order by idx limit 1)
+    else null
+  end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Row-level security. Security is not critical here, but an anon key that
--- lets anyone on the internet write to the scoreboard is an obvious flaw.
+-- Who you are, for the policies below.
+--
+-- These live in `private` rather than `public` because PostgREST exposes
+-- public: as SECURITY DEFINER functions in public they were callable by anyone
+-- with the anon key at /rest/v1/rpc/is_staff. Revoking EXECUTE is not the fix —
+-- Postgres evaluates an RLS expression with the querying role's privileges, so
+-- that breaks every policy that calls them. An unexposed schema keeps the
+-- policies working and removes the endpoints.
+--
+-- They must be SECURITY DEFINER: a policy on app_users cannot call a function
+-- that reads app_users under invoker rights without recursing, and the audit
+-- log needs every staff display name, so "read only your own row" will not do.
+-- search_path is pinned so a definer function can never resolve a name through
+-- a caller-controlled path.
+-- ---------------------------------------------------------------------------
+
+create schema if not exists private;
+grant usage on schema private to authenticated;
+
+create or replace function private.is_staff() returns boolean
+  language sql stable security definer set search_path = public as $$
+  select exists (select 1 from app_users where id = auth.uid() and is_active);
+$$;
+
+create or replace function private.is_director() returns boolean
+  language sql stable security definer set search_path = public as $$
+  select coalesce((select role = 'director' from app_users where id = auth.uid() and is_active), false);
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Row-level security.
+--
+-- Reads require an active app_users row, not merely a signed-in session. The
+-- anon key ships in the client bundle by design and sign-up may be open on the
+-- project, so `to authenticated using (true)` means anyone who pulls that key
+-- out of the JS can register an account and read the whole camp. Writing was
+-- always impossible for them — score_events.actor_id references app_users — but
+-- reading should be too.
 -- ---------------------------------------------------------------------------
 
 alter table teams        enable row level security;
@@ -81,27 +131,25 @@ alter table categories   enable row level security;
 alter table app_users    enable row level security;
 alter table score_events enable row level security;
 
-create policy r_teams  on teams        for select to authenticated using (true);
-create policy r_days   on days         for select to authenticated using (true);
-create policy r_cats   on categories   for select to authenticated using (true);
-create policy r_users  on app_users    for select to authenticated using (true);
-create policy r_events on score_events for select to authenticated using (true);
+create policy r_teams  on teams        for select to authenticated using (private.is_staff());
+create policy r_days   on days         for select to authenticated using (private.is_staff());
+create policy r_cats   on categories   for select to authenticated using (private.is_staff());
+create policy r_users  on app_users    for select to authenticated using (private.is_staff());
+create policy r_events on score_events for select to authenticated using (private.is_staff());
 
--- you may only write as yourself, only for today, and only directors award keys
+-- you may only write as yourself, only for the editable day, and only
+-- directors award keys
 create policy w_events on score_events for insert to authenticated
 with check (
   actor_id = auth.uid()
-  and (
-    (select date from days where id = day_id) = camp_today()
-    or is_director()
-  )
-  and (category_id <> 'golden_key' or is_director())
+  and (day_id = camp_editable_day() or private.is_director())
+  and (category_id <> 'golden_key' or private.is_director())
 );
 
 -- deliberately no update and no delete policies: the log is append-only
 
 -- Realtime: other devices' awards land on every open screen as they happen.
-alter publication supabase_realtime add public.score_events;
+alter publication supabase_realtime add table public.score_events;
 
 -- ---------------------------------------------------------------------------
 -- Seed data. score_events has foreign keys into teams/days/categories, so

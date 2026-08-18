@@ -1,6 +1,14 @@
 // Seed camp accounts: creates each Supabase auth user and its app_users row.
 // There is no sign-up screen — accounts exist because this script was run.
 //
+// CAVEAT, found the hard way: Supabase validates the email domain, and on this
+// project it rejects `@junkyard.camp` outright — "Email address is invalid".
+// The Auth admin API may or may not apply the same validator depending on the
+// project, so if this script fails with that message, use
+// `supabase/add-users.sql` instead. That writes auth.users directly, keeps the
+// username@junkyard.camp convention the sign-in screen depends on, and is the
+// path the live project's accounts were actually created with.
+//
 // Usage:
 //   1. cp users.example.json users.json   and fill in real accounts
 //      (users.json is git-ignored — never commit it)

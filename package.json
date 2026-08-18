@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:gates": "vite --mode gates",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "shot": "node scripts/shot.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "node scripts/validate-tokens.mjs && node scripts/check-material.mjs && node scripts/check-dod.mjs && node scripts/check-motion.mjs && node scripts/check-console.mjs && node scripts/check-acceptance.mjs && node scripts/check-commit-flow.mjs",
-    "verify": "npm test && npm run build && npm run check"
+    "verify": "npm test && npm run build && npm run check",
+    "check:backend": "node scripts/check-backend.mjs"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.2.5",

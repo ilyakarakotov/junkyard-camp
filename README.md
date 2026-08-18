@@ -56,21 +56,26 @@ activity nearest the current clock time.
 ## Commands
 
 ```
-npm run dev                 dev server
+npm run dev                 dev server (backed, if .env is set)
+npm run dev:gates           dev server forced into local mode, for the gates
 npm run build               typecheck + production build
 npm test                    scoring unit tests
-npm run verify                 the whole gate: tests, build, and every check below
+npm run verify              the whole gate: tests, build, and every check below
+npm run check:backend       the live backend: sign-in, sync, realtime, offline
 npm run shot -- <route> <out> [--viewport 390x844] [--dpr 3] [--scroll N] [--set k=v]
 node scripts/validate-tokens.mjs   computed-style tokens, contrast, OKLab separation
 node scripts/check-material.mjs    material statistics against the concept art
 node scripts/check-motion.mjs      asserts only transform/opacity animate
 node scripts/check-dod.mjs         layout, tap targets, reduced motion
+node scripts/check-console.mjs     every route mounts with no warning or error
 node scripts/check-acceptance.mjs  the spec's acceptance criteria, in a browser
 node scripts/check-commit-flow.mjs award, undo, and the log stays append-only
 node scripts/drag-shot.mjs         lever stroke frames
 ```
 
-Every gate that opens a browser needs `npm run dev` already running on `:5173`.
+Every gate that opens a browser needs a dev server already running on `:5173`.
+Use `npm run dev:gates` for all of them except `check:backend`, which needs the
+real thing.
 
 ## Architecture
 
@@ -103,22 +108,21 @@ Setup, start to finish — four steps, about ten minutes:
 2. In its SQL editor, run `supabase/schema.sql`. One file: tables, row-level
    security, the realtime publication, and the roster/day/category seed rows.
 3. **Create the accounts.** There is no sign-up screen — accounts exist only
-   because this script ran:
+   because someone seeded them. Edit the `VALUES` list in
+   `supabase/add-users.sql` and run it in the SQL editor.
 
-   ```sh
-   cp users.example.json users.json      # then fill in real names/passwords
-   SUPABASE_URL=https://<project>.supabase.co \
-   SUPABASE_SERVICE_ROLE_KEY=<service-role-key> \
-     node scripts/seed-users.mjs
-   ```
+   Re-running it is safe: an existing username keeps its id (so its past awards
+   stay attributed) and has its password, name and role updated.
 
-   `users.json` is git-ignored. The **service-role key is used here only**, on
-   your machine, from the environment — it bypasses row-level security and must
-   never reach the repo or the client bundle.
+   There is also `scripts/seed-users.mjs`, which does the same through the Auth
+   admin API with a service-role key from the environment. Prefer the SQL file:
+   Supabase's email validator rejects the `@junkyard.camp` domain on at least
+   some projects, and the SQL path sidesteps it. Either way the **service-role
+   key must never reach the repo or the client bundle**.
 
-   Roles: `helper` awards the six normal categories for today; `director` also
-   awards Golden Keys and can unlock a past day. Want everyone equal? Seed every
-   user as `director`.
+   Roles: `helper` awards the six normal categories for the current day;
+   `director` also awards Golden Keys and can unlock a past day. Want everyone
+   equal? Make every role `director`.
 
 4. Set `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
    Copy `.env.example` to `.env` for local dev; for the Pages build set the same
@@ -134,9 +138,30 @@ events, and nothing else — no updates, no deletes, and only a director may
 append a Golden Key.
 
 Without these variables the app builds and runs in local-only mode as a local
-director: scores stay on the device and nothing syncs. That is the mode every
-screenshot gate runs in. Add `?as=helper` to any URL in local mode to see the
-app as a helper sees it.
+director: scores stay on the device and nothing syncs. Add `?as=helper` to any
+URL in local mode to see the app as a helper sees it.
+
+**Running the gates once a backend is configured.** Every screenshot gate scores
+against seeded local data and never signs in, so a real `.env` sends them all to
+`/signin`. Start the server with `npm run dev:gates` instead of `npm run dev` —
+`.env.gates` blanks the two variables for that run.
+
+**Checking the backend itself** needs credentials, so it is a separate gate and
+takes them from the environment:
+
+```sh
+JR_DIRECTOR=ilya:<password> JR_HELPER=helper:<password> npm run check:backend
+```
+
+It signs in through the real screen, proves an award reaches Postgres, times how
+long realtime takes to reach a second open screen, and runs the airplane-mode
+round trip — offline award, reconnect, exactly one row, and a second flush that
+does nothing. It tags everything it writes with `device_id = 'backend-gate'` and
+prints how many rows to sweep afterwards:
+
+```sql
+delete from score_events where device_id = 'backend-gate';
+```
 
 **Offline tolerance.** The UI always reads a local mirror, so every screen
 works with the network down. Awards made offline queue locally (the board
