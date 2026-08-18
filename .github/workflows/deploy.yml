@@ -1,7 +1,13 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [claude/new-session-nom1rf, claude/new-session-k83dh8, main, v2-app]
+    # main only. The github-pages environment allows deploys from `main` and
+    # `claude/*` and nothing else, so a push to any other branch started a run
+    # that cancelled main's in-flight deploy (concurrency group `pages`,
+    # cancel-in-progress) and then failed at the deploy step itself — the site
+    # silently kept serving the previous build. v2-app stays as the branch the
+    # build spec names; it just does not publish.
+    branches: [main]
     paths-ignore: ['design/**', 'shots/**']
   workflow_dispatch:
 
