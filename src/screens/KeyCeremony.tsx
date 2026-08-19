@@ -1328,7 +1328,7 @@ export default function KeyCeremony() {
               chaos={live ? 1.7 : 1.5}
               weight={live ? 1.7 : 1.45}
               strands={2}
-              active={!reduced || live}
+              active={!reduced && live}
             />
             <ArcBolt
               x1={root}
@@ -1342,7 +1342,7 @@ export default function KeyCeremony() {
               chaos={live ? 1.9 : 1.6}
               weight={live ? 0.95 : 0.8}
               strands={1}
-              active={!reduced || live}
+              active={!reduced && live}
             />
             <ArcBolt
               x1={root}
@@ -1356,7 +1356,7 @@ export default function KeyCeremony() {
               chaos={live ? 1.9 : 1.6}
               weight={live ? 0.85 : 0.7}
               strands={1}
-              active={!reduced || live}
+              active={!reduced && live}
             />
           </g>
         ))}

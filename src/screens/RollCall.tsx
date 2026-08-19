@@ -575,6 +575,8 @@ export default function RollCall() {
     const committed = await commitRollCall(activeDay.id, category.id, ids)
     setSelected(new Set())
     setBatch(committed)
+    // never the only confirmation — the rows ignite and the lever seats
+    navigator.vibrate?.([12, 40, 25])
 
     // Rows ignite in a 40ms stagger rather than all at once.
     ids.forEach((id, i) => {
