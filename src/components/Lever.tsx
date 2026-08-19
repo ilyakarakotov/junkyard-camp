@@ -822,15 +822,18 @@ export default function Lever({
         />
         {/* ---- arcs: every bolt lands on a brass collar at both ends ---- */}
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden style={{ zIndex: 2 }}>
-          {/* full discharge: branches jump from the tube to both rails */}
+          {/* full discharge: branches jump from the tube to both rails.
+              Armed-and-dragging is a charging flicker, deliberately below the
+              commit's own punch — the storm must peak at the award, not
+              pre-empt it. */}
           {storm && (
             <>
-              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={postTopY} seed={23} intensity={seated ? 1 : 0.8} chaos={1.9} strands={2} weight={1.15} />
-              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={postTopY} seed={31} intensity={seated ? 1 : 0.8} chaos={1.9} strands={2} weight={1.15} />
-              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={bossY} seed={57} intensity={seated ? 0.95 : 0.7} chaos={1.8} strands={2} weight={1.05} />
-              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={bossY} seed={71} intensity={seated ? 0.95 : 0.7} chaos={1.8} strands={2} weight={1.05} />
-              <ArcBolt x1={boreL} y1={TUBE_Y} x2={railL} y2={TUBE_Y - 44} seed={97} intensity={seated ? 0.8 : 0.5} chaos={2.1} strands={1} />
-              <ArcBolt x1={boreR} y1={TUBE_Y} x2={railR} y2={TUBE_Y + 44} seed={13} intensity={seated ? 0.8 : 0.5} chaos={2.1} strands={1} />
+              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={postTopY} seed={23} intensity={seated ? 1 : 0.5} chaos={1.9} strands={seated ? 2 : 1} weight={1.15} />
+              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={postTopY} seed={31} intensity={seated ? 1 : 0.5} chaos={1.9} strands={seated ? 2 : 1} weight={1.15} />
+              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={bossY} seed={57} intensity={seated ? 0.95 : 0.4} chaos={1.8} strands={seated ? 2 : 1} weight={1.05} />
+              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={bossY} seed={71} intensity={seated ? 0.95 : 0.4} chaos={1.8} strands={seated ? 2 : 1} weight={1.05} />
+              <ArcBolt x1={boreL} y1={TUBE_Y} x2={railL} y2={TUBE_Y - 44} seed={97} intensity={seated ? 0.8 : 0.3} chaos={2.1} strands={1} />
+              <ArcBolt x1={boreR} y1={TUBE_Y} x2={railR} y2={TUBE_Y + 44} seed={13} intensity={seated ? 0.8 : 0.3} chaos={2.1} strands={1} />
               {[
                 [railL, postTopY],
                 [railR, postTopY],

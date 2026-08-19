@@ -5,6 +5,7 @@ import ChargeTrack, { CAPSULE_SOCKET_PCT, ChargeReadout } from '../components/Ch
 import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
+import { ArcStrike } from '../fx/Arc'
 import { BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
 import { dayScore, liveEvents } from '../data/derive'
 import { BASE_CEILING_DECI, MAX_CHECK_INS, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
@@ -184,6 +185,9 @@ export default function TeamSheet() {
     () => (team ? dayScore(events, activeDay.id, team.id) : undefined),
     [events, activeDay.id, team],
   )
+  /* The category whose award is still discharging — cleared when the bolt
+     settles, so the contact posts leave with it. */
+  const [zap, setZap] = useState<{ cat: CategoryId; at: number } | null>(null)
 
   if (!ready || !team || !score) return <div className="min-h-dvh" />
 
@@ -464,7 +468,18 @@ export default function TeamSheet() {
                 chamfer={7}
                 style={{ height: ROW_H }}
                 dataPart={`category-${c}`}
-                onClick={isPunctuality ? undefined : () => setBinary(activeDay.id, team.id, c, !on)}
+                onClick={
+                  isPunctuality
+                    ? undefined
+                    : () => {
+                        setBinary(activeDay.id, team.id, c, !on)
+                        if (!on) {
+                          setZap({ cat: c, at: Date.now() })
+                          // never the only confirmation — iOS ignores it
+                          navigator.vibrate?.(15)
+                        }
+                      }
+                }
                 ariaPressed={isPunctuality ? undefined : on}
                 ariaLabel={isPunctuality ? undefined : label(c)}
                 disabled={locked}
@@ -497,20 +512,42 @@ export default function TeamSheet() {
                     <PunctualityControl
                       ticks={score.ticks}
                       locked={locked}
-                      onAdd={() => addCheckIn(activeDay.id, team.id)}
+                      onAdd={() => {
+                        addCheckIn(activeDay.id, team.id)
+                        navigator.vibrate?.(10)
+                      }}
                       onRemove={() => removeCheckIn(activeDay.id, team.id)}
                     />
                   ) : (
                     /* points being delivered, not a switch being flipped: the
-                        charge cell floods the team's colour on award */
-                    <Breaker
-                      variant="cell"
-                      on={on}
-                      color={teamColor}
-                      glyph={glyphOf(c)}
-                      title={label(c)}
-                      size={34}
-                    />
+                        charge cell floods the team's colour on award, and the
+                        award itself strikes an arc across the cell's contacts */
+                    <span className="relative block">
+                      <Breaker
+                        variant="cell"
+                        on={on}
+                        color={teamColor}
+                        glyph={glyphOf(c)}
+                        title={label(c)}
+                        size={34}
+                      />
+                      {zap?.cat === c && (
+                        <span
+                          className="pointer-events-none absolute"
+                          style={{ left: -8, right: -8, top: '50%', marginTop: -9, zIndex: 3 }}
+                        >
+                          <ArcStrike
+                            key={zap.at}
+                            width={50}
+                            height={18}
+                            seed={rowIndex + 11}
+                            postR={2}
+                            weight={0.7}
+                            onBurstComplete={() => setZap(null)}
+                          />
+                        </span>
+                      )}
+                    </span>
                   )}
                 </div>
               </Plate>

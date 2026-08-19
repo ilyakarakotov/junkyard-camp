@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Lever from '../components/Lever'
 import TeamCrest from '../components/TeamCrest'
 import { CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
-import { usePrefersReducedMotion } from '../fx/Arc'
+import { ArcStrike, usePrefersReducedMotion } from '../fx/Arc'
 import { checkInCount, hasBinary } from '../data/derive'
 import { BINARY_DECI, MAX_CHECK_INS, formatDeci, punctualityDeci } from '../data/scoring'
 import { useStore } from '../data/store'
@@ -985,6 +985,25 @@ export default function RollCall() {
                           </span>
                         )
                       })}
+                      {/* the seventh check-in is a discharge, not a flash:
+                          current jumps the gap that splits the six from the
+                          prize. Mounted keyed to the commit so it strikes
+                          once and the ignition timer unmounts it. */}
+                      {surged.has(team.id) && batch && (
+                        <span
+                          className="pointer-events-none absolute"
+                          style={{ right: -5, top: '50%', marginTop: -9, zIndex: 3 }}
+                        >
+                          <ArcStrike
+                            key={`surge-${batch.at}`}
+                            width={SOCKET * 2 + SOCKET_GAP + 10}
+                            height={18}
+                            seed={rowIndex + 41}
+                            postR={2}
+                            weight={0.7}
+                          />
+                        </span>
+                      )}
                       {/* the cliff readout: missing the seventh costs 0.4, so
                           the row previews the jump instead of hiding it inside
                           the ladder. Absolute, so every row keeps one baseline. */}
@@ -1018,8 +1037,19 @@ export default function RollCall() {
 
                   {/* the selection control: a big knurled cog whose face flips
                       to the value this pull will land */}
-                  <span className="shrink-0" aria-hidden>
+                  <span className="relative shrink-0" aria-hidden>
                     <RowKnob size={KNOB} readout={readout} glow={on} />
+                    {/* the award lands ON the row: current jumps the knob's
+                        collars when this row's point commits — the lever's
+                        own storm is the switch, this is the award */}
+                    {ignited.has(team.id) && batch && (
+                      <span
+                        className="pointer-events-none absolute"
+                        style={{ left: -6, right: -6, top: '50%', marginTop: -10, zIndex: 3 }}
+                      >
+                        <ArcStrike key={batch.at} width={KNOB + 12} height={20} seed={rowIndex + 5} />
+                      </span>
+                    )}
                   </span>
                 </span>
               </Plate>

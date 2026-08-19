@@ -54,6 +54,17 @@ export interface ArcBoltProps {
   /** When false renders nothing (keeps hooks stable). */
   active?: boolean
   /**
+   * One-shot discharge: whenever `burst` changes to a new non-zero value
+   * (including arriving non-zero at mount) the bolt strikes hot, decays and
+   * settles over ~3/4s. With `active` false the bolt exists only for the
+   * envelope — that is what lets a screen say "current jumped *because* a
+   * point just landed" instead of flickering ambiently. Under
+   * prefers-reduced-motion the bolt does not fire at all.
+   */
+  burst?: number
+  /** Fires once when the burst envelope has settled. */
+  onBurstComplete?: () => void
+  /**
    * Glow colour. Defaults to arc-teal. The golden key ceremony is the one
    * screen allowed to override this — see the gold exception in CLAUDE.md.
    * Nowhere else may pass gold.
@@ -74,6 +85,8 @@ export function ArcBolt({
   weight = 1,
   strands = 1,
   active = true,
+  burst = 0,
+  onBurstComplete,
   color = 'var(--color-accent)',
   coreColor = 'var(--color-accent-hot)',
 }: ArcBoltProps) {
@@ -99,6 +112,38 @@ export function ArcBolt({
   const frameRef = useRef(frame)
   frameRef.current = frame
 
+  /*
+   * The burst envelope: fire fast, decay slower, settle at zero. rAF rather
+   * than the 8–12fps flicker clock because the envelope IS the motion — a
+   * strike read needs per-frame opacity on its way down, and it runs for
+   * under a second, once.
+   */
+  const [burstEnv, setBurstEnv] = useState(0)
+  const burstEndRef = useRef(onBurstComplete)
+  burstEndRef.current = onBurstComplete
+  /* No "already fired" guard: StrictMode replays effects in dev, and a guard
+     would let the replay cancel the strike. Consumers re-fire by changing
+     `burst` or remounting keyed to the award. */
+  useEffect(() => {
+    if (burst === 0 || reduced) return
+    const FIRE_MS = 90
+    const TOTAL_MS = 750
+    const t0 = performance.now()
+    let raf = 0
+    const step = (t: number) => {
+      const dt = t - t0
+      if (dt >= TOTAL_MS) {
+        setBurstEnv(0)
+        burstEndRef.current?.()
+        return
+      }
+      setBurstEnv(dt < FIRE_MS ? dt / FIRE_MS : 1 - (dt - FIRE_MS) / (TOTAL_MS - FIRE_MS))
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [burst, reduced])
+
   useEffect(() => {
     if (reduced || !active) return
     let alive = true
@@ -119,8 +164,8 @@ export function ArcBolt({
     }
   }, [reduced, active, strandSets])
 
-  if (!active) return null
-  const a = (reduced ? 0.8 : frame.glow) * intensity
+  if (!active && burstEnv <= 0) return null
+  const a = Math.min(1, (reduced ? 0.8 : frame.glow) * intensity + burstEnv)
 
   return (
     <g style={{ opacity: a }}>
@@ -149,10 +194,70 @@ export function ArcBolt({
             <path d={body} fill={color} fillOpacity={0.9 * so} />
             {/* white-hot core filament, same silhouette narrowed */}
             <path d={core} fill={coreColor} fillOpacity={1 * so} />
+            {/* the burst strike: a white-hot bloom wider than the core,
+                flashed once and decaying with the envelope */}
+            {burstEnv > 0 && (
+              <path
+                d={spine}
+                fill="none"
+                stroke={coreColor}
+                strokeOpacity={0.55 * burstEnv * so}
+                strokeWidth={7.5 * weight * sw}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            )}
           </g>
         )
       })}
     </g>
+  )
+}
+
+/**
+ * One-shot discharge between two brass posts. Mount it keyed to the award
+ * that fired it and unmount when the parent clears: it strikes on mount,
+ * settles, and the parent removes the posts with the rest of the flash.
+ * Under prefers-reduced-motion nothing renders — the state change elsewhere
+ * on the row is the confirmation (§Motion).
+ */
+export function ArcStrike({
+  width,
+  height = 20,
+  seed = 1,
+  postR = 2.5,
+  weight = 0.8,
+  strands = 1,
+  onBurstComplete,
+}: {
+  width: number
+  height?: number
+  seed?: number
+  postR?: number
+  weight?: number
+  strands?: number
+  onBurstComplete?: () => void
+}) {
+  const reduced = usePrefersReducedMotion()
+  if (reduced) return null
+  const y = height / 2
+  return (
+    <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }} aria-hidden>
+      <ArcBolt
+        x1={postR + 1}
+        y1={y}
+        x2={width - postR - 1}
+        y2={y}
+        seed={seed}
+        burst={1}
+        active={false}
+        weight={weight}
+        strands={strands}
+        onBurstComplete={onBurstComplete}
+      />
+      <ContactPost cx={postR + 1} cy={y} r={postR} />
+      <ContactPost cx={width - postR - 1} cy={y} r={postR} />
+    </svg>
   )
 }
 
