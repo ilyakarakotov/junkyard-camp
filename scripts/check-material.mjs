@@ -44,6 +44,10 @@ for (const spec of ROUTES) {
     viewport: { width: spec.viewport[0], height: spec.viewport[1] },
     deviceScaleFactor: 2,
   })
+  // Pin the camp calendar to Day 1 (mirrors seed.ts's day1 date) so the
+  // day-scoped routes render a scored, seeded day whatever the real date is —
+  // on Arrival they would otherwise show the unscored day and measure dark.
+  await page.addInitScript(() => localStorage.setItem('jr:setting:today', '2026-08-20'))
   if (spec.set) {
     await page.addInitScript((pairs) => {
       for (const p of pairs) {

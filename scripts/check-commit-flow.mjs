@@ -7,6 +7,9 @@ import { chromiumPath } from './chromium.mjs'
 const BASE = process.env.BASE ?? 'http://localhost:5173/junkyard-camp/'
 const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+// Pin the camp calendar to Day 1 (mirrors seed.ts's day1 date): the commit
+// flow needs an open scoring day, and the real calendar may say Arrival.
+await page.addInitScript(() => localStorage.setItem('jr:setting:today', '2026-08-20'))
 
 let failures = 0
 const check = (label, actual, expected) => {

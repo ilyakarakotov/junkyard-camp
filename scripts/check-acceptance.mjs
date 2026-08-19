@@ -32,6 +32,10 @@ const check = (label, actual, expected) => {
 
 const browser = await chromium.launch({ executablePath: chromiumPath() })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
+// Pin the camp calendar to Day 1 (mirrors seed.ts's day1 date): the role and
+// lock checks need exactly one open scoring day, which the real calendar
+// does not provide on Arrival or after camp.
+await page.addInitScript(() => localStorage.setItem('jr:setting:today', '2026-08-20'))
 
 const goto = async (route) => {
   // A same-document hash change (`#/x` -> `#/x?y`) never remounts React, so a
@@ -326,10 +330,12 @@ let devServer = null
 let devServerErr = ''
 try {
   // Other agents routinely leave their own dev servers sitting on 5173-5175
-  // in this repo, so a fixed port either collides with someone else's
-  // instance or fails outright — try a small spread clear of that range and
-  // let --strictPort tell us plainly when one is taken.
-  for (const port of [5180, 5181, 5182, 5183, 5184]) {
+  // in this repo — and a stray gates-mode server has been seen parked on
+  // 5180, which a fetch here would mistake for our own instance (it answers
+  // before the child's strictPort failure is noticed). Try a small spread
+  // clear of both ranges and let --strictPort tell us plainly when one is
+  // taken.
+  for (const port of [5190, 5191, 5192, 5193, 5194]) {
     devServerErr = ''
     devServer = spawn(
       'npm',
@@ -402,7 +408,7 @@ try {
 
   if (!signinStarted) {
     console.log(
-      `SKIP sign-in form checks — no dummy-backed dev server came up on 5180-5184${
+      `SKIP sign-in form checks — no dummy-backed dev server came up on 5190-5194${
         devServerErr ? ` (${devServerErr.trim().slice(0, 200)})` : ''
       }`,
     )

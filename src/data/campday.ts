@@ -17,10 +17,24 @@ const dtf = new Intl.DateTimeFormat('en-CA', {
 })
 
 /**
+ * Gates-only date pin: under `vite --mode gates`, `jr:setting:today=YYYY-MM-DD`
+ * overrides the calendar. The gates must see a scoring day with data whatever
+ * the real date says — Arrival scores nothing and after camp nothing is
+ * editable, so unpinned the whole suite only passes mid-camp. The key mirrors
+ * SETTING_PREFIX in LocalStorageDataProvider (importing it here would cycle
+ * through seed.ts); production and plain dev never read it.
+ */
+function pinnedToday(): string | null {
+  if (import.meta.env.MODE !== 'gates') return null
+  if (typeof localStorage === 'undefined') return null
+  return localStorage.getItem('jr:setting:today')
+}
+
+/**
  * The camp date (YYYY-MM-DD) an instant belongs to: the camp-local wall clock
  * minus the rollover. Shifting the instant back 3h and taking its camp-local
  * date is the same arithmetic as the SQL function — `(wall − 3h)::date`.
  */
 export function campToday(now: Date = new Date()): string {
-  return dtf.format(new Date(now.getTime() - ROLLOVER_HOURS * 3_600_000))
+  return pinnedToday() ?? dtf.format(new Date(now.getTime() - ROLLOVER_HOURS * 3_600_000))
 }
