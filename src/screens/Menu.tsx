@@ -25,7 +25,7 @@ export default function Menu() {
   ]
 
   return (
-    <ScreenFrame band={10} className="min-h-dvh">
+    <ScreenFrame band={10} className="min-h-svh">
       {/*
        * RollCall's own comment says it best: the machine is bolted to a DARK
        * WALL, and if the gaps read brass the whole screen fuses into one flat
@@ -38,14 +38,14 @@ export default function Menu() {
       <div
         className="relative"
         style={{
-          minHeight: 'calc(100dvh - 20px)',
+          minHeight: 'calc(100svh - 20px)',
           borderRadius: 3,
           background: 'radial-gradient(132% 80% at 28% 4%, #241a12 0%, #150e08 40%, #090503 100%)',
           boxShadow:
             'inset 0 3px 9px rgba(0,0,0,0.85), inset 0 -2px 6px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,236,205,0.06)',
         }}
       >
-        <div className="mx-auto flex w-full flex-col px-2 py-4" style={{ maxWidth: 340, minHeight: 'calc(100dvh - 52px)' }}>
+        <div className="mx-auto flex w-full flex-col px-2 py-4" style={{ maxWidth: 340, minHeight: 'calc(100svh - 52px)' }}>
           <div className="mb-4 flex items-center gap-3">
             <button
               onClick={() => navigate('/')}

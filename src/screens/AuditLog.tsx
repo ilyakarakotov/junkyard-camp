@@ -172,7 +172,18 @@ export default function AuditLog() {
              * just the right way to show a log that grows without bound.
              */}
             <ColumnLegend />
-            <Well radius={4} style={{ padding: '4px 0', maxHeight: 'calc(100dvh - 400px)', overflowY: 'auto' }}>
+            <Well
+              radius={4}
+              style={{
+                padding: '4px 0',
+                maxHeight: 'calc(100dvh - 400px)',
+                overflowY: 'auto',
+                /* The document scroll must not hand off to this well's own
+                   scroll and back — containment keeps the nested scroller
+                   from chaining the rubber-band bounce. */
+                overscrollBehavior: 'contain',
+              }}
+            >
               {filtered.length === 0 && (
                 <div
                   className="py-6 text-center font-mono uppercase"

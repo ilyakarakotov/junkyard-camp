@@ -1,0 +1,15 @@
+{
+  "name": "Junkyard Redemption",
+  "short_name": "Junkyard",
+  "start_url": "/junkyard-camp/#/",
+  "display": "standalone",
+  "background_color": "#16110D",
+  "theme_color": "#16110D",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

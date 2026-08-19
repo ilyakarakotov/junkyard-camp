@@ -916,6 +916,10 @@ export default function Lever({
             transform: gripTransform,
             transition: gripTransition,
             willChange: 'transform',
+            /* Pointer capture does not stop the browser from scrolling: the
+               first vertical move fires pointercancel and kills the pull
+               unless the grip itself claims the gesture. */
+            touchAction: 'none',
           }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

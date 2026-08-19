@@ -43,10 +43,10 @@ export default function SignIn() {
   } as const
 
   return (
-    <ScreenFrame band={10} className="min-h-dvh">
+    <ScreenFrame band={10} className="min-h-svh">
       <div
         className="flex flex-col items-center justify-center"
-        style={{ minHeight: 'calc(100dvh - 20px)' }}
+        style={{ minHeight: 'calc(100svh - 20px)' }}
       >
         <div className="w-full" style={{ maxWidth: 320 }}>
         <Plate chamfer={12} screws={false} className="w-full" style={{ height: 'auto' }}>
@@ -80,7 +80,9 @@ export default function SignIn() {
                 spellCheck={false}
                 required
                 className="w-full bg-transparent font-mono outline-none"
-                style={{ padding: '10px 12px', fontSize: 14, color: 'var(--color-text)' }}
+                /* 16px is deliberate: iOS zooms the page for any sub-16px
+                   input on focus and never restores the scale. */
+                style={{ padding: '10px 12px', fontSize: 16, color: 'var(--color-text)' }}
               />
             </Well>
 
@@ -95,7 +97,7 @@ export default function SignIn() {
                 autoComplete="current-password"
                 required
                 className="w-full bg-transparent font-mono outline-none"
-                style={{ padding: '10px 12px', fontSize: 14, color: 'var(--color-text)' }}
+                style={{ padding: '10px 12px', fontSize: 16, color: 'var(--color-text)' }}
               />
             </Well>
 

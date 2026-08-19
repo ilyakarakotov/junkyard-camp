@@ -2,12 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- maximum-scale/user-scalable are honored from the home screen (this app
+         declares apple-mobile-web-app-capable) even though Safari tabs ignore
+         them; interactive-widget makes the on-screen keyboard resize instead
+         of overlaying. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="theme-color" content="#16110D" />
     <!-- Leaders open this from a phone home screen, so it needs an icon and a
          name short enough to survive the springboard. -->
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="apple-touch-icon" href="./favicon.svg" />
+    <!-- iOS accepts raster only for the home-screen icon; the SVG made the
+         springboard show a screenshot of the page instead. -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Junkyard" />

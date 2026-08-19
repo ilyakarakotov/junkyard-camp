@@ -466,7 +466,9 @@ export default function Standings() {
   return (
     <div
       className="relative min-h-dvh"
-      style={{ paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' }}
+      /* The home-indicator inset is applied once on #root (theme.css); this
+         stays 28px of plain breathing room. */
+      style={{ paddingBottom: 28 }}
     >
       <WallTexture />
       <div className="relative" style={{ zIndex: 1 }}>

@@ -12,8 +12,11 @@ export default function SyncChrome() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed right-2 top-2 z-50 font-mono uppercase"
+      className="pointer-events-none fixed right-2 z-50 font-mono uppercase"
       style={{
+        /* fixed elements ignore #root's safe-area padding; clear the notch
+           the same way TestModeChrome does. */
+        top: 'calc(8px + env(safe-area-inset-top))',
         padding: '4px 8px',
         fontSize: 8.5,
         letterSpacing: '0.14em',

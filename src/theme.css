@@ -89,6 +89,11 @@
 @layer base {
   html {
     background: var(--color-bg);
+    /* WebKit takes the viewport's overscroll behavior from the ROOT element,
+       not body — it needs both to kill the rubber-band bounce. */
+    overscroll-behavior: none;
+    /* Kills double-tap zoom in the browsers that ignore user-scalable=no. */
+    touch-action: manipulation;
   }
 
   body {
@@ -98,11 +103,29 @@
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
+    /* A long-press here is a gesture, not a text selection: every name and
+       numeral is a control, and the iOS "Copy / Look Up" callout on a team
+       row breaks the machine. Inputs are excepted below — sign-in needs them. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input,
+  textarea {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   #root {
     min-height: 100dvh;
     position: relative;
+    /* viewport-fit=cover + black-translucent puts the page under the notch
+       and the home indicator. The clearance lives here once — one inset for
+       every screen — instead of being re-declared per surface. */
+    padding:
+      env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
     /*
      * The wall behind the plates. Sampled: #19110E in the corners rising to
      * ~#251B16 mid-screen, so the vignette is strong and the centre is warm.
