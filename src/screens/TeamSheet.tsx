@@ -6,7 +6,7 @@ import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { ArcStrike } from '../fx/Arc'
-import { BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
+import { BrassConfirm, BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
 import { dayScore, liveEvents } from '../data/derive'
 import { BASE_CEILING_DECI, MAX_CHECK_INS, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
@@ -173,6 +173,7 @@ export default function TeamSheet() {
     setBinary,
     addCheckIn,
     removeCheckIn,
+    removeKey,
     isDirector,
     isEditableDay,
     editableDayId,
@@ -188,6 +189,7 @@ export default function TeamSheet() {
   /* The category whose award is still discharging — cleared when the bolt
      settles, so the contact posts leave with it. */
   const [zap, setZap] = useState<{ cat: CategoryId; at: number } | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   if (!ready || !team || !score) return <div className="min-h-dvh" />
 
@@ -618,10 +620,26 @@ export default function TeamSheet() {
             width={CONTENT}
             disabled={locked || !isDirector}
             onAdd={() => navigate(`/key/${team.id}`)}
+            onRemoveKey={
+              !locked && isDirector && keys > 0 ? () => setConfirmRemove(true) : undefined
+            }
             justAdded={keyJustAdded}
           />
         </div>
       </div>
+
+      {confirmRemove && (
+        <BrassConfirm
+          title="Remove the last key?"
+          body={`The most recent golden key on ${activeDay.name} is reversed in the log. Nothing is ever deleted.`}
+          confirmLabel="Remove key"
+          onConfirm={() => {
+            setConfirmRemove(false)
+            void removeKey(activeDay.id, team.id)
+          }}
+          onCancel={() => setConfirmRemove(false)}
+        />
+      )}
     </div>
   )
 }

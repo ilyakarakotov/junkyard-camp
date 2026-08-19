@@ -1,4 +1,4 @@
-import { useId, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 /**
@@ -316,6 +316,95 @@ export function ScreenFrame({
     >
       <CornerScrews inset={Math.max(4, band - 6)} />
       <div className="relative">{children}</div>
+    </div>
+  )
+}
+
+/**
+ * In-app confirm: a brass plate over a scrim, because a native
+ * "github.io says…" dialog breaks the machine harder than anything else on
+ * it. Replaces every window.confirm. Focus lands on cancel — the destructive
+ * button has to be chosen, not defaulted into.
+ */
+export function BrassConfirm({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string
+  body: string
+  confirmLabel: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      style={{ background: 'rgba(10,6,3,0.72)' }}
+      onClick={onCancel}
+    >
+      <div className="plate-shadow relative w-full" style={{ maxWidth: 300 }} onClick={(e) => e.stopPropagation()}>
+        <Plate chamfer={10} screws={false} className="w-full" style={{ height: 'auto' }}>
+          <CornerScrews inset={6} size={9} />
+          <div className="relative flex flex-col items-center px-5 py-5" style={{ gap: 10 }}>
+            <span
+              className="display-title text-center"
+              style={{ fontSize: 15, letterSpacing: '0.1em' }}
+            >
+              {title}
+            </span>
+            <span
+              className="text-center font-body"
+              style={{ fontSize: 13, lineHeight: 1.35, color: 'var(--color-text)', opacity: 0.85 }}
+            >
+              {body}
+            </span>
+            <div className="flex w-full" style={{ gap: 8 }}>
+              <button
+                autoFocus
+                onClick={onCancel}
+                className="font-display flex-1 uppercase"
+                style={{
+                  padding: '10px 0',
+                  fontSize: 12,
+                  letterSpacing: '0.14em',
+                  borderRadius: 3,
+                  color: 'var(--color-text-dim)',
+                  background: 'linear-gradient(180deg, #241a10 0%, #1c130b 100%)',
+                  boxShadow: 'inset 0 2px 3px rgba(0,0,0,0.7), inset 0 -1px 0 rgba(255,232,190,0.14)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="font-display flex-1 uppercase"
+                style={{
+                  padding: '10px 0',
+                  fontSize: 12,
+                  letterSpacing: '0.14em',
+                  borderRadius: 3,
+                  color: '#2a1c0c',
+                  background:
+                    'linear-gradient(180deg, var(--color-brass-hi) 0%, var(--color-brass) 55%, var(--color-brass-lo) 100%)',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,244,214,0.7)',
+                }}
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </div>
+        </Plate>
+      </div>
     </div>
   )
 }

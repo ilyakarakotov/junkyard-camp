@@ -388,6 +388,8 @@ export default function KeyCeremony() {
 
   const team = teams.find((t) => t.id === teamId)
   const [phase, setPhase] = useState<Phase>('offer')
+  // Set synchronously before the await: a double tap must not award twice.
+  const [busy, setBusy] = useState(false)
   const [width, setWidth] = useState(DESIGN_W)
 
   useEffect(() => {
@@ -409,9 +411,12 @@ export default function KeyCeremony() {
   if (!ready || !team) return <div className="min-h-dvh" />
 
   const onAward = async () => {
+    if (busy) return
+    setBusy(true)
     await awardKey(activeDay.id, team.id, 'Golden key')
     setPhase('awarded')
     navigator.vibrate?.([18, 60, 40])
+    setBusy(false)
   }
 
   const live = phase === 'awarded'
@@ -1410,17 +1415,20 @@ export default function KeyCeremony() {
       </div>
 
       {Array.from({ length: slots }, (_, i) => {
-        // The last hook is always the live one: the key on the anvil.
-        const hot = i === slots - 1
-        // Once struck, the hot layer cools off the cold key beneath over 2s.
-        const cool = hot && live ? ' key-cool' : ''
+        // The last hook is the one being struck: an empty hook in the offer,
+        // a lit key igniting once committed. Earned keys hang lit in both
+        // phases — a key on this rail is an emitting source, never a silhouette.
+        const strike = i === slots - 1
+        const empty = strike && !live
+        // The ignite layer cools off the now-lit key beneath over 2s.
+        const cool = strike && live ? ' key-cool' : ''
         const cx = keyX(i)
         return (
           <div
             key={i}
             className="pointer-events-none absolute"
             data-part="hanging-key"
-            data-lit={hot ? 'true' : 'false'}
+            data-lit={empty ? 'offer' : 'true'}
             style={{
               // The bow straddles the bar's top edge: a key hangs ON the rail.
               left: cx - KEY_SIZE / 2,
@@ -1432,28 +1440,53 @@ export default function KeyCeremony() {
                * smoke's own source reads as a smudge on the door. The wrapper
                * is pointer-events-none so raising it never eats the button.
                */
-              zIndex: hot ? 3 : undefined,
+              zIndex: strike ? 3 : undefined,
             }}
           >
-            {/* every key hangs cold; the new one has a hot layer that cools off it */}
-            <KeyGlyph lit={false} size={KEY_SIZE} hanging />
-            {hot && (
-              <>
-                <div
-                  aria-hidden
-                  className={`pointer-events-none absolute${cool}`}
-                  style={{
-                    left: -KEY_SIZE * 0.7,
-                    top: -KEY_SIZE * 0.3,
-                    width: KEY_SIZE * 2.4,
-                    height: KEY_SIZE * 2.9,
-                    background:
-                      'radial-gradient(closest-side, rgba(255,246,214,0.42) 0%, rgba(255,198,61,0.20) 34%, rgba(255,160,30,0.07) 58%, transparent 78%)',
-                  }}
+            {empty ? (
+              /* the offer is an EMPTY hook: award reads as a key appearing and
+                 lighting, not as a lit key that dims */
+              <svg
+                width={KEY_SIZE}
+                height={KEY_SIZE * 2.3}
+                viewBox="0 0 20 46"
+                aria-hidden
+                style={{ display: 'block' }}
+              >
+                <path
+                  d="M10 0 V20 A6 6 0 0 0 17 17.5"
+                  fill="none"
+                  stroke="#54432f"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
                 />
-                <div className={`pointer-events-none absolute inset-0${cool}`}>
-                  <KeyGlyph lit size={KEY_SIZE} hanging />
-                </div>
+                <path d="M9.2 0 V19" fill="none" stroke="rgba(255,236,205,0.26)" strokeWidth="0.7" />
+              </svg>
+            ) : (
+              <>
+                <KeyGlyph lit size={KEY_SIZE} hanging />
+                {strike && live && (
+                  <>
+                    <div
+                      aria-hidden
+                      className={`pointer-events-none absolute${cool}`}
+                      style={{
+                        left: -KEY_SIZE * 0.7,
+                        top: -KEY_SIZE * 0.3,
+                        width: KEY_SIZE * 2.4,
+                        height: KEY_SIZE * 2.9,
+                        background:
+                          'radial-gradient(closest-side, rgba(255,246,214,0.42) 0%, rgba(255,198,61,0.20) 34%, rgba(255,160,30,0.07) 58%, transparent 78%)',
+                      }}
+                    />
+                    {/* hotter than lit: the strike's own heat, cooling off the
+                        lit key beneath until the two agree */}
+                    <div
+                      className={`pointer-events-none absolute inset-0${cool}`}
+                      style={{ filter: 'brightness(1.9) saturate(1.15)' }}
+                    >
+                      <KeyGlyph lit size={KEY_SIZE} hanging />
+                    </div>
                 {!reduced && (
                   <>
                     {/*
@@ -1511,6 +1544,8 @@ export default function KeyCeremony() {
                     ))}
                   </>
                 )}
+              </>
+            )}
               </>
             )}
           </div>
@@ -1579,6 +1614,7 @@ export default function KeyCeremony() {
        */}
       <button
         onClick={live ? () => navigate(`/team/${team.id}`) : onAward}
+        disabled={busy}
         aria-label={
           live
             ? `Golden key ${number} awarded to ${team.name}. Return to team sheet`
@@ -1620,7 +1656,7 @@ export default function KeyCeremony() {
             className="engraved font-display absolute inset-0 flex items-center justify-center font-semibold uppercase"
             style={{ fontSize: 12, letterSpacing: '0.24em', whiteSpace: 'nowrap', paddingLeft: '0.24em' }}
           >
-            {live ? 'Key struck' : 'Turn to award'}
+            {live ? 'Key struck' : busy ? 'Striking' : 'Turn to award'}
           </span>
         </span>
       </button>

@@ -86,6 +86,9 @@ interface StoreValue {
   removeCheckIn(dayId: string, teamId: TeamId): Promise<void>
   /** Ceremony: award one golden key. */
   awardKey(dayId: string, teamId: TeamId, note?: string): Promise<void>
+  /** Reverse the most recent live golden key for a day — a mis-tap path for
+      the one award that has no cap and no second thought. */
+  removeKey(dayId: string, teamId: TeamId): Promise<void>
   /** Undo a committed batch within its 60-second window. */
   undoBatch(batch: CommitBatch): Promise<void>
 
@@ -322,6 +325,20 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [newEvent, push, isEditableDay, isDirector],
   )
 
+  const removeKey = useCallback<StoreValue['removeKey']>(
+    async (dayId, teamId) => {
+      if (!isEditableDay(dayId)) return
+      if (!isDirector) return
+      // The mirror is ordered, so the last live key is the most recent one.
+      const latest = liveEvents(events)
+        .filter((e) => e.dayId === dayId && e.teamId === teamId && e.categoryId === 'golden_key')
+        .at(-1)
+      if (!latest) return
+      await push([reversalOf(latest, getDeviceId(), 'Correction')])
+    },
+    [events, push, isEditableDay, isDirector],
+  )
+
   const undoBatch = useCallback<StoreValue['undoBatch']>(
     async (batch) => {
       if (!isEditableDay(batch.dayId)) return
@@ -381,6 +398,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       addCheckIn,
       removeCheckIn,
       awardKey,
+      removeKey,
       undoBatch,
       testMode,
       sandbox,
@@ -405,6 +423,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       addCheckIn,
       removeCheckIn,
       awardKey,
+      removeKey,
       undoBatch,
       testMode,
       sandbox,

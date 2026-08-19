@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 
 /**
  * Key rail — golden keys.
@@ -353,6 +353,7 @@ export function KeyHookRail({
   hooks = 6,
   width = BAR_W,
   onAdd,
+  onRemoveKey,
   disabled = false,
   justAdded = false,
 }: {
@@ -360,6 +361,8 @@ export function KeyHookRail({
   hooks?: number
   width?: number
   onAdd?: () => void
+  /** Held, not tapped: reversing a key is deliberate. Absent = no reversal. */
+  onRemoveKey?: () => void
   disabled?: boolean
   /** Plays the hot-to-cool settle on the most recently hung key. */
   justAdded?: boolean
@@ -369,6 +372,12 @@ export function KeyHookRail({
   const scale = width / BAR_W
   const lit = Math.min(keys, hooks)
   const overflow = keys - lit
+
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    holdTimer.current = null
+  }
 
   return (
     <div className="relative" style={{ width, height: BAR_H * scale }}>
@@ -797,6 +806,34 @@ export function KeyHookRail({
           borderRadius: 4,
         }}
       />
+      {/* reversal is a HOLD on the newest key — a tap can never lose a key,
+          and the parent confirms before the log gains its compensating row */}
+      {onRemoveKey && !disabled && lit > 0 && (
+        <button
+          aria-label="Hold to remove the most recent golden key"
+          className="absolute"
+          style={{
+            left: (HOOK_X0 + (lit - 1) * HOOK_PITCH - HOOK_PITCH / 2) * scale,
+            width: HOOK_PITCH * scale,
+            top: 0,
+            height: BAR_H * scale,
+            background: 'transparent',
+            borderRadius: 4,
+            touchAction: 'none',
+          }}
+          onPointerDown={() => {
+            navigator.vibrate?.(10)
+            holdTimer.current = setTimeout(() => {
+              holdTimer.current = null
+              navigator.vibrate?.(30)
+              onRemoveKey()
+            }, 450)
+          }}
+          onPointerUp={clearHold}
+          onPointerLeave={clearHold}
+          onPointerCancel={clearHold}
+        />
+      )}
     </div>
   )
 }
