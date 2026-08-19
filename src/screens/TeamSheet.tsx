@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Breaker, { CategoryGlyph } from '../components/Breaker'
 import ChargeTrack, { CAPSULE_SOCKET_PCT, ChargeReadout } from '../components/ChargeTrack'
@@ -6,8 +6,8 @@ import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
-import { dayScore } from '../data/derive'
-import { BASE_CEILING_DECI, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
+import { dayScore, liveEvents } from '../data/derive'
+import { BASE_CEILING_DECI, MAX_CHECK_INS, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { CategoryId } from '../data/types'
 
@@ -195,6 +195,17 @@ export default function TeamSheet() {
   const locked = !isEditableDay(activeDay.id)
   const unlockedHere = activeDay.id !== editableDayId && unlockedDayIds.has(activeDay.id)
   const keys = score.keys
+
+  /* A key struck within the last few seconds settles hot-to-cool on the rail
+     when the director walks back from the ceremony; older keys hang cold. */
+  const lastKeyAt = liveEvents(events).reduce(
+    (m, e) =>
+      e.categoryId === 'golden_key' && e.teamId === team.id && e.dayId === activeDay.id
+        ? Math.max(m, Date.parse(e.occurredAt))
+        : m,
+    0,
+  )
+  const keyJustAdded = lastKeyAt > 0 && Date.now() - lastKeyAt < 10_000
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ paddingBottom: 10 }}>
@@ -570,6 +581,7 @@ export default function TeamSheet() {
             width={CONTENT}
             disabled={locked || !isDirector}
             onAdd={() => navigate(`/key/${team.id}`)}
+            justAdded={keyJustAdded}
           />
         </div>
       </div>
@@ -697,6 +709,10 @@ function PunctualityControl({
   onRemove: () => void
 }) {
   const width = 162
+  /* Set when the seventh check-in is tapped here; the surge flash is a
+     one-shot, and it unmounts again if the seventh is removed so a re-add
+     replays it. */
+  const [surging, setSurging] = useState(false)
   /*
    * Socket pitch is ~18px, so a 22px-wide target overlapped its neighbour by
    * 4px and the last one painted won — tapping a socket's right edge recorded
@@ -707,7 +723,7 @@ function PunctualityControl({
   const hit = Math.floor(pitch) - 1
   return (
     <span className="relative block shrink-0" style={{ width }}>
-      <ChargeTrack ticks={ticks} width={width} capsule />
+      <ChargeTrack ticks={ticks} width={width} capsule surging={surging && ticks >= MAX_CHECK_INS} />
       <span className="absolute" style={{ left: 0, right: 0, top: -12, bottom: -12 }}>
         {CAPSULE_SOCKET_PCT.map((pct, i) => {
           const on = i < ticks
@@ -742,7 +758,13 @@ function PunctualityControl({
               aria-label={
                 last ? `Final check-in — worth 0.4` : `Check-in ${i + 1} of ${CAPSULE_SOCKET_PCT.length}`
               }
-              onClick={() => (on ? onRemove() : onAdd())}
+              onClick={() => {
+                if (on) onRemove()
+                else {
+                  onAdd()
+                  if (last) setSurging(true)
+                }
+              }}
               className="absolute"
               style={style}
             />

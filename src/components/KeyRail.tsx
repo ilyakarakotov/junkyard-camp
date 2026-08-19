@@ -354,12 +354,15 @@ export function KeyHookRail({
   width = BAR_W,
   onAdd,
   disabled = false,
+  justAdded = false,
 }: {
   keys: number
   hooks?: number
   width?: number
   onAdd?: () => void
   disabled?: boolean
+  /** Plays the hot-to-cool settle on the most recently hung key. */
+  justAdded?: boolean
 }) {
   const uid = useId()
   const g = (n: string) => `${n}-${uid}`
@@ -681,6 +684,17 @@ export function KeyHookRail({
                     strokeWidth="0.8"
                     strokeLinecap="round"
                   />
+                  {/* one-shot white-hot settle over the newest key */}
+                  {justAdded && i === lit - 1 && (
+                    <circle
+                      className="key-cool"
+                      cx={cx}
+                      cy={22.5}
+                      r={30}
+                      fill="var(--color-key-hot)"
+                      opacity="0.55"
+                    />
+                  )}
                 </>
               )}
             </g>
