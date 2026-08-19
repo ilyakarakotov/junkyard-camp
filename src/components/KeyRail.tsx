@@ -356,6 +356,7 @@ export function KeyHookRail({
   onRemoveKey,
   disabled = false,
   justAdded = false,
+  tabNote,
 }: {
   keys: number
   hooks?: number
@@ -366,6 +367,9 @@ export function KeyHookRail({
   disabled?: boolean
   /** Plays the hot-to-cool settle on the most recently hung key. */
   justAdded?: boolean
+  /** Struck into the tab when gated: DIRECTOR ONLY / DAY LOCKED. A gated
+      control states its reason instead of looking live and doing nothing. */
+  tabNote?: string
 }) {
   const uid = useId()
   const g = (n: string) => `${n}-${uid}`
@@ -774,10 +778,10 @@ export function KeyHookRail({
            */}
           <text
             x={TAB_X + 38}
-            y={BAR_H / 2 + 7}
+            y={BAR_H / 2 + (tabNote ? 4 : 7)}
             textAnchor="middle"
             fontFamily="var(--font-display)"
-            fontSize="20"
+            fontSize={tabNote ? 12 : 20}
             fontWeight="600"
             letterSpacing="1.4"
             fill={disabled ? 'rgba(242,231,211,0.88)' : 'var(--color-text)'}
@@ -785,7 +789,7 @@ export function KeyHookRail({
             stroke="rgba(40,24,8,0.62)"
             strokeWidth="0.9"
           >
-            + KEY
+            {tabNote ?? '+ KEY'}
           </text>
         </g>
       </svg>
@@ -794,14 +798,15 @@ export function KeyHookRail({
       <button
         onClick={onAdd}
         disabled={disabled}
-        aria-label="Award a golden key"
+        aria-label="Open the golden key ceremony"
         aria-disabled={disabled}
         className="absolute"
         style={{
           right: 0,
-          top: 0,
+          /* the tab is 29px tall; the control that drives it is 44 */
+          top: (BAR_H * scale - 44) / 2,
           width: TAB_W * scale,
-          height: BAR_H * scale,
+          height: 44,
           background: 'transparent',
           borderRadius: 4,
         }}

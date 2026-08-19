@@ -7,7 +7,7 @@ import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { ArcStrike } from '../fx/Arc'
 import { BrassConfirm, BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
-import { dayScore, liveEvents } from '../data/derive'
+import { dayScore, keyCount, liveEvents } from '../data/derive'
 import { BASE_CEILING_DECI, MAX_CHECK_INS, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { CategoryId } from '../data/types'
@@ -578,10 +578,20 @@ export default function TeamSheet() {
        */}
       <div
         className="px-4"
-        style={{ marginTop: 'auto', paddingTop: 14, paddingBottom: KEY_DROP }}
+        style={{
+          marginTop: 'auto',
+          paddingTop: 14,
+          paddingBottom: KEY_DROP,
+          // a locked day dims the rail with everything else — it must not be
+          // the one control that still looks alive
+          opacity: locked ? 0.62 : 1,
+          filter: locked ? 'saturate(0.55)' : undefined,
+        }}
       >
         {/* the key rail states its value like every other control — and the
-            count is read by counting lit keys, never a multiplier */}
+            count is read by counting lit keys, never a multiplier. The day
+            count and the camp count share one label so they cannot disagree
+            silently with the ceremony. */}
         <div className="flex items-center justify-between px-1" style={{ marginBottom: 4 }}>
           <span className="tech-label" style={{ fontSize: 7, letterSpacing: '0.14em' }}>
             GOLDEN KEYS · 1.0 PT EACH · NO LIMIT
@@ -590,7 +600,7 @@ export default function TeamSheet() {
             className="tech-label"
             style={{ fontSize: 7, letterSpacing: '0.14em', color: 'var(--color-key)' }}
           >
-            {keys} HELD
+            {keys} HELD TODAY · {keyCount(events, team.id)} THIS CAMP
           </span>
         </div>
         <div className="relative">
@@ -624,6 +634,7 @@ export default function TeamSheet() {
               !locked && isDirector && keys > 0 ? () => setConfirmRemove(true) : undefined
             }
             justAdded={keyJustAdded}
+            tabNote={locked ? 'DAY LOCKED' : !isDirector ? 'DIRECTOR ONLY' : undefined}
           />
         </div>
       </div>

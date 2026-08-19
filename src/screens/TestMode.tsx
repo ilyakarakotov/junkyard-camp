@@ -10,7 +10,16 @@ import {
   setTestRole,
   testRole,
 } from '../data/testMode'
-import { BracketRule, CornerScrews, Lamp, Plate, ScreenFrame, ScreenHeader, Well } from '../components/chrome'
+import {
+  BracketRule,
+  BrassConfirm,
+  CornerScrews,
+  Lamp,
+  Plate,
+  ScreenFrame,
+  ScreenHeader,
+  Well,
+} from '../components/chrome'
 
 /**
  * The rehearsal room (`/test`). One switch throws the whole data layer over
@@ -87,6 +96,7 @@ export default function TestMode() {
   const { days, teams, events, activeDay, sandbox, testMode } = useStore()
   const [busy, setBusy] = useState(false)
   const [teamIdx, setTeamIdx] = useState(0)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   // The route is reachable by typing it, so it guards itself rather than
   // trusting the menu not to have drawn the item.
@@ -200,11 +210,7 @@ export default function TestMode() {
               <Push
                 label="Clear the sandbox"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm('Erase every score in the sandbox?')) {
-                    run(() => sandbox.reset())
-                  }
-                }}
+                onClick={() => setConfirmClear(true)}
               />
               <p className="font-mono uppercase" style={{ ...LABEL, fontSize: 7.5 }}>
                 sandbox holds {events.length} events across{' '}
@@ -261,6 +267,19 @@ export default function TestMode() {
           </>
         )}
       </div>
+
+      {confirmClear && (
+        <BrassConfirm
+          title="Clear the sandbox?"
+          body="Every score in the rehearsal log is reset. The real log is untouched."
+          confirmLabel="Clear"
+          onConfirm={() => {
+            setConfirmClear(false)
+            if (sandbox) run(() => sandbox.reset())
+          }}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
     </ScreenFrame>
   )
 }

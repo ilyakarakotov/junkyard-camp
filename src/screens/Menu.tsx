@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { mayUseTestMode } from '../data/testMode'
-import { CornerScrews, Plate, ScreenFrame } from '../components/chrome'
+import { BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../components/chrome'
 
 /**
  * The menu (§6.5): the app's one navigation hub, opened from the board's
@@ -11,6 +12,7 @@ import { CornerScrews, Plate, ScreenFrame } from '../components/chrome'
 export default function Menu() {
   const navigate = useNavigate()
   const { user, isDirector, signOut } = useAuth()
+  const [confirmOut, setConfirmOut] = useState(false)
 
   const items = [
     { to: '/', label: 'Board', note: 'Today at a glance' },
@@ -145,11 +147,7 @@ export default function Menu() {
 
           <div style={{ marginTop: 'auto', paddingTop: 24 }}>
             <button
-              onClick={() => {
-                if (window.confirm('Sign out of this device?')) {
-                  void signOut().then(() => navigate('/signin', { replace: true }))
-                }
-              }}
+              onClick={() => setConfirmOut(true)}
               className="font-display w-full uppercase"
               style={{
                 padding: '11px 0',
@@ -167,6 +165,19 @@ export default function Menu() {
           </div>
         </div>
       </div>
+
+      {confirmOut && (
+        <BrassConfirm
+          title="Sign out?"
+          body="This device stops scoring as you until someone signs back in."
+          confirmLabel="Sign out"
+          onConfirm={() => {
+            setConfirmOut(false)
+            void signOut().then(() => navigate('/signin', { replace: true }))
+          }}
+          onCancel={() => setConfirmOut(false)}
+        />
+      )}
     </ScreenFrame>
   )
 }

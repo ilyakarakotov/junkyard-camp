@@ -145,7 +145,7 @@ check('locked day: no check-in is reachable', liveControls, 0)
 await goto('#/team/precious')
 const asDirector = await page.evaluate(() => {
   const b = [...document.querySelectorAll('button')].find((x) =>
-    /award a golden key/i.test(x.getAttribute('aria-label') ?? ''),
+    /open the golden key ceremony/i.test(x.getAttribute('aria-label') ?? ''),
   )
   return { present: !!b, disabled: !!b?.disabled }
 })
@@ -158,7 +158,7 @@ check('director: the key control is live', asDirector.disabled, false)
 await goto('#/team/precious?as=helper')
 const asHelper = await page.evaluate(() => {
   const b = [...document.querySelectorAll('button')].find((x) =>
-    /award a golden key/i.test(x.getAttribute('aria-label') ?? ''),
+    /open the golden key ceremony/i.test(x.getAttribute('aria-label') ?? ''),
   )
   return { present: !!b, disabled: !!b?.disabled, tagged: /director/i.test(document.body.innerText) }
 })

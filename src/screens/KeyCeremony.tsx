@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TeamCrest from '../components/TeamCrest'
 import { KeyGlyph, Screw } from '../components/chrome'
@@ -234,6 +234,7 @@ const KEY_SIZE = 56
 const TITLE_Y = 512
 const ACTION_Y = 640
 const ACTION_W = 208
+const UNDO_WINDOW_MS = 60_000
 
 /**
  * The ray fan: [centre angle°, half-width°, length]. Deliberately irregular —
@@ -383,17 +384,17 @@ function DoorBolt({ left, top, slot = 24 }: { left: number; top: number; slot?: 
 export default function KeyCeremony() {
   const { teamId } = useParams<{ teamId: string }>()
   const navigate = useNavigate()
-  const { teams, activeDay, events, awardKey, isDirector, ready } = useStore()
+  const { teams, activeDay, events, awardKey, removeKey, isDirector, ready } = useStore()
   const reduced = usePrefersReducedMotion()
 
   const team = teams.find((t) => t.id === teamId)
   const [phase, setPhase] = useState<Phase>('offer')
   // Set synchronously before the await: a double tap must not award twice.
   const [busy, setBusy] = useState(false)
-  const [width, setWidth] = useState(DESIGN_W)
+  const [view, setView] = useState({ w: DESIGN_W, h: H })
 
   useEffect(() => {
-    const on = () => setWidth(Math.min(window.innerWidth, 520))
+    const on = () => setView({ w: window.innerWidth, h: window.innerHeight })
     on()
     window.addEventListener('resize', on)
     return () => window.removeEventListener('resize', on)
@@ -403,26 +404,93 @@ export default function KeyCeremony() {
   const existing = useMemo(() => (team ? keyCount(events, team.id) : 0), [events, team])
   const number = phase === 'awarded' ? existing : existing + 1
 
+  /* The turn gesture: dragging the bow rotates it; past the threshold the
+     release strikes, below it the bow springs back on the house curve. */
+  const [turn, setTurn] = useState(0)
+  const [turning, setTurning] = useState(false)
+  const turnDrag = useRef<{ startY: number } | null>(null)
+
+  /* 60-second undo on the irreversible award, counted down like roll call's. */
+  const [awardedAt, setAwardedAt] = useState<number | null>(null)
+  const [undoLeft, setUndoLeft] = useState(0)
+  useEffect(() => {
+    if (!awardedAt) return
+    setUndoLeft(Math.ceil(UNDO_WINDOW_MS / 1000))
+    const iv = setInterval(() => {
+      const left = Math.ceil((awardedAt + UNDO_WINDOW_MS - Date.now()) / 1000)
+      setUndoLeft(left <= 0 ? 0 : left)
+    }, 500)
+    return () => clearInterval(iv)
+  }, [awardedAt])
+
+  const [denied, setDenied] = useState(false)
   useEffect(() => {
     if (!ready) return
-    if (!isDirector) navigate(`/team/${teamId}`, { replace: true })
+    if (!isDirector) {
+      // Say why, briefly, instead of a silent bounce.
+      setDenied(true)
+      const t = setTimeout(() => navigate(`/team/${teamId}`, { replace: true }), 1400)
+      return () => clearTimeout(t)
+    }
   }, [ready, isDirector, navigate, teamId])
 
-  if (!ready || !team) return <div className="min-h-dvh" />
+  if (!ready) return <div className="min-h-dvh" />
+  if (!team)
+    return (
+      <div className="flex min-h-dvh items-center justify-center px-6">
+        <div className="plate bevel text-center" style={{ padding: '18px 22px', maxWidth: 300 }}>
+          <span className="display-title block" style={{ fontSize: 15, letterSpacing: '0.1em' }}>
+            No such team
+          </span>
+          <button
+            onClick={() => navigate('/')}
+            className="font-mono uppercase"
+            style={{ marginTop: 10, fontSize: 9, letterSpacing: '0.16em', color: 'var(--color-brass-hi)' }}
+          >
+            ◂ Board
+          </button>
+        </div>
+      </div>
+    )
+  if (denied)
+    return (
+      <div className="flex min-h-dvh items-center justify-center px-6">
+        <div className="plate bevel text-center" style={{ padding: '18px 22px', maxWidth: 300 }}>
+          <span className="display-title block" style={{ fontSize: 15, letterSpacing: '0.1em' }}>
+            Director only
+          </span>
+          <span className="font-mono uppercase" style={{ display: 'block', marginTop: 8, fontSize: 8.5, letterSpacing: '0.14em', color: 'var(--color-text-dim)' }}>
+            Returning to the team sheet
+          </span>
+        </div>
+      </div>
+    )
 
   const onAward = async () => {
     if (busy) return
     setBusy(true)
-    await awardKey(activeDay.id, team.id, 'Golden key')
+    await awardKey(activeDay.id, team.id, `Golden key · ${activeDay.name}`)
     setPhase('awarded')
+    setAwardedAt(Date.now())
     navigator.vibrate?.([18, 60, 40])
     setBusy(false)
   }
 
+  const onUndoKey = async () => {
+    await removeKey(activeDay.id, team.id)
+    setAwardedAt(null)
+    setPhase('offer')
+  }
+
   const live = phase === 'awarded'
-  const dx = width / 2 - DESIGN_W / 2
+  // Every station is measured against the 390×844 frame; the composition is
+  // laid out at that size and scaled as one stage, so a short viewport
+  // shrinks the machine instead of clipping the commit plate and the rail.
+  const width = DESIGN_W
+  const dx = 0
   const X = (v: number) => v + dx
   const doorW = width - DOOR_SIDE * 2
+  const s = Math.min(1.25, Math.max(0.5, Math.min(view.w / DESIGN_W, view.h / H)))
 
   /**
    * Hanging keys: one per key this team already holds, plus the one being
@@ -474,6 +542,15 @@ export default function KeyCeremony() {
         }
       `}</style>
 
+      {/* ---- the stage: one measured machine, scaled to the frame --------- */}
+      <div
+        className="absolute left-1/2 top-1/2"
+        style={{
+          width: DESIGN_W,
+          height: H,
+          transform: `translate(-50%, -50%) scale(${s})`,
+        }}
+      >
       {/* ---- the vault door ------------------------------------------------ */}
       <div
         className="grain rust-creep absolute"
@@ -1132,6 +1209,14 @@ export default function KeyCeremony() {
            * A filled ring with a gradient ACROSS its width is what gives it a
            * lit top-left shoulder rolling into a dark underside.
            */}
+          {/* the bow turns as one piece under the drag gesture */}
+          <g
+            style={{
+              transform: `rotate(${turn * 90}deg)`,
+              transformOrigin: `${X(195)}px ${KH_CY}px`,
+              transition: turning ? 'none' : 'transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+          >
           <path
             d={bowRing(X(195), 4)}
             fill="rgba(72,40,4,0.42)"
@@ -1178,6 +1263,7 @@ export default function KeyCeremony() {
             strokeWidth="2"
             strokeLinecap="butt"
           />
+          </g>
 
           {/* the two screws sit in the arch centres, above the recessed field */}
           <BrassScrew cx={X(195)} cy={EY0 + 24} r={6.4} slot={44} />
@@ -1284,6 +1370,49 @@ export default function KeyCeremony() {
          */}
       </svg>
 
+      {/* the bow is the handle: dragging it turns the key in the lock, past
+          the threshold the release strikes, below it the bow springs back.
+          The nameplate below stays the keyboard/SR path to the same action. */}
+      {!live && (
+        <button
+          aria-hidden
+          tabIndex={-1}
+          className="absolute"
+          style={{
+            left: EX0 - 6,
+            top: EY0 - 30,
+            width: EX1 - EX0 + 12,
+            height: EY1 - EY0 + 60,
+            background: 'transparent',
+            touchAction: 'none',
+            cursor: 'grab',
+          }}
+          onPointerDown={(e) => {
+            if (busy) return
+            e.currentTarget.setPointerCapture(e.pointerId)
+            turnDrag.current = { startY: e.clientY }
+            setTurning(true)
+          }}
+          onPointerMove={(e) => {
+            if (!turnDrag.current) return
+            const dy = e.clientY - turnDrag.current.startY
+            setTurn(Math.min(1, Math.max(0, dy / 140)))
+          }}
+          onPointerUp={() => {
+            if (!turnDrag.current) return
+            turnDrag.current = null
+            setTurning(false)
+            if (turn >= 0.6) void onAward()
+            setTurn(0)
+          }}
+          onPointerCancel={() => {
+            turnDrag.current = null
+            setTurning(false)
+            setTurn(0)
+          }}
+        />
+      )}
+
       {/* ---- title block --------------------------------------------------- */}
       <div
         className="pointer-events-none absolute text-center"
@@ -1322,7 +1451,8 @@ export default function KeyCeremony() {
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {`Key ${String(number).padStart(2, '0')}`}
+          {/* the count is camp-wide, so say so — the sheet counts the day */}
+          {`Key ${String(number).padStart(2, '0')} of the camp`}
         </div>
       </div>
 
@@ -1660,6 +1790,31 @@ export default function KeyCeremony() {
           </span>
         </span>
       </button>
+
+      {/* the award is irreversible on purpose, but a mis-tap is not an
+          irrecoverable mistake: 60 seconds to walk it back, like roll call */}
+      {live && undoLeft > 0 && (
+        <button
+          onClick={() => void onUndoKey()}
+          className="kc-focus absolute font-mono uppercase"
+          style={{
+            left: width / 2 - ACTION_W / 2,
+            top: EY0 - 44,
+            width: ACTION_W,
+            height: 22,
+            fontSize: 8.5,
+            letterSpacing: '0.14em',
+            borderRadius: 3,
+            color: 'var(--color-lamp-hot)',
+            background: 'linear-gradient(180deg, #241a10 0%, #1a1109 100%)',
+            boxShadow:
+              'inset 0 1px 2px rgba(0,0,0,0.8), inset 0 -1px 0 rgba(254,223,151,0.2), 0 1px 3px rgba(0,0,0,0.55)',
+          }}
+        >
+          key struck · undo {undoLeft}s
+        </button>
+      )}
+      </div>
     </div>
   )
 }

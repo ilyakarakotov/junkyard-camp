@@ -1,9 +1,10 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import DayRail from '../components/DayRail'
+import { KeyCount } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
-import { Plate, Well, textureOffset } from '../components/chrome'
-import { dayScores, standings } from '../data/derive'
+import { BrassConfirm, Plate, Well, textureOffset } from '../components/chrome'
+import { dayScores, keyCount, standings } from '../data/derive'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { Team } from '../data/types'
@@ -278,6 +279,7 @@ export default function Board() {
     testMode,
   } = useStore()
   const navigate = useNavigate()
+  const [confirmUnlock, setConfirmUnlock] = useState(false)
 
   const scores = useMemo(() => dayScores(events, activeDay.id, teams), [events, activeDay.id, teams])
   const todayByTeam = useMemo(() => new Map(scores.map((s) => [s.teamId, s])), [scores])
@@ -286,6 +288,10 @@ export default function Board() {
     const rows = standings(events, days, teams)
     return new Map(rows.map((r) => [r.teamId, r.totalDeci]))
   }, [events, days, teams])
+  const keysByTeam = useMemo(
+    () => new Map(teams.map((t) => [t.id, keyCount(events, t.id)])),
+    [events, teams],
+  )
   /*
    * The board is a standings board: rows run best-first by OVERALL points, and
    * the chip is the row's *position*, 01..08, never a competition rank — a
@@ -519,11 +525,7 @@ export default function Board() {
           <span>{activeDay.name} · locked — view only</span>
           {isDirector && (
             <button
-              onClick={() => {
-                if (window.confirm(`Unlock ${activeDay.name} for editing on this device?`)) {
-                  unlockDay(activeDay.id)
-                }
-              }}
+              onClick={() => setConfirmUnlock(true)}
               className="font-mono uppercase"
               style={{
                 padding: '3px 10px',
@@ -574,6 +576,8 @@ export default function Board() {
               tied={mine === above || mine === below}
               today={todayByTeam.get(team.id)?.totalDeci ?? 0}
               overall={mine}
+              keys={keysByTeam.get(team.id) ?? 0}
+              isDirector={isDirector}
             />
           )
         })}
@@ -614,6 +618,19 @@ export default function Board() {
           radius={0}
         />
       </Plate>
+
+      {confirmUnlock && (
+        <BrassConfirm
+          title={`Unlock ${activeDay.name}?`}
+          body="This device may edit that day until you leave it. The log keeps who wrote what."
+          confirmLabel="Unlock"
+          onConfirm={() => {
+            setConfirmUnlock(false)
+            unlockDay(activeDay.id)
+          }}
+          onCancel={() => setConfirmUnlock(false)}
+        />
+      )}
     </div>
   )
 }
@@ -630,13 +647,18 @@ function BoardRow({
   tied,
   today,
   overall,
+  keys,
+  isDirector,
 }: {
   team: Team
   position: number
   tied: boolean
   today: number
   overall: number
+  keys: number
+  isDirector: boolean
 }) {
+  const navigate = useNavigate()
   return (
     <Plate chamfer={6} screws={false} style={{ height: ROW_H }} dataPart="board-row">
       <CornerRivets inset={5} size={SCREW} right={false} />
@@ -695,7 +717,7 @@ function BoardRow({
             className="font-display absolute inset-0 flex items-center font-semibold uppercase"
             style={{
               paddingLeft: 24,
-              paddingRight: 8,
+              paddingRight: 34,
               fontSize: 15,
               lineHeight: 1.08,
               letterSpacing: '0.025em',
@@ -706,6 +728,26 @@ function BoardRow({
             {team.name}
           </span>
         </Well>
+
+        {/* the key count is the row's one control: visible to everyone, but
+            striking keys is the director's errand, so only they can tap it */}
+        <button
+          onClick={() => navigate(`/key/${team.id}`)}
+          disabled={!isDirector}
+          aria-label={`Open the golden key ceremony for ${team.name}`}
+          className="absolute flex items-center justify-center"
+          style={{
+            right: CH_R + 4,
+            top: (ROW_H - 44) / 2,
+            height: 44,
+            width: 34,
+            background: 'transparent',
+            borderRadius: 4,
+            zIndex: 1,
+          }}
+        >
+          <KeyCount keys={keys} size={22} />
+        </button>
 
         {/* the medallion overhangs the channel's left end and the plate's edges */}
         <div className="absolute" style={{ left: 45, top: (ROW_H - CREST) / 2, zIndex: 1 }}>
