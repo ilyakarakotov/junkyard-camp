@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { getSupabaseClient } from './remote'
+import { isTestMode, testRole } from './testMode'
 
 /**
  * Auth for the camp: sign in once, stay signed in for the whole camp. Only
@@ -109,7 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       user,
-      isDirector: user?.role === 'director',
+      // Test mode lets the director watch the app demote them to a helper,
+      // so the greyed key rail can be checked without a second account. It
+      // only ever applies against the sandbox provider, which never writes to
+      // the network — so this can neither grant nor leak a real privilege.
+      isDirector: isTestMode() ? testRole() === 'director' : user?.role === 'director',
       backed: supabase !== null,
       async signIn(username, password) {
         if (!supabase) return null

@@ -275,6 +275,7 @@ export default function Board() {
     editableDayId,
     unlockedDayIds,
     unlockDay,
+    testMode,
   } = useStore()
   const navigate = useNavigate()
 
@@ -316,8 +317,14 @@ export default function Board() {
    */
   const todayId = editableDayId ?? undefined
   const lockedIds = useMemo(
-    () => new Set(days.filter((d) => d.scored && d.id !== todayId).map((d) => d.id)),
-    [days, todayId],
+    () =>
+      // The sandbox opens the whole camp, so nothing carries a padlock there:
+      // a rail showing four locks over days the store will happily accept
+      // writes to is the same lie this comment block exists to describe.
+      testMode
+        ? new Set<string>()
+        : new Set(days.filter((d) => d.scored && d.id !== todayId).map((d) => d.id)),
+    [days, todayId, testMode],
   )
   const viewingLocked = activeDay.scored && !isEditableDay(activeDay.id)
   const viewingUnlocked =

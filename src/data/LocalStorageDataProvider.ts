@@ -25,12 +25,22 @@ export class LocalStorageDataProvider implements DataProvider {
   private listeners = new Set<() => void>()
   private cache: ScoreEvent[] | null = null
 
-  constructor() {
-    if (localStorage.getItem(EVENTS_KEY) === null) {
-      this.write(seedEvents(getDeviceId()))
+  /**
+   * @param key       which localStorage key holds the log. Test mode points a
+   *                  subclass at its own key so the sandbox and the real
+   *                  mirror are separate worlds, not a copy of one another.
+   * @param seedEmpty seed mock events into a fresh key. The sandbox starts
+   *                  empty instead — a rehearsal should begin at zero.
+   */
+  constructor(
+    protected readonly key: string = EVENTS_KEY,
+    seedEmpty = true,
+  ) {
+    if (localStorage.getItem(this.key) === null) {
+      this.write(seedEmpty ? seedEvents(getDeviceId()) : [])
     }
     window.addEventListener('storage', (e) => {
-      if (e.key === EVENTS_KEY) {
+      if (e.key === this.key) {
         this.cache = null
         this.notify()
       }
@@ -91,22 +101,22 @@ export class LocalStorageDataProvider implements DataProvider {
     return () => this.listeners.delete(listener)
   }
 
-  private read(): ScoreEvent[] {
+  protected read(): ScoreEvent[] {
     if (this.cache) return this.cache
     try {
-      this.cache = JSON.parse(localStorage.getItem(EVENTS_KEY) ?? '[]') as ScoreEvent[]
+      this.cache = JSON.parse(localStorage.getItem(this.key) ?? '[]') as ScoreEvent[]
     } catch {
       this.cache = []
     }
     return this.cache
   }
 
-  private write(events: ScoreEvent[]): void {
+  protected write(events: ScoreEvent[]): void {
     this.cache = events
-    localStorage.setItem(EVENTS_KEY, JSON.stringify(events))
+    localStorage.setItem(this.key, JSON.stringify(events))
   }
 
-  private notify(): void {
+  protected notify(): void {
     for (const l of this.listeners) l()
   }
 }

@@ -3,6 +3,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, RequireAuth } from './data/auth'
 import { StoreProvider } from './data/store'
 import SyncChrome from './components/SyncChrome'
+import TestModeChrome from './components/TestModeChrome'
 import SignIn from './screens/SignIn'
 import Menu from './screens/Menu'
 import Board from './screens/Board'
@@ -22,6 +23,7 @@ import BigScreen from './screens/BigScreen'
 const Exports = lazy(() => import('./screens/Exports'))
 const AuditLog = lazy(() => import('./screens/AuditLog'))
 const Lab = lazy(() => import('./screens/Lab'))
+const TestMode = lazy(() => import('./screens/TestMode'))
 
 /**
  * StoreProvider mounts INSIDE the auth guard: the data layer's first fetch
@@ -40,6 +42,7 @@ export default function App() {
               <RequireAuth>
                 <StoreProvider>
                   <SyncChrome />
+                  <TestModeChrome />
                   {/* the wall, while a split route arrives — never a spinner */}
                   <Suspense fallback={<div className="min-h-dvh" />}>
                     <Routes>
@@ -53,6 +56,7 @@ export default function App() {
                       <Route path="/exports" element={<Exports />} />
                       <Route path="/audit" element={<AuditLog />} />
                       <Route path="/lab" element={<Lab />} />
+                      <Route path="/test" element={<TestMode />} />
                     </Routes>
                   </Suspense>
                 </StoreProvider>

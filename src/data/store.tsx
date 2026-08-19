@@ -20,6 +20,8 @@ import type {
 } from './types'
 import { getDeviceId } from './LocalStorageDataProvider'
 import { createDefaultProvider } from './provider'
+import { SandboxDataProvider, type SandboxOps } from './SandboxDataProvider'
+import { isTestMode } from './testMode'
 import { useAuth, type AuthUser } from './auth'
 import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
@@ -86,6 +88,16 @@ interface StoreValue {
   awardKey(dayId: string, teamId: TeamId, note?: string): Promise<void>
   /** Undo a committed batch within its 60-second window. */
   undoBatch(batch: CommitBatch): Promise<void>
+
+  /**
+   * True when the whole data layer is the test-mode sandbox: a separate
+   * localStorage log that never reaches the network, every scoring day
+   * unlocked. See src/data/testMode.ts for why it exists and why it is not a
+   * privilege boundary.
+   */
+  testMode: boolean
+  /** Sandbox controls for the test screen. Null outside test mode. */
+  sandbox: SandboxOps | null
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
@@ -93,6 +105,7 @@ const StoreContext = createContext<StoreValue | null>(null)
 /** The only place a DataProvider is instantiated. Components use hooks below. */
 export function StoreProvider({ children, provider }: { children: ReactNode; provider?: DataProvider }) {
   const dp = useMemo<DataProvider>(() => provider ?? createDefaultProvider(), [provider])
+  const testMode = isTestMode()
   const { user, isDirector } = useAuth()
   const [teams, setTeams] = useState<Team[]>([])
   const [days, setDays] = useState<Day[]>([])
@@ -170,10 +183,15 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   const [unlockedDayIds, setUnlockedDayIds] = useState<ReadonlySet<string>>(new Set())
   const isEditableDay = useCallback(
     (dayId: string) => {
+      // The sandbox has no calendar to protect: every scoring day is open, so
+      // a rehearsal can walk the whole camp without unlocking four days one
+      // at a time. Arrival still refuses, because Arrival not scoring is a
+      // rule of the camp rather than a lock.
+      if (testMode) return days.find((d) => d.id === dayId)?.scored ?? false
       if (dayId === editableDayId) return true
       return isDirector && unlockedDayIds.has(dayId)
     },
-    [editableDayId, isDirector, unlockedDayIds],
+    [testMode, days, editableDayId, isDirector, unlockedDayIds],
   )
   const unlockDay = useCallback(
     (dayId: string) => {
@@ -322,6 +340,25 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [days, activeDayId],
   )
 
+  // Sandbox controls. Every one of them rewrites the log wholesale, which no
+  // real provider may ever do — so they exist only on the sandbox class and
+  // are exposed as null everywhere else, and each refreshes the store's copy
+  // of the log itself because a bulk write is not an append.
+  const sandbox = useMemo<SandboxOps | null>(() => {
+    if (!(dp instanceof SandboxDataProvider)) return null
+    const after = async (work: Promise<void>) => {
+      await work
+      setEvents(await dp.getEvents())
+    }
+    return {
+      reset: () => after(dp.reset()),
+      fillCamp: (actorId) => after(dp.fillCamp(actorId)),
+      fillDay: (dayId, actorId) => after(dp.fillDay(dayId, actorId)),
+      giveKeys: (dayId, teamId, count, actorId) =>
+        after(dp.giveKeys(dayId, teamId, count, actorId)),
+    }
+  }, [dp])
+
   const value = useMemo<StoreValue>(
     () => ({
       teams,
@@ -345,6 +382,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       removeCheckIn,
       awardKey,
       undoBatch,
+      testMode,
+      sandbox,
     }),
     [
       teams,
@@ -367,6 +406,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       removeCheckIn,
       awardKey,
       undoBatch,
+      testMode,
+      sandbox,
     ],
   )
 

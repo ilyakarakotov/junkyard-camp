@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../data/auth'
+import { mayUseTestMode } from '../data/testMode'
 import { CornerScrews, Plate, ScreenFrame } from '../components/chrome'
 
 /**
@@ -18,6 +19,9 @@ export default function Menu() {
     { to: '/standings', label: 'Standings', note: 'The camp so far' },
     { to: '/exports', label: 'Exports & Analytics', note: 'Excel · charts' },
     { to: '/audit', label: 'Audit Log', note: 'Who gave what' },
+    // The rehearsal room, for the camp director only. Everyone else never
+    // learns the route exists, and /test turns them away if they guess it.
+    ...(mayUseTestMode(user) ? [{ to: '/test', label: 'Test Mode', note: 'Sandbox · safe' }] : []),
   ]
 
   return (
