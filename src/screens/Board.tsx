@@ -5,7 +5,7 @@ import { KeyCount } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { BrassConfirm, Plate, Well, textureOffset } from '../components/chrome'
 import { dayScores, keyCount, standings } from '../data/derive'
-import { formatDeci } from '../data/scoring'
+import { BASE_CEILING_DECI, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { Team } from '../data/types'
 
@@ -319,16 +319,6 @@ export default function Board() {
   )
 
   /*
-   * The meters are scaled to the leader, so the top row always reads full and
-   * the gap to it is what the board is actually about. Scaling to the
-   * theoretical ceiling instead would leave every bar a stub on Day 1.
-   */
-  const leaderDeci = useMemo(
-    () => ordered.reduce((m, t) => Math.max(m, overallByTeam.get(t.id) ?? 0), 0),
-    [ordered, overallByTeam],
-  )
-
-  /*
    * Day locks: the pilot lamp marks the day that actually accepts scores, and
    * every other scoring day sits behind a padlock — amber while a director's
    * unlock holds on this device.
@@ -581,7 +571,17 @@ export default function Board() {
         </div>
       )}
 
-      {/* ---- eight rows, each its own plate, each a meter ---- */}
+      {/*
+        ---- eight rows, each its own plate, each a meter ----
+
+        The meter is today's progress against the fixed 6.0 daily ceiling, not a
+        share of the leader's camp total. Scaling to the leader made the top row
+        read full by definition, so on Day 1 — every team on 0.1 — all eight bars
+        filled to the end and the board said nothing. A fixed 0 -> 6.0 scale says
+        how much of today is still on the table, which is the thing a leader can
+        act on. Keys stay out of the fill: they are uncapped, and a three-key day
+        would run the bar past the end of its channel.
+      */}
       <div className="flex flex-col" style={{ gap: ROW_GAP }}>
         {ordered.map((team, i) => {
           const mine = overallByTeam.get(team.id) ?? 0
@@ -594,8 +594,8 @@ export default function Board() {
               position={i + 1}
               tied={mine === above || mine === below}
               today={todayByTeam.get(team.id)?.totalDeci ?? 0}
+              todayBase={todayByTeam.get(team.id)?.baseDeci ?? 0}
               overall={mine}
-              leader={leaderDeci}
               keys={keysByTeam.get(team.id) ?? 0}
             />
           )
@@ -657,35 +657,40 @@ export default function Board() {
 /**
  * A board row: position, crest, name, keys, a meter, and the camp total.
  *
- * The meter is the point. A leader standing in front of the camp should be able
- * to see who is winning from the *lengths* alone, before reading a single
- * numeral — so the bar's length is the team's real camp total (base plus keys)
- * scaled against the leader's, and the numeral in the window is the same figure
- * spelled out. Read-and-navigate only; the whole plate is one link to the team
- * sheet, which is where anything gets scored.
+ * The meter is the point, and it measures *today*. A leader standing in front
+ * of the camp should be able to see from the *lengths* alone how much of the
+ * day each team has banked and how much is still on the table, before reading a
+ * single numeral — so the bar's length is today's base score against the fixed
+ * 6.0 daily ceiling, and the window beside it spells out both today's figure and
+ * the camp total the rows are sorted on. Read-and-navigate only; the whole plate
+ * is one link to the team sheet, which is where anything gets scored.
  */
 function BoardRow({
   team,
   position,
   tied,
   today,
+  todayBase,
   overall,
-  leader,
   keys,
 }: {
   team: Team
   position: number
   tied: boolean
   today: number
+  /**
+   * Today's six capped categories in tenths, keys excluded — the meter's fill.
+   * Keys are unlimited, so folding them in here would push the bar past the end
+   * of its channel on any team that earned more than one.
+   */
+  todayBase: number
   overall: number
-  /** The top row's total — the meter's full-scale end. */
-  leader: number
   keys: number
 }) {
   const color = `var(--color-team-${team.colorToken})`
   /* Integer tenths in, a ratio out — the division is for geometry only and
-     never touches a score. */
-  const pct = leader > 0 ? Math.max(0, Math.min(1, overall / leader)) * 100 : 0
+     never touches a score. Clamped, because a day can only ever be full. */
+  const pct = Math.max(0, Math.min(1, todayBase / BASE_CEILING_DECI)) * 100
   return (
     <Plate chamfer={6} screws={false} style={{ height: ROW_H }} dataPart="board-row">
       <CornerRivets inset={5} size={SCREW} right={false} />
@@ -753,21 +758,31 @@ function BoardRow({
 
         {/*
          * Keys stay counted, never multiplied: lit glyphs and a numeral, no
-         * `×` anywhere. They hold a fixed slot at the meter's right end, so
-         * the glyphs share a column edge down all eight rows.
+         * `×` anywhere. They hold a fixed slot at the meter's right end, so the
+         * glyphs share a column edge down all eight rows — the slot is reserved
+         * whether or not it is filled, which is why the meter's right edge is
+         * the same on every row.
+         *
+         * A team with no keys gets nothing there rather than a dead glyph and a
+         * zero. The key is the rarest thing on the board; eight unlit keys down
+         * the page make it look like a category every team has, and they take
+         * the shine off the one row that earned one.
          */}
-        <div
-          className="absolute flex items-center justify-end"
-          style={{ right: COL_R, top: 44, width: KEYS_W - 10, height: 18 }}
-        >
-          <KeyCount keys={keys} size={15} />
-        </div>
+        {keys > 0 && (
+          <div
+            className="absolute flex items-center justify-end"
+            style={{ right: COL_R, top: 44, width: KEYS_W - 10, height: 18 }}
+          >
+            <KeyCount keys={keys} size={15} />
+          </div>
+        )}
 
         {/*
          * The meter. A channel milled into the plate with a lit lower-right
          * lip, and the team's own colour filling it from the left — length is
-         * the team's camp total against the leader's, so the eight lengths are
-         * the standings before a single numeral is read.
+         * today's base score against the 6.0 daily ceiling, so a full channel
+         * means a perfect day and the empty tail is what is still winnable.
+         * The three engraved quarter ticks therefore read 1.5, 3.0 and 4.5.
          *
          * The fill is a lit strip, not a glowing decal: the colour is brightest
          * at its leading end where the light lands, and it spills a short warm
