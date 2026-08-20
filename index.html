@@ -24,6 +24,23 @@
     <title>Junkyard Redemption</title>
   </head>
   <body>
+    <!-- The loading plate: the Junkyard Redemption marquee on the workshop
+         wall, painted before a byte of JavaScript arrives. Inline styles on
+         purpose — this must render with zero dependencies. The image's edges
+         fade to the exact wall color (#16110D), so `contain` letterboxing is
+         seamless at any aspect ratio. main.tsx fades it out on first paint. -->
+    <div
+      id="splash"
+      aria-hidden="true"
+      style="
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        background: #16110d url('./splash.webp') center / contain no-repeat;
+        transition: opacity 0.4s ease;
+      "
+    ></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

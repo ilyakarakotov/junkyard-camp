@@ -26,3 +26,18 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+/*
+ * The splash plate in index.html covers the JS download. Two frames after
+ * React's first render the real UI is painted underneath, so fade the plate
+ * and take it out of the tree — opacity only, per the motion rules.
+ */
+const splash = document.getElementById('splash')
+if (splash) {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      splash.style.opacity = '0'
+      setTimeout(() => splash.remove(), 450)
+    }),
+  )
+}
