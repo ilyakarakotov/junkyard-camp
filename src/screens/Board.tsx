@@ -54,7 +54,9 @@ const CREST = 44
  * row whatever the score.
  */
 const COL_L = 96
-const COL_R = 76
+const COL_R = 82
+/** The slot at the meter's right end where the key count sits. */
+const KEYS_W = 68
 const SCREW = 6
 /**
  * The meter never reads empty. A team on 0.0 still gets a stub of lit colour,
@@ -725,38 +727,40 @@ function BoardRow({
         </div>
 
         {/*
-         * The top line: the board name, the keys held, and today's figure
-         * printed straight onto the plate face — small and engraved, because
-         * the one dark window per row belongs to the camp total.
-         *
-         * Keys stay counted, never multiplied: lit glyphs and a numeral, no
-         * `×` anywhere. They sit next to the name rather than in their own
-         * control now — the whole plate opens the team sheet, and the rail
-         * there is where a key is actually struck.
+         * The top line belongs to the full team name and nothing else — the
+         * director asked to read "Pink Junkyard Warriors", not a code. The
+         * keys moved down beside the meter and today's figure moved into the
+         * dark window, so the whole span between crest and window is the
+         * name's to spend and every roster name fits on one line at 390px.
          */}
         <div
           className="absolute flex items-center"
-          style={{ left: COL_L, right: COL_R, top: 12, height: 22, gap: 8 }}
+          style={{ left: COL_L, right: COL_R, top: 12, height: 22 }}
         >
           <span
             className="font-display min-w-0 flex-shrink truncate font-semibold uppercase"
             style={{
-              fontSize: 17,
+              fontSize: 16,
               lineHeight: 1,
-              letterSpacing: '0.025em',
+              letterSpacing: '0.02em',
               color: 'var(--color-text)',
               textShadow: '0 1px 1px rgba(16,9,4,0.55)',
             }}
           >
-            {team.shortName}
+            {team.name}
           </span>
+        </div>
+
+        {/*
+         * Keys stay counted, never multiplied: lit glyphs and a numeral, no
+         * `×` anywhere. They hold a fixed slot at the meter's right end, so
+         * the glyphs share a column edge down all eight rows.
+         */}
+        <div
+          className="absolute flex items-center justify-end"
+          style={{ right: COL_R, top: 44, width: KEYS_W - 10, height: 18 }}
+        >
           <KeyCount keys={keys} size={15} />
-          <span
-            className="ml-auto whitespace-nowrap font-mono uppercase tabular-nums"
-            style={{ fontSize: 7.5, letterSpacing: '0.1em', color: 'rgba(52,37,22,0.92)' }}
-          >
-            {`Today ${formatDeci(today)}`}
-          </span>
         </div>
 
         {/*
@@ -772,7 +776,7 @@ function BoardRow({
          */}
         <div
           className="absolute"
-          style={{ left: COL_L, right: COL_R, top: 44, height: 18, borderRadius: 3 }}
+          style={{ left: COL_L, right: COL_R + KEYS_W, top: 44, height: 18, borderRadius: 3 }}
         >
           <Well
             radius={3}
@@ -815,11 +819,13 @@ function BoardRow({
         </div>
 
         {/*
-         * The one dark window per row, and the figure the meter is drawn from:
-         * the whole camp, not the day. Labelled against TODAY on the line above
-         * so the two numbers can never be read as the same thing.
+         * The one dark window per row now carries both figures: today's take
+         * on its own bright line up top, and the camp total — the figure the
+         * meter is drawn from — as the big numeral below. Engraving TODAY
+         * into the plate face made it near-invisible; in the window it reads
+         * as a lit readout like everything else worth reading.
          */}
-        <Readout label="Camp" value={overall} right={1} width={54} />
+        <Readout today={today} value={overall} right={1} width={60} />
       </Link>
 
       {/* oxide in the crevices: the lower lip and the two bottom corners */}
@@ -839,16 +845,17 @@ function BoardRow({
 
 /**
  * The framed readout window: the plate's own metal turned up into a 5px lip
- * with cut corners, the dark window sunk inside it, and a two-part read — a
- * tiny engraved label over a right-aligned tabular numeral.
+ * with cut corners, the dark window sunk inside it, and a stacked read —
+ * today's figure on a bright line up top, a hairline, then the camp total as
+ * the big right-aligned tabular numeral.
  */
 function Readout({
-  label,
+  today,
   value,
   right,
   width,
 }: {
-  label: string
+  today: number
   value: number
   right: number
   width: number
@@ -882,11 +889,34 @@ function Readout({
         }}
       >
         <Rim radius={0} />
+        {/* today's take: label left, value right, lit like a readout should be */}
+        <span
+          className="absolute flex items-baseline justify-between font-mono uppercase tabular-nums"
+          style={{
+            top: 4,
+            left: 5,
+            right: 5,
+            fontSize: 8.5,
+            letterSpacing: '0.04em',
+            color: 'rgba(237,227,210,0.95)',
+            textShadow: '0 1px 0 rgba(10,5,2,0.8)',
+          }}
+        >
+          <span style={{ fontSize: 6, letterSpacing: '0.1em', color: 'rgba(226,203,171,0.8)' }}>
+            Today
+          </span>
+          {formatDeci(today)}
+        </span>
+        <span
+          aria-hidden
+          className="absolute"
+          style={{ top: 17, left: 4, right: 4, height: 1, background: 'rgba(255,238,205,0.12)' }}
+        />
         <span
           aria-hidden
           className="absolute font-mono uppercase"
           style={{
-            top: 5,
+            top: 21,
             left: 0,
             right: 5,
             textAlign: 'right',
@@ -895,13 +925,13 @@ function Readout({
             color: 'rgba(226,203,171,0.85)',
           }}
         >
-          {label}
+          Camp
         </span>
         <span
           className="numeral absolute inset-x-0 bottom-[6px] text-right tabular-nums"
           style={{
             right: 5,
-            fontSize: 26,
+            fontSize: 24,
             color: 'var(--color-text)',
             lineHeight: 1,
             // The numerals cast down-right onto the window floor — one light

@@ -229,17 +229,18 @@ await reduced.close()
  * flattens the hierarchy and costs those three their signal.
  */
 await goto('/')
-// The board carries `shortName` now — the leaderboard row spends its width on
-// the meter, and the full names do not fit beside one at 390px.
-const SHORT_NAMES = [
-  'WARRIORS',
-  'PRECIOUS',
-  'GEMS',
-  'PEARLS',
-  'KNIGHTS',
-  'INNOCENT',
-  'FORGED',
-  'RUST CO.',
+// The board carries the FULL name now — the director asked to read the names,
+// so the row's top line belongs to the name alone and keys/today moved into
+// the meter line and the score window to make the space.
+const BOARD_NAMES = [
+  'Pink Junkyard Warriors',
+  'Precious Pieces',
+  'Hidden Gems',
+  "God's Pearls",
+  'Fire Knights',
+  'Innocent',
+  'Forged',
+  'Rust Revival Co.',
 ]
 const tinted = await page.evaluate((names) => {
   const cream = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim()
@@ -258,7 +259,7 @@ const tinted = await page.evaluate((names) => {
     if (d > 28) bad.push(`${text}=${getComputedStyle(el).color}`)
   }
   return bad
-}, SHORT_NAMES)
+}, BOARD_NAMES)
 check(`board team names are cream${tinted.length ? ` (${tinted.join(', ')})` : ''}`, tinted.length, 0)
 
 /*
@@ -266,8 +267,8 @@ check(`board team names are cream${tinted.length ? ` (${tinted.join(', ')})` : '
  *
  * A leader reads the board by looking for their team, so a name cut off
  * mid-word is worse than a wrong colour. Every surface either carries
- * `shortName` (the board, roll call, standings, the audit log, exports) or
- * fits the full name to the space it has (the big screen's two-line
+ * `shortName` (roll call, standings, the audit log, exports) or fits the
+ * full name to the space it has (the board's row, the big screen's two-line
  * nameplate, the team sheet's crest legend) — this measures the outcome
  * rather than trusting either.
  *
@@ -276,7 +277,14 @@ check(`board team names are cream${tinted.length ? ` (${tinted.join(', ')})` : '
  * so a truncated "RUST REVIVAL C…" fails here exactly as a clipped one does.
  */
 const TEAM_NAMES = [
-  ...SHORT_NAMES,
+  'WARRIORS',
+  'PRECIOUS',
+  'GEMS',
+  'PEARLS',
+  'KNIGHTS',
+  'INNOCENT',
+  'FORGED',
+  'RUST CO.',
   'Pink Junkyard Warriors',
   'Precious Pieces',
   'Hidden Gems',
