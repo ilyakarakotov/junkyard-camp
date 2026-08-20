@@ -50,8 +50,19 @@ for (let i = 1; i <= 8; i++) await page.mouse.move(cx, cy + (176 * 0.95 * i) / 8
 await page.mouse.up()
 await page.waitForTimeout(600)
 
+// A good deed asks for the deed before it commits — the note is required and
+// lands on every event in the batch. Fill it and confirm.
+check('good deed asks for a reason before committing', await page.locator('input').count() >= 1, true)
+await page.locator('input').first().fill('Helped set up the dining hall')
+await page.locator('button', { hasText: 'Award' }).first().click()
+await page.waitForTimeout(600)
+
 const after = await liveCount()
 check(`commit appended exactly one live event (${before} -> ${after})`, after - before, 1)
+const deedNote = await page.evaluate(
+  () => JSON.parse(localStorage.getItem('jr:events:v4') ?? '[]').at(-1)?.note ?? '',
+)
+check('the reason is stored on the good-deed event', deedNote, 'Helped set up the dining hall')
 check('undo bar is offered', await page.locator('text=/committed ·/').count(), 1)
 
 // Undo appends a compensating event and returns the live count to baseline.

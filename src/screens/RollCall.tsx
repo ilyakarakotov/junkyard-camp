@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Lever from '../components/Lever'
 import TeamCrest from '../components/TeamCrest'
-import { CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
+import { BrassConfirm, CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { ArcStrike, usePrefersReducedMotion } from '../fx/Arc'
 import { checkInCount, hasBinary } from '../data/derive'
 import { BINARY_DECI, MAX_CHECK_INS, formatDeci, punctualityDeci } from '../data/scoring'
@@ -507,6 +507,8 @@ export default function RollCall() {
   const locked = !isEditableDay(activeDay.id)
 
   const [selected, setSelected] = useState<Set<TeamId>>(new Set())
+  /* The good-deed lever asks for the deed before it commits — see onFire. */
+  const [deedAsk, setDeedAsk] = useState(false)
   const [batch, setBatch] = useState<CommitBatch | null>(null)
   const [ignited, setIgnited] = useState<Set<TeamId>>(new Set())
   /**
@@ -568,6 +570,18 @@ export default function RollCall() {
 
   const onFire = async () => {
     if (!category || selected.size === 0) return
+    // A good deed is the one column where the deed itself is the record: the
+    // lever stops at a reason dialog first, and the note lands on every event
+    // in the batch — same rule as a key's reason on the team sheet.
+    if (category.id === 'good_deed') {
+      setDeedAsk(true)
+      return
+    }
+    await fire()
+  }
+
+  const fire = async (note?: string) => {
+    if (!category || selected.size === 0) return
     const ids = teams.filter((t) => selected.has(t.id)).map((t) => t.id)
 
     // Which rows will land their seventh check-in on this commit, and which
@@ -583,7 +597,7 @@ export default function RollCall() {
     }
     setLanded(landing)
 
-    const committed = await commitRollCall(activeDay.id, category.id, ids)
+    const committed = await commitRollCall(activeDay.id, category.id, ids, note)
     setSelected(new Set())
     setBatch(committed)
     // never the only confirmation — the rows ignite and the lever seats
@@ -1135,6 +1149,20 @@ export default function RollCall() {
           }}
         />
       </div>
+
+      {deedAsk && (
+        <BrassConfirm
+          title="Award the good deed?"
+          body={`${selected.size} team${selected.size === 1 ? '' : 's'} · ${activeDay.name} — +1.0 each. The deed is the point: say what they did. One note covers every selected team.`}
+          confirmLabel="Award"
+          prompt={{ label: 'What they did', placeholder: 'What was the good deed?', maxLength: 80 }}
+          onConfirm={(reason) => {
+            setDeedAsk(false)
+            void fire(reason ?? '')
+          }}
+          onCancel={() => setDeedAsk(false)}
+        />
+      )}
     </ScreenFrame>
   )
 }

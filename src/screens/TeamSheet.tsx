@@ -214,6 +214,10 @@ export default function TeamSheet() {
      is worth a tenth, the seventh is worth four, and the plate is one big
      target that a pocket can find. */
   const [punctualityAsk, setPunctualityAsk] = useState<'add' | 'remove' | null>(null)
+  /* A good deed asks first too — the deed itself is the interesting part, so
+     the award carries a required note saying what they did, exactly like a
+     key's reason. Toggling one OFF stays instant: that is a correction. */
+  const [confirmDeed, setConfirmDeed] = useState(false)
   /*
    * A key is worth as much as a whole day of every other category put together,
    * so the press asks first — same BrassConfirm as a check-in. What follows a
@@ -550,6 +554,14 @@ export default function TeamSheet() {
                   isPunctuality
                     ? undefined
                     : () => {
+                        // Awarding a good deed detours through the reason
+                        // dialog; everything else (and every toggle-off)
+                        // commits on the tap.
+                        if (c === 'good_deed' && !on) {
+                          navigator.vibrate?.(10)
+                          setConfirmDeed(true)
+                          return
+                        }
                         setBinary(activeDay.id, team.id, c, !on)
                         if (!on) {
                           setZap({ cat: c, at: Date.now() })
@@ -792,6 +804,22 @@ export default function TeamSheet() {
             void removeCheckIn(activeDay.id, team.id)
           }}
           onCancel={() => setPunctualityAsk(null)}
+        />
+      )}
+
+      {confirmDeed && (
+        <BrassConfirm
+          title="Award the good deed?"
+          body={`${team.name} · ${activeDay.name} — +1.0. The deed is the point: say what they did.`}
+          confirmLabel="Award point"
+          prompt={{ label: 'What they did', placeholder: 'What was the good deed?', maxLength: 80 }}
+          onConfirm={(reason) => {
+            setConfirmDeed(false)
+            navigator.vibrate?.(15)
+            setZap({ cat: 'good_deed', at: Date.now() })
+            void setBinary(activeDay.id, team.id, 'good_deed', true, reason ?? '')
+          }}
+          onCancel={() => setConfirmDeed(false)}
         />
       )}
 

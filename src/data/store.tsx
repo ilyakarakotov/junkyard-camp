@@ -71,14 +71,23 @@ interface StoreValue {
    */
   sync: { online: boolean; pending: number } | null
 
-  /** Roll call: commit a whole column of teams in one gesture. */
+  /** Roll call: commit a whole column of teams in one gesture. A note rides
+      on every awarded event — good deeds require one, like keys. */
   commitRollCall(
     dayId: string,
     categoryId: CategoryId,
     teamIds: TeamId[],
+    note?: string,
   ): Promise<CommitBatch>
-  /** Team sheet: flip one binary on or off (off is a compensating event). */
-  setBinary(dayId: string, teamId: TeamId, categoryId: CategoryId, on: boolean): Promise<void>
+  /** Team sheet: flip one binary on or off (off is a compensating event).
+      The note lands on the awarded event — good deeds require one. */
+  setBinary(
+    dayId: string,
+    teamId: TeamId,
+    categoryId: CategoryId,
+    on: boolean,
+    note?: string,
+  ): Promise<void>
   /** Team detail: add one punctuality check-in (an ordinal tick). */
   addCheckIn(dayId: string, teamId: TeamId): Promise<void>
   /** Team detail: remove the most recent check-in (a compensating event). */
@@ -231,7 +240,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   )
 
   const commitRollCall = useCallback<StoreValue['commitRollCall']>(
-    async (dayId, categoryId, teamIds) => {
+    async (dayId, categoryId, teamIds, note) => {
       if (!isEditableDay(dayId)) {
         return { eventIds: [], categoryId, dayId, teamIds, at: Date.now() }
       }
@@ -249,7 +258,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
             (e) => e.dayId === dayId && e.teamId === teamId && e.categoryId === categoryId,
           )
           if (already) continue
-          batch.push(newEvent(dayId, teamId, categoryId, BINARY_DECI, null))
+          batch.push(newEvent(dayId, teamId, categoryId, BINARY_DECI, note ?? null))
         }
       }
 
@@ -266,12 +275,12 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   )
 
   const setBinary = useCallback<StoreValue['setBinary']>(
-    async (dayId, teamId, categoryId, on) => {
+    async (dayId, teamId, categoryId, on, note) => {
       if (!isEditableDay(dayId)) return
       if (on) {
         const already = binaryEvent(events, dayId, teamId, categoryId)
         if (already) return
-        await push([newEvent(dayId, teamId, categoryId, BINARY_DECI, null)])
+        await push([newEvent(dayId, teamId, categoryId, BINARY_DECI, note ?? null)])
       } else {
         const existing = binaryEvent(events, dayId, teamId, categoryId)
         if (!existing) return
