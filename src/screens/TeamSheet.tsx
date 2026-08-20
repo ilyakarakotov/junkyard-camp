@@ -1,7 +1,8 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import Breaker, { CategoryGlyph } from '../components/Breaker'
+import { CategoryGlyph } from '../components/Breaker'
 import ChargeTrack, { CAPSULE_SOCKET_PCT, ChargeReadout } from '../components/ChargeTrack'
+import CheckCell from '../components/CheckCell'
 import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
@@ -173,6 +174,7 @@ export default function TeamSheet() {
     setBinary,
     addCheckIn,
     removeCheckIn,
+    awardKey,
     removeKey,
     isDirector,
     isEditableDay,
@@ -190,12 +192,18 @@ export default function TeamSheet() {
      settles, so the contact posts leave with it. */
   const [zap, setZap] = useState<{ cat: CategoryId; at: number } | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  /*
+   * Set synchronously before the await: two taps on the hook must not award
+   * two keys. The store's client UUIDs make a *retried* event idempotent, but
+   * two taps are two distinct events, so the guard has to live here — and it
+   * is a ref rather than state so it is already true for a second tap landing
+   * in the same frame, before React has re-rendered anything.
+   */
+  const awarding = useRef(false)
 
   if (!ready || !team || !score) return <div className="min-h-dvh" />
 
   const label = (id: CategoryId) => categories.find((c) => c.id === id)?.label ?? id
-  const glyphOf = (id: CategoryId) => categories.find((c) => c.id === id)?.glyph ?? ''
-  const teamColor = `var(--color-team-${team.colorToken})`
   // Only today (or a director-unlocked day) is editable — the store refuses
   // the write anyway, so the controls must read inert before the tap.
   const locked = !isEditableDay(activeDay.id)
@@ -212,6 +220,26 @@ export default function TeamSheet() {
     0,
   )
   const keyJustAdded = lastKeyAt > 0 && Date.now() - lastKeyAt < 10_000
+
+  /*
+   * One press awards the key. The turn-the-key ceremony still lives at
+   * `/key/:teamId` for when there is time to make a moment of it, but the live
+   * flow at the evening gathering cannot afford a screen change and a gesture
+   * per key — the director is standing in front of the camp with a phone.
+   * Gating is unchanged: the rail is disabled off-day and for non-directors,
+   * and `awardKey` refuses both again in the store regardless of this screen.
+   */
+  const onAwardKey = async () => {
+    if (awarding.current) return
+    awarding.current = true
+    // never the only confirmation — iOS ignores it
+    navigator.vibrate?.([18, 60, 40])
+    try {
+      await awardKey(activeDay.id, team.id, `Golden key · ${activeDay.name}`)
+    } finally {
+      awarding.current = false
+    }
+  }
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ paddingBottom: 10 }}>
@@ -521,18 +549,11 @@ export default function TeamSheet() {
                       onRemove={() => removeCheckIn(activeDay.id, team.id)}
                     />
                   ) : (
-                    /* points being delivered, not a switch being flipped: the
-                        charge cell floods the team's colour on award, and the
-                        award itself strikes an arc across the cell's contacts */
+                    /* points given, not a setting switched: the socket takes a
+                        lit amber check when the point lands, and the award
+                        itself strikes an arc across the socket's contacts */
                     <span className="relative block">
-                      <Breaker
-                        variant="cell"
-                        on={on}
-                        color={teamColor}
-                        glyph={glyphOf(c)}
-                        title={label(c)}
-                        size={34}
-                      />
+                      <CheckCell on={on} title={label(c)} size={34} />
                       {zap?.cat === c && (
                         <span
                           className="pointer-events-none absolute"
@@ -629,7 +650,7 @@ export default function TeamSheet() {
             keys={keys}
             width={CONTENT}
             disabled={locked || !isDirector}
-            onAdd={() => navigate(`/key/${team.id}`)}
+            onAdd={() => void onAwardKey()}
             onRemoveKey={
               !locked && isDirector && keys > 0 ? () => setConfirmRemove(true) : undefined
             }

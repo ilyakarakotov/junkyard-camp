@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Breaker from '../components/Breaker'
+import CheckCell from '../components/CheckCell'
 import Lever from '../components/Lever'
 import ChargeTrack, { ChargeReadout } from '../components/ChargeTrack'
 import KeyRail, { KeyCount } from '../components/KeyRail'
@@ -57,6 +58,15 @@ export default function Lab() {
           <Breaker on color="var(--color-team-gems)" size={40} glyph="VRS" />
           <Breaker on={false} color="var(--color-team-knights)" size={40} glyph="BHV" />
           <Breaker on color="var(--color-team-knights)" size={40} glyph="BHV" />
+        </div>
+      </Section>
+
+      <Section title="Check cell · not earned / earned · team sheet size 34px">
+        <div className="flex items-center justify-around">
+          <CheckCell on={false} title="Cleanliness" size={34} />
+          <CheckCell on title="Cleanliness" size={34} />
+          <CheckCell on={false} title="Behavior" size={44} />
+          <CheckCell on title="Behavior" size={44} />
         </div>
       </Section>
 

@@ -798,7 +798,7 @@ export function KeyHookRail({
       <button
         onClick={onAdd}
         disabled={disabled}
-        aria-label="Open the golden key ceremony"
+        aria-label="Award a golden key"
         aria-disabled={disabled}
         className="absolute"
         style={{
