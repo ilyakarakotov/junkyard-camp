@@ -696,7 +696,7 @@ function BoardRow({
       <CornerRivets inset={5} size={SCREW} right={false} />
       <Link
         to={`/team/${team.id}`}
-        aria-label={`${team.name}, position ${position} of 8, ${formatDeci(overall)} points, ${keys} golden keys, ${formatDeci(today)} today — open the team sheet`}
+        aria-label={`${team.name}, led by ${team.leader}, position ${position} of 8, ${formatDeci(overall)} points, ${keys} golden keys, ${formatDeci(today)} today — open the team sheet`}
         className="absolute inset-0 block"
       >
         {/* rank chip: a shallow recess in the plate's own metal, not a window */}
@@ -732,11 +732,24 @@ function BoardRow({
         </div>
 
         {/*
-         * The top line belongs to the full team name and nothing else — the
-         * director asked to read "Pink Junkyard Warriors", not a code. The
-         * keys moved down beside the meter and today's figure moved into the
-         * dark window, so the whole span between crest and window is the
-         * name's to spend and every roster name fits on one line at 390px.
+         * The top line carries the full team name and, tagged quietly after
+         * it, the leader who answers for that team — the director asked to
+         * read "Pink Junkyard Warriors", not a code, and to know at a glance
+         * whose team it is. The keys moved down beside the meter and today's
+         * figure moved into the dark window, so the whole span between crest
+         * and window is this line's to spend.
+         *
+         * The two are separate spans on purpose. The name stays cream display
+         * caps; the leader is a small dim condensed tag, so the pair reads as
+         * one thing and one label rather than two names competing. Keeping the
+         * leader out of the name's own text node also keeps the DoD gate able
+         * to find each roster name as an exact leaf and measure it for
+         * clipping.
+         *
+         * 14px, not 16: the longest pair on the roster is "PINK JUNKYARD
+         * WARRIORS · IRA", and at 16 the name alone spends 182 of the 196px
+         * this line has. The name still owns the size and the light; the tag
+         * gets what it needs and no more.
          */}
         <div
           className="absolute flex items-center"
@@ -745,7 +758,7 @@ function BoardRow({
           <span
             className="font-display min-w-0 flex-shrink truncate font-semibold uppercase"
             style={{
-              fontSize: 16,
+              fontSize: 14,
               lineHeight: 1,
               letterSpacing: '0.02em',
               color: 'var(--color-text)',
@@ -753,6 +766,19 @@ function BoardRow({
             }}
           >
             {team.name}
+          </span>
+          <span
+            className="font-body flex-shrink-0 whitespace-nowrap uppercase"
+            style={{
+              marginLeft: 4,
+              fontSize: 11,
+              lineHeight: 1,
+              letterSpacing: '0.06em',
+              color: 'var(--color-text-dim)',
+              textShadow: '0 1px 1px rgba(16,9,4,0.5)',
+            }}
+          >
+            · {team.leader}
           </span>
         </div>
 

@@ -476,6 +476,21 @@ export default function TeamSheet() {
         </div>
       </div>
 
+      {/*
+       * Who answers for this team. The name is struck around the coin, so the
+       * leader sits directly under the frame that holds it rather than on the
+       * coin's own line — the legend arc has no room, and the equation inside
+       * the frame belongs to the numbers alone. Same quiet register as the
+       * board's leader tag: small, condensed, dim, a label under a name and
+       * never a second title.
+       */}
+      <div
+        className="font-body mt-[6px] px-4 text-center uppercase"
+        style={{ fontSize: 11, lineHeight: '13px', letterSpacing: '0.08em', color: 'var(--color-text-dim)' }}
+      >
+        Leader · {team.leader}
+      </div>
+
       {/* ---- the five days: a readout here, not a picker. Changing the date
               from inside a team is how a point lands on the wrong day without
               anyone noticing; day selection lives on the board. ---- */}

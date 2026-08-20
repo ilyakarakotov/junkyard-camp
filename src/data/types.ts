@@ -22,6 +22,12 @@ export interface Team {
   name: string
   /** What appears on the board — the full names don't fit at 390px. */
   shortName: string
+  /**
+   * The team's human leader, first name as the program sheet spells it. Fixed
+   * camp data like the rest of the roster — it ships in the app and never
+   * reaches `score_events`, which stay a log of points and nothing else.
+   */
+  leader: string
   /** Token name — resolves to `--color-team-<token>` in theme.css. */
   colorToken: TeamId
   order: number

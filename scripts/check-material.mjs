@@ -52,7 +52,11 @@ for (const spec of ROUTES) {
   await page.goto(BASE + spec.route.replace(/^\//, ''), { waitUntil: 'networkidle' })
   await page.evaluate(() => document.fonts.ready)
   await page.waitForTimeout(400)
-  const buf = await page.screenshot({ fullPage: spec.full })
+  // Capture-time knob, not a threshold: the big screen is a 3840x2160 frame at
+  // dpr 2 and encoding it takes a little over Playwright's default 30s on a
+  // small container, which failed the run before a single statistic had been
+  // measured. Nothing about what is asserted changes.
+  const buf = await page.screenshot({ fullPage: spec.full, timeout: 120_000 })
   const stats = await measure(page, `data:image/png;base64,${buf.toString('base64')}`)
   const bad = failures(stats)
   if (bad.length) failed++

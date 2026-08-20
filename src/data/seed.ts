@@ -6,16 +6,20 @@ import { campToday, campTodayCandidates } from './campday'
  * machine-verified: all clear 4.5:1 on #16110D, minimum pairwise separation
  * 0.145 OKLab, none collides with brass, arc-teal or body text.
  * Re-run scripts/validate-tokens.mjs rather than nudging one by eye.
+ *
+ * `leader` is the team's human leader off the camp's program sheet, in English
+ * transliteration. It rides with the roster because it is fixed camp data — no
+ * table, no event, nothing to sync.
  */
 export const TEAMS: Team[] = [
-  { id: 'warriors', name: 'Pink Junkyard Warriors', shortName: 'WARRIORS', colorToken: 'warriors', order: 0 },
-  { id: 'precious', name: 'Precious Pieces', shortName: 'PRECIOUS', colorToken: 'precious', order: 1 },
-  { id: 'gems', name: 'Hidden Gems', shortName: 'GEMS', colorToken: 'gems', order: 2 },
-  { id: 'pearls', name: "God's Pearls", shortName: 'PEARLS', colorToken: 'pearls', order: 3 },
-  { id: 'knights', name: 'Fire Knights', shortName: 'KNIGHTS', colorToken: 'knights', order: 4 },
-  { id: 'innocent', name: 'Innocent', shortName: 'INNOCENT', colorToken: 'innocent', order: 5 },
-  { id: 'forged', name: 'Forged', shortName: 'FORGED', colorToken: 'forged', order: 6 },
-  { id: 'rustco', name: 'Rust Revival Co.', shortName: 'RUST CO.', colorToken: 'rustco', order: 7 },
+  { id: 'warriors', name: 'Pink Junkyard Warriors', shortName: 'WARRIORS', leader: 'Ira', colorToken: 'warriors', order: 0 },
+  { id: 'precious', name: 'Precious Pieces', shortName: 'PRECIOUS', leader: 'Vika', colorToken: 'precious', order: 1 },
+  { id: 'gems', name: 'Hidden Gems', shortName: 'GEMS', leader: 'Tanya', colorToken: 'gems', order: 2 },
+  { id: 'pearls', name: "God's Pearls", shortName: 'PEARLS', leader: 'Anzhela', colorToken: 'pearls', order: 3 },
+  { id: 'knights', name: 'Fire Knights', shortName: 'KNIGHTS', leader: 'Egor', colorToken: 'knights', order: 4 },
+  { id: 'innocent', name: 'Innocent', shortName: 'INNOCENT', leader: 'Dima', colorToken: 'innocent', order: 5 },
+  { id: 'forged', name: 'Forged', shortName: 'FORGED', leader: 'Vova', colorToken: 'forged', order: 6 },
+  { id: 'rustco', name: 'Rust Revival Co.', shortName: 'RUST CO.', leader: 'Vlad', colorToken: 'rustco', order: 7 },
 ]
 
 /**
