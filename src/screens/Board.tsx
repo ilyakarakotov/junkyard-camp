@@ -782,7 +782,7 @@ function BoardRow({
          * lip, and the team's own colour filling it from the left — length is
          * today's base score against the 6.0 daily ceiling, so a full channel
          * means a perfect day and the empty tail is what is still winnable.
-         * The three engraved quarter ticks therefore read 1.5, 3.0 and 4.5.
+         * Five engraved ticks divide it into sixths — one per whole point.
          *
          * The fill is a lit strip, not a glowing decal: the colour is brightest
          * at its leading end where the light lands, and it spills a short warm
@@ -802,14 +802,14 @@ function BoardRow({
             }}
           >
             <Rim radius={3} />
-            {/* engraved quarter ticks, so a length can be read, not just felt */}
-            {[25, 50, 75].map((t) => (
+            {/* engraved point ticks, so a length can be read, not just felt */}
+            {[1, 2, 3, 4, 5].map((p) => (
               <span
-                key={t}
+                key={p}
                 aria-hidden
                 className="absolute"
                 style={{
-                  left: `${t}%`,
+                  left: `${(p * 100) / 6}%`,
                   top: 3,
                   bottom: 3,
                   width: 1,
