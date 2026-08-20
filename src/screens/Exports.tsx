@@ -1,7 +1,7 @@
 import { useId, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
-import { CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
+import { BackTab, CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { dayScore, keyCount, standings } from '../data/derive'
 import { buildEventsCsv, buildWorkbook, downloadFile } from '../data/export'
 import { formatDeci } from '../data/scoring'
@@ -71,19 +71,13 @@ export default function Exports() {
 
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <div className="mb-4 flex items-center">
-      <button
-        onClick={onBack}
-        aria-label="Back to menu"
-        className="font-mono uppercase"
-        style={{ fontSize: 9, letterSpacing: '0.16em', color: 'var(--color-text-dim)' }}
-      >
-        ◂ Menu
-      </button>
+    <div className="mb-2 flex items-center">
+      {/* one back control, one size, one place — see BackTab in chrome.tsx */}
+      <BackTab label="Back to menu" onClick={onBack} />
       <h1 className="display-title flex-1 text-center" style={{ fontSize: 24, letterSpacing: '0.06em' }}>
         {title}
       </h1>
-      <span style={{ width: 44 }} />
+      <span style={{ width: 68 }} />
     </div>
   )
 }

@@ -68,20 +68,48 @@ create or replace function camp_today() returns date
 $$;
 
 -- Which day accepts writes without a director's unlock. This mirrors
--- store.tsx's editableDayId exactly, and it must: comparing a day's date to
--- camp_today() directly means that before camp opens no date matches, so every
--- helper insert is refused while the client happily accepts it — the award
--- shows on the phone, the server rejects it, and the outbox grows forever with
--- nothing telling the helper why.
+-- seed.ts's resolveEditableDayId exactly, and it must: comparing a day's date
+-- to camp_today() directly means that before camp opens no date matches, so
+-- every helper insert is refused while the client happily accepts it — the
+-- award shows on the phone, the server rejects it, and the outbox grows
+-- forever with nothing telling the helper why.
+--
+-- Two rules beyond "the date matches", both mirrored client-side:
+--
+--   * A non-scoring today (Arrival) falls FORWARD to the next scoring day
+--     rather than resolving to nothing. A strict match returned null for the
+--     whole of Arrival, which left the camp with no editable day at all.
+--   * Before camp opens, the first scoring day stands in.
 create or replace function camp_editable_day() returns text
   language sql stable set search_path = public as $$
   select case
-    when exists (select 1 from days where date = camp_today())
-      then (select id from days where date = camp_today() and scored)
-    when camp_today() < (select min(date) from days)
-      then (select id from days where scored order by idx limit 1)
-    else null
+    when camp_today() > (select max(date) from days) then null
+    else coalesce(
+      (select id from days where date = camp_today() and scored),
+      (select id from days where scored and date >= camp_today() order by idx limit 1)
+    )
   end;
+$$;
+
+-- Whether a given day accepts a helper's write right now.
+--
+-- The window is camp_today() ± 1 day rather than one exact id, because
+-- 'America/Los_Angeles' above is a BUILD-TIME GUESS at where the camp is
+-- held. A phone east of that zone reads the next date hours before the
+-- database does — at UTC+3 the 20th is not "today" here until 13:00 camp-local,
+-- by which point morning exercise, breakfast, morning line up and the lesson
+-- have all been and gone. src/data/campday.ts therefore accepts either
+-- reading, and this is the matching server bound: one day of slack, which is
+-- the largest the two readings can ever differ by. Arrival is excluded by
+-- `scored`, and after the last camp day nothing is open.
+create or replace function camp_can_edit_day(d text) returns boolean
+  language sql stable set search_path = public as $$
+  select coalesce(d = camp_editable_day(), false)
+      or exists (
+        select 1 from days
+         where id = d and scored
+           and date between camp_today() - 1 and camp_today() + 1
+      );
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -142,7 +170,7 @@ create policy r_events on score_events for select to authenticated using (privat
 create policy w_events on score_events for insert to authenticated
 with check (
   actor_id = auth.uid()
-  and (day_id = camp_editable_day() or private.is_director())
+  and (camp_can_edit_day(day_id) or private.is_director())
   and (category_id <> 'golden_key' or private.is_director())
 );
 

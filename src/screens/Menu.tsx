@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { mayUseTestMode } from '../data/testMode'
-import { BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../components/chrome'
+import { BackTab, BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../components/chrome'
 
 /**
  * The menu (§6.5): the app's one navigation hub, opened from the board's
@@ -48,15 +48,9 @@ export default function Menu() {
         }}
       >
         <div className="mx-auto flex w-full flex-col px-2 py-4" style={{ maxWidth: 340, minHeight: 'calc(100svh - 52px)' }}>
-          <div className="mb-4 flex items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
-              aria-label="Back to board"
-              className="font-mono uppercase"
-              style={{ fontSize: 9, letterSpacing: '0.16em', color: 'var(--color-text-dim)' }}
-            >
-              ◂ Board
-            </button>
+          <div className="mb-2 flex items-center gap-2">
+            {/* one back control, one size, one place — see BackTab in chrome.tsx */}
+            <BackTab label="Back to board" onClick={() => navigate('/')} style={{ marginLeft: -4 }} />
             <span className="flex-1" />
             <span
               className="font-mono uppercase"

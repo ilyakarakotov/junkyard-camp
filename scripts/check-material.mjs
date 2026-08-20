@@ -15,13 +15,6 @@ const ROUTES = [
   { route: '/', label: 'board', viewport: [390, 844], full: true },
   { route: '#/call/punctuality', label: 'roll call', viewport: [390, 844], full: true },
   { route: '#/team/rustco', label: 'team sheet', viewport: [390, 844], full: true },
-  {
-    route: '#/key/knights',
-    label: 'key ceremony',
-    viewport: [390, 844],
-    full: true,
-    set: ['jr:setting:director-mode=1'],
-  },
   { route: '#/standings', label: 'standings', viewport: [390, 844], full: true },
   // Phase 7 additions (§6.5-6.7): shipped without a v2 concept render, so
   // nothing was gating them and they were free to drift dark.

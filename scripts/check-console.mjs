@@ -16,7 +16,6 @@ const ROUTES = [
   '#/call/punctuality',
   '#/call/good_deed',
   '#/team/precious',
-  '#/key/precious',
   '#/standings',
   '#/display',
   '#/exports',

@@ -453,20 +453,21 @@ function Rocker({
   onClick,
   w,
   h,
+  hitW,
+  hitH,
 }: {
   d: string
   label: string
   onClick: () => void
   w: number
   h: number
+  /** Target size around the visible rocker, when it needs to be bigger than
+      the part — the back control is pressed between every award. */
+  hitW?: number
+  hitH?: number
 }) {
-  return (
-    <button
-      aria-label={label}
-      onClick={onClick}
-      className="brass-band relative block shrink-0"
-      style={{ width: w, height: h, borderRadius: 3 }}
-    >
+  const face = (
+    <span className="brass-band relative block" style={{ width: w, height: h, borderRadius: 3 }}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden style={{ display: 'block' }}>
         <path d={d} fill="none" stroke="#3a2812" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
         <path
@@ -479,6 +480,16 @@ function Rocker({
           transform="translate(0,1)"
         />
       </svg>
+    </span>
+  )
+  return (
+    <button
+      aria-label={label}
+      onClick={onClick}
+      className="relative flex shrink-0 items-center justify-center"
+      style={{ width: hitW ?? w, height: hitH ?? h }}
+    >
+      {face}
     </button>
   )
 }
@@ -690,15 +701,20 @@ export default function RollCall() {
           <TopSpecular left={16} right={30} />
           <CornerScrews inset={7} size={10} />
 
-          {/* back: a brass rocker in the plate's left margin, clear of the
-              screws' washer rings and mirroring the steppers' mass */}
-          <span className="absolute flex items-center" style={{ left: 24, top: '50%', marginTop: -12 }}>
+          {/* Back: a brass rocker in the plate's left margin, clear of the
+              screws' washer rings and mirroring the steppers' mass. The part
+              is 50x30 inside a 64x56 target that runs from the plate's left
+              chamfer to the LCD window — this is pressed between every
+              committed column, one-handed, and it was a 42x24 sliver. */}
+          <span className="absolute flex items-center" style={{ left: 8, top: '50%', marginTop: -28 }}>
             <Rocker
-              w={42}
-              h={24}
+              w={50}
+              h={30}
+              hitW={64}
+              hitH={56}
               label="Back to board"
               onClick={() => navigate('/')}
-              d="M20 7 L14 12 L20 17 M15 12 H29"
+              d="M24 9 L17 15 L24 21 M18 15 H35"
             />
           </span>
 

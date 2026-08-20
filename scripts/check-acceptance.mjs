@@ -66,29 +66,110 @@ check('team sheet: keys state value and no limit', /1\.0 PT EACH · NO LIMIT/i.t
  */
 check('team sheet: total shown as base + keys = today', /=/.test(sheet) && /KEYS?/i.test(sheet), true)
 
-/* ---- 2. Six plain sockets plus a visibly distinct seventh --------------- */
+/* ---- 2. Punctuality: one target, one meaning, always behind a confirm --- */
 
-const sockets = await page.evaluate(() => {
-  const btns = [...document.querySelectorAll('button[aria-label]')].filter((b) =>
-    /^(Check-in \d|Final check-in)/.test(b.getAttribute('aria-label') ?? ''),
+/*
+ * This used to be seven invisible strips laid over the charge track, five of
+ * them disabled at any moment — so five taps in seven landed on nothing, and a
+ * tap on the plate itself (which is where a thumb goes) landed on a plain div.
+ * What is asserted now is the replacement: the whole plate is one add target,
+ * every press opens a confirmation that names the jump in sockets AND in
+ * points, and the most recent check-in can be taken back off the same way.
+ *
+ * `precious` sits on 6 of 7 on Day 1 (src/data/seed.ts), which is the case
+ * worth proving: the seventh is worth 0.4, so the dialog has to say 0.6 -> 1.0
+ * out loud rather than leave it to be read off the ladder.
+ */
+const punct = await page.evaluate(() => {
+  const add = [...document.querySelectorAll('button[aria-label]')].find((b) =>
+    /^Add a check-in|^Punctuality — all/.test(b.getAttribute('aria-label') ?? ''),
   )
-  return btns.map((b) => {
-    const r = b.getBoundingClientRect()
-    return { label: b.getAttribute('aria-label'), w: Math.round(r.width), h: Math.round(r.height) }
-  })
+  const minus = [...document.querySelectorAll('button[aria-label]')].find((b) =>
+    /^Remove the most recent check-in/.test(b.getAttribute('aria-label') ?? ''),
+  )
+  const r = add?.getBoundingClientRect()
+  const m = minus?.getBoundingClientRect()
+  return {
+    label: add?.getAttribute('aria-label') ?? null,
+    w: r ? Math.round(r.width) : 0,
+    h: r ? Math.round(r.height) : 0,
+    minusW: m ? Math.round(m.width) : 0,
+    minusH: m ? Math.round(m.height) : 0,
+    stale: [...document.querySelectorAll('button[aria-label]')].filter((b) =>
+      /^(Check-in \d|Final check-in)/.test(b.getAttribute('aria-label') ?? ''),
+    ).length,
+  }
 })
-check('punctuality rail has seven check-ins', sockets.length, 7)
-const plain = sockets.filter((s) => s.label.startsWith('Check-in'))
-const final = sockets.find((s) => s.label.startsWith('Final'))
-check('the first six are identical', new Set(plain.map((s) => `${s.w}x${s.h}`)).size, 1)
-// "visibly a different object" — not a hair wider. The seventh carries the
-// 0.4 cliff, so it has to read as bigger before it is reached, not after.
-check(
-  `the seventh is visibly larger (${final?.w}px vs ${plain[0]?.w}px)`,
-  final && plain[0] && final.w >= plain[0].w * 1.15,
-  true,
-)
-check('the seventh names its own value', /worth 0\.4/.test(final?.label ?? ''), true)
+check('punctuality: no invisible per-socket buttons remain', punct.stale, 0)
+check('punctuality: the add target names its state', /^Add a check-in — 6 of 7$/.test(punct.label ?? ''), true)
+check(`punctuality: the whole plate is the target (${punct.w}x${punct.h})`, punct.w >= 330 && punct.h >= 56, true)
+check(`punctuality: the most recent check-in can be removed (${punct.minusW}x${punct.minusH})`, punct.minusW >= 32 && punct.minusH >= 44, true)
+
+await page.locator('button[aria-label^="Add a check-in"]').click()
+await page.waitForTimeout(200)
+const ask = await bodyText()
+check('punctuality: a tap asks before it writes', /add check-in\?/i.test(ask), true)
+check('punctuality: the confirmation names the socket jump', /6 of 7 → all 7/i.test(ask), true)
+check('punctuality: …and the 0.6 → 1.0 cliff behind it', /0\.6 → 1\.0/.test(ask), true)
+// Cancel: an acceptance run must not leave an award in the seeded log.
+await page.locator('button:has-text("Cancel")').click()
+await page.waitForTimeout(200)
+
+/* ---- 2b. The day rail is a readout inside a detail screen -------------- */
+
+/*
+ * Day selection belongs to the board. Once a leader has clicked into a team,
+ * changing the date under them is a way to award a point to the wrong day
+ * without noticing — so the rail still SAYS which day is being scored and
+ * nothing on it is reachable.
+ */
+const railHere = await page.evaluate(() => ({
+  tabs: document.querySelectorAll('[role="tablist"] [role="tab"]').length,
+  pressable: document.querySelectorAll('[role="tablist"] button').length,
+}))
+check('team sheet: the day rail still shows five days', railHere.tabs, 5)
+check('team sheet: …and none of them is a control', railHere.pressable, 0)
+
+/* ---- 2c. One back control, one size, on every screen that has one ------ */
+
+/*
+ * It was a 46x44 tab here, a 44x44 chevron on standings, a 42x24 rocker on
+ * roll call and a 9px text label on the menu. This is pressed between every
+ * award, one-handed, by someone facing a room.
+ */
+const backSize = async (route) => {
+  await goto(route)
+  return page.evaluate(() => {
+    const b = [...document.querySelectorAll('button[aria-label]')].find((x) =>
+      /^Back/.test(x.getAttribute('aria-label') ?? ''),
+    )
+    if (!b) return null
+    const r = b.getBoundingClientRect()
+    return { w: Math.round(r.width), h: Math.round(r.height) }
+  })
+}
+for (const route of ['#/team/precious', '#/call/good_deed', '#/standings', '#/menu', '#/audit']) {
+  const b = await backSize(route)
+  check(
+    `${route} back control is at least 64x56 (${b ? `${b.w}x${b.h}` : 'missing'})`,
+    Boolean(b) && b.w >= 64 && b.h >= 56,
+    true,
+  )
+}
+
+/* ---- 2d. The key ceremony is gone from the live flow ------------------- */
+
+/*
+ * A key is one press on the team sheet's rail now, undoable for a minute.
+ * Nothing routes to `/key/:teamId` any more and the screen no longer exists,
+ * so this proves the board's key control lands on the team sheet instead of a
+ * blank route.
+ */
+await goto('/')
+await page.locator('button[aria-label*="Golden keys for"]').first().click()
+await page.waitForTimeout(400)
+const afterKeyTap = await page.evaluate(() => location.hash)
+check(`board: the key count opens the team sheet (${afterKeyTap})`, /^#\/team\//.test(afterKeyTap), true)
 
 /* ---- 3. Only today is editable; other days are visibly locked ---------- */
 
@@ -136,7 +217,7 @@ await page.waitForTimeout(400)
 const lockedSheet = await bodyText()
 check('locked day announces itself on the team sheet', /locked — view only/i.test(lockedSheet), true)
 const liveControls = await page.evaluate(
-  () => [...document.querySelectorAll('button')].filter((b) => !b.disabled && /Check-in|Final check-in/.test(b.getAttribute('aria-label') ?? '')).length,
+  () => [...document.querySelectorAll('button')].filter((b) => !b.disabled && /check-in/i.test(b.getAttribute('aria-label') ?? '')).length,
 )
 check('locked day: no check-in is reachable', liveControls, 0)
 
@@ -179,13 +260,11 @@ check('helper: the menu says Helper', /helper/i.test(await bodyText()), true)
  * `awardKey` now returns early `if (!isDirector)` (src/data/store.tsx), a
  * second guard behind the disabled control above — for exactly the case
  * where a broken render, a stale build, or devtools reaches it directly.
- * That is the one thing the checks above cannot prove, and there turns out
- * to be no UI path left to click that would prove it either: the team
- * sheet's control only navigates to `/key/:teamId` (never calls awardKey
- * itself), and that screen's own effect redirects a helper straight back
- * before Playwright can act on anything — confirmed empirically, the hash
- * already reads `#/team/...` again by the time goto() returns. So this
- * reaches the store the same way devtools tampering would: through the
+ * That is the one thing the checks above cannot prove, and there is no UI
+ * path left to click that would prove it either: a helper's key control on
+ * the rail is `disabled`, so Playwright cannot dispatch a click through it
+ * at all. So this reaches the store the same way devtools tampering would:
+ * through the
  * React fiber tree from any rendered node, calling awardKey() directly
  * rather than through a click that never lands on it.
  */

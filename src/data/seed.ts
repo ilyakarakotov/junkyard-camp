@@ -1,5 +1,5 @@
 import type { Category, Day, ScoreEvent, Team, TeamId } from './types'
-import { campToday } from './campday'
+import { campToday, campTodayCandidates } from './campday'
 
 /**
  * Eight teams, one pool, one champion. Hexes mirror theme.css and are
@@ -54,14 +54,54 @@ export const DAYS: Day[] = [
  * is never blank on Arrival), after camp the last day.
  */
 export function resolveActiveDay(days: Day[], now: Date): Day {
-  const today = campToday(now)
-  const exact = days.find((d) => d.date === today)
-  if (exact) return exact
+  const candidates = campTodayCandidates(now)
+  // A scoring day wins the tie: when the camp-timezone reading and the phone's
+  // own reading straddle a boundary, the one a leader can actually score on is
+  // the one to open.
+  for (const today of candidates) {
+    const scoring = days.find((d) => d.date === today && d.scored)
+    if (scoring) return scoring
+  }
+  for (const today of candidates) {
+    const exact = days.find((d) => d.date === today)
+    if (exact) return exact
+  }
+  const today = candidates[0]
   const scored = days.filter((d) => d.scored)
   if (today < days[0].date) return scored[0]
   if (today > days[days.length - 1].date) return scored[scored.length - 1]
   // Mid-camp with no exact match (shouldn't happen) — nearest scoring day.
   return scored.find((d) => d.date >= today) ?? scored[scored.length - 1]
+}
+
+/**
+ * The one day that accepts writes without a director's unlock, resolved from
+ * the fixed camp calendar. Shared by the store and by `isToday` so a screen and
+ * the guard behind it can never disagree about which day is open.
+ *
+ * Two rules beyond "the date matches":
+ *
+ *  - **A non-scoring today falls forward.** Arrival scores nothing, so an
+ *    exact match on it used to resolve to `null` and every control in the app
+ *    went inert for a whole day. The next scoring day stands in instead, the
+ *    same way the first one stands in before camp opens.
+ *  - **Either reading of "today" counts** (see campTodayCandidates): the camp
+ *    timezone constant is only right for a camp held in that zone, and being
+ *    wrong about it padlocks the day on its own date.
+ *
+ * After the last camp day nothing is editable — a director unlock is the only
+ * way back in, which is the point of the lock.
+ */
+export function resolveEditableDayId(days: Day[], now: Date = new Date()): string | null {
+  if (days.length === 0) return null
+  const candidates = campTodayCandidates(now)
+  for (const today of candidates) {
+    const exact = days.find((d) => d.date === today)
+    if (exact?.scored) return exact.id
+  }
+  const earliest = candidates.reduce((a, b) => (a < b ? a : b))
+  if (earliest > days[days.length - 1].date) return null
+  return days.find((d) => d.scored && d.date >= earliest)?.id ?? null
 }
 
 /**

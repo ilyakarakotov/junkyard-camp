@@ -33,15 +33,24 @@ export default function DayRail({
   onSelect,
   variant = 'tabs',
   className = '',
+  readOnly = false,
   todayId,
   lockedIds,
   unlockedIds,
 }: {
   days: Day[]
   activeId: string
-  onSelect: (id: string) => void
+  onSelect?: (id: string) => void
   variant?: 'tabs' | 'sockets'
   className?: string
+  /**
+   * Inside a detail screen the rail is a **readout, not a picker**. Once a
+   * leader has clicked into a team, changing the date under them is a way to
+   * award a point to the wrong day without noticing — so the rail still says
+   * which day is being scored and nothing on it is reachable. Day selection
+   * lives on the board, where it is the whole point of the screen.
+   */
+  readOnly?: boolean
   /**
    * The camp's actual today (03:00 rollover): its socket is the pilot lamp,
    * whether or not it is the one being viewed. Absent, the lamp follows the
@@ -57,14 +66,19 @@ export default function DayRail({
     <SocketRail
       days={days}
       activeId={activeId}
-      onSelect={onSelect}
+      onSelect={readOnly ? undefined : onSelect}
       className={className}
       todayId={todayId}
       lockedIds={lockedIds}
       unlockedIds={unlockedIds}
     />
   ) : (
-    <TabRail days={days} activeId={activeId} onSelect={onSelect} className={className} />
+    <TabRail
+      days={days}
+      activeId={activeId}
+      onSelect={readOnly ? undefined : onSelect}
+      className={className}
+    />
   )
 }
 
@@ -148,7 +162,7 @@ function SocketRail({
 }: {
   days: Day[]
   activeId: string
-  onSelect: (id: string) => void
+  onSelect?: (id: string) => void
   className: string
   todayId?: string
   lockedIds?: ReadonlySet<string>
@@ -208,13 +222,17 @@ function SocketRail({
           const unlocked = unlockedIds?.has(d.id) ?? false
           const past = i < activeIndex
           const bright = past || selected
+          /* Read-only: the same socket, drawn as a readout with nothing to
+             press. A span rather than a disabled button, so no user-agent
+             pressed/hover state is reachable at all. */
+          const Tag = (onSelect ? 'button' : 'span') as 'button'
           return (
-            <button
+            <Tag
               key={d.id}
               role="tab"
               aria-selected={selected}
               aria-label={`${d.name}${d.scored ? '' : ' (no scoring)'}${locked ? ' (locked — view only)' : ''}`}
-              onClick={() => onSelect(d.id)}
+              onClick={onSelect ? () => onSelect(d.id) : undefined}
               className="relative flex h-11 w-11 items-center justify-center"
             >
               {/*
@@ -303,7 +321,7 @@ function SocketRail({
                   />
                 )}
               </span>
-            </button>
+            </Tag>
           )
         })}
       </div>
@@ -327,23 +345,27 @@ function TabRail({
 }: {
   days: Day[]
   activeId: string
-  onSelect: (id: string) => void
+  onSelect?: (id: string) => void
   className: string
 }) {
   const uid = useId()
+  /* Read-only: the tabs are a readout of which day is being scored. A span
+     rather than a disabled button, so there is no pressed or hover state left
+     to suggest the date can be changed from here. */
+  const Tag = (onSelect ? 'button' : 'span') as 'button'
   return (
     <div className={`flex items-center justify-center gap-2 ${className}`} role="tablist" aria-label="Camp day">
       {days.map((d, i) => {
         const active = d.id === activeId
         const label = d.scored ? String(d.index) : 'ARR'
         return (
-          <button
+          <Tag
             key={d.id}
             role="tab"
             aria-selected={active}
             aria-label={`${d.name}${d.scored ? '' : ' (no scoring)'}`}
-            onClick={() => onSelect(d.id)}
-            className="relative"
+            onClick={onSelect ? () => onSelect(d.id) : undefined}
+            className="relative block"
             // 32x24 on an 8px gutter: a 40px pitch, 192px of rail. The
             // reference measures 32.5x21.7 on a 39px pitch spanning 190px.
             style={{ width: TAB_W, height: TAB_H }}
@@ -424,7 +446,7 @@ function TabRail({
             >
               {label}
             </span>
-          </button>
+          </Tag>
         )
       })}
     </div>

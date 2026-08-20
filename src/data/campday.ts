@@ -38,3 +38,43 @@ function pinnedToday(): string | null {
 export function campToday(now: Date = new Date()): string {
   return pinnedToday() ?? dtf.format(new Date(now.getTime() - ROLLOVER_HOURS * 3_600_000))
 }
+
+const localDtf = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/**
+ * The same date, read off **the phone's own calendar** rather than the camp
+ * timezone constant. The phone is at the camp, so this is the wall clock a
+ * leader is actually looking at when they open the app.
+ */
+export function deviceToday(now: Date = new Date()): string {
+  return pinnedToday() ?? localDtf.format(new Date(now.getTime() - ROLLOVER_HOURS * 3_600_000))
+}
+
+/**
+ * Every date that can honestly be called "today at camp" for this instant.
+ *
+ * `CAMP_TIMEZONE` is a build-time constant that has to match the SQL function,
+ * and it is only ever right for a camp actually held in that zone. Anywhere
+ * east of it the camp date lags the phone's date by the offset: at UTC+3,
+ * 2026-08-20 does not become "today" in America/Los_Angeles until 13:00 local
+ * — after morning exercise, breakfast, morning line up and the lesson. Day 1
+ * would sit padlocked on its own date through four of the seven punctuality
+ * activities, which is exactly the "DAY 1 · LOCKED — VIEW ONLY" a leader
+ * reported seeing on 2026-08-20.
+ *
+ * So both readings count. They differ for at most a few hours a day and only
+ * ever by one day, and the caller resolves them against the fixed camp
+ * calendar — a date that matches no camp day opens nothing either way.
+ *
+ * Ordered camp-first so the gates' `jr:setting:today` pin (and a camp actually
+ * held in `CAMP_TIMEZONE`) still decides.
+ */
+export function campTodayCandidates(now: Date = new Date()): string[] {
+  const camp = campToday(now)
+  const device = deviceToday(now)
+  return camp === device ? [camp] : [camp, device]
+}

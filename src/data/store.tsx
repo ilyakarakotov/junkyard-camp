@@ -25,8 +25,7 @@ import { isTestMode } from './testMode'
 import { useAuth, type AuthUser } from './auth'
 import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
-import { DAYS, resolveActiveDay } from './seed'
-import { campToday } from './campday'
+import { DAYS, resolveActiveDay, resolveEditableDayId } from './seed'
 
 interface StoreValue {
   teams: Team[]
@@ -172,17 +171,11 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   // fix a mistake, and the RLS policy already permits director inserts into
   // any day — the lock is UI state, never a data change.
   //
-  // The camp's "today": an exact camp-date match. Before camp starts the
-  // first scoring day stands in — the same fallback the rail resolves with —
-  // so setup, demos and the gates have a day they can score. After camp,
-  // nothing is editable without a director's unlock.
-  const editableDayId = useMemo(() => {
-    const today = campToday()
-    const exact = days.find((d) => d.date === today)
-    if (exact) return exact.scored ? exact.id : null
-    if (days.length > 0 && today < days[0].date) return days.find((d) => d.scored)?.id ?? null
-    return null
-  }, [days])
+  // The camp's "today", resolved by resolveEditableDayId (src/data/seed.ts) so
+  // the rail, the banner and the write guards all read one answer. Before camp
+  // — and on Arrival, which scores nothing — the next scoring day stands in;
+  // after camp nothing is editable without a director's unlock.
+  const editableDayId = useMemo(() => resolveEditableDayId(days), [days])
   const [unlockedDayIds, setUnlockedDayIds] = useState<ReadonlySet<string>>(new Set())
   const isEditableDay = useCallback(
     (dayId: string) => {

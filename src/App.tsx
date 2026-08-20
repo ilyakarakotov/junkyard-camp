@@ -9,7 +9,6 @@ import Menu from './screens/Menu'
 import Board from './screens/Board'
 import RollCall from './screens/RollCall'
 import TeamSheet from './screens/TeamSheet'
-import KeyCeremony from './screens/KeyCeremony'
 import Standings from './screens/Standings'
 import BigScreen from './screens/BigScreen'
 
@@ -50,7 +49,6 @@ export default function App() {
                       <Route path="/menu" element={<Menu />} />
                       <Route path="/call/:categoryId" element={<RollCall />} />
                       <Route path="/team/:teamId" element={<TeamSheet />} />
-                      <Route path="/key/:teamId" element={<KeyCeremony />} />
                       <Route path="/standings" element={<Standings />} />
                       <Route path="/display" element={<BigScreen />} />
                       <Route path="/exports" element={<Exports />} />

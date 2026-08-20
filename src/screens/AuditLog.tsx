@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
+import { BackTab, CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { CAMP_TIMEZONE } from '../data/campday'
 import { buildAuditRows } from '../data/export'
 import { formatDeci } from '../data/scoring'
@@ -58,19 +58,13 @@ export default function AuditLog() {
        * enough to hit it too (check-material.mjs measured medianL 18).
        */}
       <div className="mx-auto w-full px-2 py-4" style={{ maxWidth: 380, minHeight: 'calc(100dvh - 20px)' }}>
-        <div className="mb-3 flex items-center">
-          <button
-            onClick={() => navigate('/menu')}
-            aria-label="Back to menu"
-            className="font-mono uppercase"
-            style={{ fontSize: 9, letterSpacing: '0.16em', color: 'var(--color-text-dim)' }}
-          >
-            ◂ Menu
-          </button>
+        <div className="mb-1 flex items-center">
+          {/* one back control, one size, one place — see BackTab in chrome.tsx */}
+          <BackTab label="Back to menu" onClick={() => navigate('/menu')} />
           <h1 className="display-title flex-1 text-center" style={{ fontSize: 24, letterSpacing: '0.06em' }}>
             Audit Log
           </h1>
-          <span style={{ width: 44 }} />
+          <span style={{ width: 68 }} />
         </div>
 
         <FilterRow

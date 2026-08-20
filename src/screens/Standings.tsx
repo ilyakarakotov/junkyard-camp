@@ -7,9 +7,9 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import TeamCrest from '../components/TeamCrest'
-import { KeyGlyph, Lamp, Plate, Well } from '../components/chrome'
+import { BackTab, KeyGlyph, Lamp, Plate, Well } from '../components/chrome'
 import { ArcBolt, usePrefersReducedMotion } from '../fx/Arc'
 import { recentActivity, standings } from '../data/derive'
 import { formatDeci } from '../data/scoring'
@@ -522,7 +522,6 @@ export default function Standings() {
  * screen floats on the wall unmounted.
  */
 function TitleBlock() {
-  const navigate = useNavigate()
   const bracket = 'rgba(192,138,62,0.55)'
   const corners: CSSProperties[] = [
     { left: 0, top: 0 },
@@ -605,42 +604,8 @@ function TitleBlock() {
       >
         Standings
       </h1>
-      <button
-        aria-label="Back"
-        onClick={() => navigate(-1)}
-        className="absolute left-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center"
-      >
-        {/* the arrow is engraved into a small brass tab, not stroked on the wall */}
-        <span
-          className="brass-band relative flex items-center justify-center"
-          style={{ width: 34, height: 30, borderRadius: 3 }}
-        >
-          <span className="rivet absolute left-[3px] top-[3px]" aria-hidden />
-          <span className="rivet absolute right-[3px] top-[3px]" aria-hidden />
-          <span className="rivet absolute bottom-[3px] left-[3px]" aria-hidden />
-          <span className="rivet absolute bottom-[3px] right-[3px]" aria-hidden />
-          <svg width="20" height="15" viewBox="0 0 26 20" aria-hidden>
-            {/* light catching the lower lip of the cut, then the cut itself */}
-            <path
-              d="M10 1 L2 10 L10 19 M2.5 10 H24"
-              transform="translate(0,1)"
-              fill="none"
-              stroke="rgba(255,240,206,0.42)"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M10 1 L2 10 L10 19 M2.5 10 H24"
-              fill="none"
-              stroke="#3a2812"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      </button>
+      {/* one back control, one size, one place — see BackTab in chrome.tsx */}
+      <BackTab className="absolute left-0 top-1/2 -translate-y-1/2" />
     </header>
   )
 }

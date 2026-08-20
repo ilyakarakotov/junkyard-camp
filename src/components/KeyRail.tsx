@@ -348,6 +348,35 @@ function HungKey({ cx, top, lit, uid }: { cx: number; top: number; lit: boolean;
   )
 }
 
+/**
+ * The shine on a key that has just been hung: a four-point star over the bow
+ * with two smaller satellites, scaling out and fading in under a second.
+ *
+ * It reads as light coming OFF the key rather than as decoration painted near
+ * it — the star sits on the bow, the satellites sit where the bow's specular
+ * already is, and everything is gold because the key is the gold object. The
+ * whole group is one `.key-sparkle`, so `prefers-reduced-motion` removes it
+ * with a single rule and the key still simply appears, lit, on its hook.
+ */
+function KeySparkle({ cx, cy }: { cx: number; cy: number }) {
+  const star = (x: number, y: number, r: number, waist: number) =>
+    `M${x} ${y - r} Q${x + waist} ${y - waist} ${x + r} ${y}` +
+    ` Q${x + waist} ${y + waist} ${x} ${y + r}` +
+    ` Q${x - waist} ${y + waist} ${x - r} ${y}` +
+    ` Q${x - waist} ${y - waist} ${x} ${y - r} Z`
+  return (
+    <g className="key-sparkle" aria-hidden>
+      {/* the long points reach past the hot settle's disc — inside it the star
+          is just more gold on gold and reads as a blob */}
+      <path d={star(cx, cy, 46, 2.6)} fill="var(--color-key)" opacity="0.75" />
+      <path d={star(cx, cy, 40, 2.2)} fill="var(--color-key-hot)" />
+      <path d={star(cx, cy, 17, 2.6)} fill="#fffdf2" />
+      <path d={star(cx - 17, cy - 14, 10, 1.1)} fill="var(--color-key-hot)" opacity="0.9" />
+      <path d={star(cx + 16, cy + 17, 7.5, 0.9)} fill="var(--color-key)" opacity="0.85" />
+    </g>
+  )
+}
+
 export function KeyHookRail({
   keys,
   hooks = 6,
@@ -697,16 +726,20 @@ export function KeyHookRail({
                     strokeWidth="0.8"
                     strokeLinecap="round"
                   />
-                  {/* one-shot white-hot settle over the newest key */}
+                  {/* one-shot white-hot settle over the newest key, and the
+                      sparkle that says a key just landed on this hook */}
                   {justAdded && i === lit - 1 && (
-                    <circle
-                      className="key-cool"
-                      cx={cx}
-                      cy={22.5}
-                      r={30}
-                      fill="var(--color-key-hot)"
-                      opacity="0.55"
-                    />
+                    <>
+                      <circle
+                        className="key-cool"
+                        cx={cx}
+                        cy={22.5}
+                        r={30}
+                        fill="var(--color-key-hot)"
+                        opacity="0.55"
+                      />
+                      <KeySparkle cx={cx} cy={22.5} />
+                    </>
                   )}
                 </>
               )}

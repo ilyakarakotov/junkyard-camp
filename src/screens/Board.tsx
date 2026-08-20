@@ -577,7 +577,6 @@ export default function Board() {
               today={todayByTeam.get(team.id)?.totalDeci ?? 0}
               overall={mine}
               keys={keysByTeam.get(team.id) ?? 0}
-              isDirector={isDirector}
             />
           )
         })}
@@ -648,7 +647,6 @@ function BoardRow({
   today,
   overall,
   keys,
-  isDirector,
 }: {
   team: Team
   position: number
@@ -656,7 +654,6 @@ function BoardRow({
   today: number
   overall: number
   keys: number
-  isDirector: boolean
 }) {
   const navigate = useNavigate()
   return (
@@ -729,12 +726,13 @@ function BoardRow({
           </span>
         </Well>
 
-        {/* the key count is the row's one control: visible to everyone, but
-            striking keys is the director's errand, so only they can tap it */}
+        {/* The key count is the row's second control, and it opens the team
+            sheet — the rail there is where a key is struck now. There is no
+            ceremony screen any more: at the evening gathering the director
+            cannot spend a screen change and a gesture on every key. */}
         <button
-          onClick={() => navigate(`/key/${team.id}`)}
-          disabled={!isDirector}
-          aria-label={`Open the golden key ceremony for ${team.name}`}
+          onClick={() => navigate(`/team/${team.id}`)}
+          aria-label={`Golden keys for ${team.name} — open the team sheet`}
           className="absolute flex items-center justify-center"
           style={{
             right: CH_R + 4,

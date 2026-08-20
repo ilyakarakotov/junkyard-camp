@@ -1,15 +1,29 @@
-import { useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { CategoryGlyph } from '../components/Breaker'
-import ChargeTrack, { CAPSULE_SOCKET_PCT, ChargeReadout } from '../components/ChargeTrack'
+import ChargeTrack, { ChargeReadout } from '../components/ChargeTrack'
 import CheckCell from '../components/CheckCell'
 import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { ArcStrike } from '../fx/Arc'
-import { BrassConfirm, BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
+import {
+  BackTab,
+  BrassConfirm,
+  BrassFrame,
+  KeyGlyph,
+  Plate,
+  Screw,
+  textureOffset,
+} from '../components/chrome'
 import { dayScore, keyCount, liveEvents } from '../data/derive'
-import { BASE_CEILING_DECI, MAX_CHECK_INS, SCORED_CATEGORIES, formatDeci } from '../data/scoring'
+import {
+  BASE_CEILING_DECI,
+  MAX_CHECK_INS,
+  PUNCTUALITY_DECI,
+  SCORED_CATEGORIES,
+  formatDeci,
+} from '../data/scoring'
 import { useStore } from '../data/store'
 import type { CategoryId } from '../data/types'
 
@@ -163,13 +177,11 @@ function PlateFace({ seed = 0 }: { seed?: number }) {
 
 export default function TeamSheet() {
   const { teamId } = useParams<{ teamId: string }>()
-  const navigate = useNavigate()
   const {
     teams,
     days,
     categories,
     activeDay,
-    setActiveDayId,
     events,
     setBinary,
     addCheckIn,
@@ -192,6 +204,10 @@ export default function TeamSheet() {
      settles, so the contact posts leave with it. */
   const [zap, setZap] = useState<{ cat: CategoryId; at: number } | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  /* Punctuality is the only control on this screen that asks first: a check-in
+     is worth a tenth, the seventh is worth four, and the plate is one big
+     target that a pocket can find. */
+  const [punctualityAsk, setPunctualityAsk] = useState<'add' | 'remove' | null>(null)
   /*
    * Set synchronously before the await: two taps on the hook must not award
    * two keys. The store's client UUIDs make a *retried* event idempotent, but
@@ -200,6 +216,30 @@ export default function TeamSheet() {
    * in the same frame, before React has re-rendered anything.
    */
   const awarding = useRef(false)
+
+  /*
+   * The key's undo window. A key is now one press with no confirmation, which
+   * is what the live flow needs — so the safety net moves to after the fact:
+   * for 60 seconds the rail carries an UNDO chip that reverses the award with
+   * no second dialog, because the chip *is* the second thought.
+   *
+   * Deliberately not persisted. It is a "that was the wrong team" affordance
+   * for the moment right after the press; leaving the screen ends it, and the
+   * director's confirmed removal (hold the newest key) is the path back after
+   * that.
+   */
+  const [keyUndoUntil, setKeyUndoUntil] = useState<number | null>(null)
+  const [clock, setClock] = useState(() => Date.now())
+  useEffect(() => {
+    if (keyUndoUntil === null) return
+    const t = setInterval(() => setClock(Date.now()), 500)
+    return () => clearInterval(t)
+  }, [keyUndoUntil])
+  const undoLeft =
+    keyUndoUntil === null ? 0 : Math.max(0, Math.ceil((keyUndoUntil - clock) / 1000))
+  useEffect(() => {
+    if (keyUndoUntil !== null && undoLeft === 0) setKeyUndoUntil(null)
+  }, [keyUndoUntil, undoLeft])
 
   if (!ready || !team || !score) return <div className="min-h-dvh" />
 
@@ -211,7 +251,7 @@ export default function TeamSheet() {
   const keys = score.keys
 
   /* A key struck within the last few seconds settles hot-to-cool on the rail
-     when the director walks back from the ceremony; older keys hang cold. */
+     and throws its sparkle; older keys hang cold. */
   const lastKeyAt = liveEvents(events).reduce(
     (m, e) =>
       e.categoryId === 'golden_key' && e.teamId === team.id && e.dayId === activeDay.id
@@ -221,11 +261,24 @@ export default function TeamSheet() {
   )
   const keyJustAdded = lastKeyAt > 0 && Date.now() - lastKeyAt < 10_000
 
+  /* The seventh check-in surges. One-shot, driven off when the tick landed
+     rather than off a flag, so it plays on the render that follows the award
+     and never replays on an unrelated re-render. */
+  const lastTickAt = liveEvents(events).reduce(
+    (m, e) =>
+      e.categoryId === 'punctuality' && e.teamId === team.id && e.dayId === activeDay.id
+        ? Math.max(m, Date.parse(e.occurredAt))
+        : m,
+    0,
+  )
+
   /*
-   * One press awards the key. The turn-the-key ceremony still lives at
-   * `/key/:teamId` for when there is time to make a moment of it, but the live
+   * One press awards the key. There is no ceremony screen any more: the live
    * flow at the evening gathering cannot afford a screen change and a gesture
-   * per key — the director is standing in front of the camp with a phone.
+   * per key — the director is standing in front of the camp with a phone. The
+   * key appears on the rail immediately, shining, and an UNDO chip holds the
+   * press reversible for a minute.
+   *
    * Gating is unchanged: the rail is disabled off-day and for non-directors,
    * and `awardKey` refuses both again in the store regardless of this screen.
    */
@@ -236,81 +289,44 @@ export default function TeamSheet() {
     navigator.vibrate?.([18, 60, 40])
     try {
       await awardKey(activeDay.id, team.id, `Golden key · ${activeDay.name}`)
+      setClock(Date.now())
+      setKeyUndoUntil(Date.now() + 60_000)
     } finally {
       awarding.current = false
     }
   }
+
+  /* The undo chip: no confirmation, because the chip is the confirmation. It
+     still goes through removeKey, so the log gains a compensating event and
+     nothing is ever edited away. */
+  const onUndoKey = () => {
+    setKeyUndoUntil(null)
+    navigator.vibrate?.(20)
+    void removeKey(activeDay.id, team.id)
+  }
+
+  /* ---- punctuality --------------------------------------------------- */
+  const ticks = score.ticks
+  const full = ticks >= MAX_CHECK_INS
+  const nextTicks = Math.min(ticks + 1, MAX_CHECK_INS)
+  const prevTicks = Math.max(ticks - 1, 0)
+  const surging = full && lastTickAt > 0 && Date.now() - lastTickAt < 1500
+  const ladder = (from: number, to: number) =>
+    `${formatDeci(PUNCTUALITY_DECI[from])} → ${formatDeci(PUNCTUALITY_DECI[to])}`
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ paddingBottom: 10 }}>
       {/* ---- header: brass double frame with the seal breaking its top edge ---- */}
       <div className="relative px-4" style={{ paddingTop: FRAME_TOP }}>
         {/*
-         * The back control is hardware like everything else on this screen.
-         * The reference has no back affordance at all — but a bare stroked
-         * chevron floating on the wall was the one unhoused object on a screen
-         * where every other control has a bevel, a chamfer and a contact
-         * shadow, and it read as a browser chrome artefact rather than part of
-         * the machine. So: a small chamfered brass tab with the chevron struck
-         * into it as a groove with one lit lower lip. It sits in the wall strip
-         * above the frame, clear of the corner screw.
+         * The back control is hardware like everything else on this screen —
+         * a chamfered brass tab with the chevron struck into it as a groove
+         * with one lit lower lip, shared with every other screen (BackTab in
+         * components/chrome.tsx). It sits hard in the top-left corner: its
+         * 68x56 target reaches down over the header frame's blank left margin,
+         * where there is nothing else to hit.
          */}
-        <button
-          aria-label="Back"
-          onClick={() => navigate(-1)}
-          className="absolute flex items-start justify-start"
-          style={{ left: 0, top: 0, width: 46, height: 44, padding: '2px 0 0 4px', zIndex: 4 }}
-        >
-          <svg width="34" height="21" viewBox="0 0 34 21" aria-hidden style={{ display: 'block', overflow: 'visible' }}>
-            <defs>
-              <linearGradient id="backtab" x1="0.1" y1="0" x2="0.8" y2="1">
-                <stop offset="0%" stopColor="#e0c48d" />
-                <stop offset="24%" stopColor="#b79753" />
-                <stop offset="62%" stopColor="#8a6c34" />
-                <stop offset="100%" stopColor="#4a3617" />
-              </linearGradient>
-            </defs>
-            {/* contact shadow, thrown down-right by the one top-left key light */}
-            <path
-              d="M4 0 H34 V17 L30 21 H0 V4 Z"
-              fill="rgba(0,0,0,0.55)"
-              transform="translate(1.2 1.8)"
-            />
-            <path d="M4 0 H34 V17 L30 21 H0 V4 Z" fill="url(#backtab)" />
-            {/* lit chamfer along the top-left, shadowed edge along the bottom-right */}
-            <path
-              d="M0.6 4.2 L4.2 0.6 H33.4"
-              fill="none"
-              stroke="rgba(255,246,222,0.62)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
-            <path
-              d="M33.4 17 L29.7 20.4 H0.7"
-              fill="none"
-              stroke="rgba(26,15,4,0.65)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
-            {/* the chevron, struck into the brass */}
-            <path
-              d="M15 5.4 L9.4 10.5 L15 15.6 M10 10.5 H25"
-              fill="none"
-              stroke="rgba(34,20,6,0.88)"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M15 6.5 L10.5 10.5 L15 14.5 M10.9 11.4 H24.6"
-              fill="none"
-              stroke="rgba(255,242,212,0.42)"
-              strokeWidth="1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        <BackTab className="absolute" style={{ left: 0, top: 0, zIndex: 4 }} />
 
         <div className="relative">
           {/*
@@ -440,14 +456,10 @@ export default function TeamSheet() {
         </div>
       </div>
 
-      {/* ---- the five days ---- */}
-      <DayRail
-        days={days}
-        activeId={activeDay.id}
-        onSelect={setActiveDayId}
-        variant="tabs"
-        className="mt-[8px]"
-      />
+      {/* ---- the five days: a readout here, not a picker. Changing the date
+              from inside a team is how a point lands on the wrong day without
+              anyone noticing; day selection lives on the board. ---- */}
+      <DayRail days={days} activeId={activeDay.id} readOnly variant="tabs" className="mt-[8px]" />
       {!activeDay.scored ? (
         <div
           className="tech-label mt-[6px] text-center text-[8px]"
@@ -519,7 +531,56 @@ export default function TeamSheet() {
                 <Screw className="absolute left-[4px] top-[13px] z-[3]" size={8} slot={41} />
                 <Screw className="absolute bottom-[13px] left-[4px] z-[3]" size={8} slot={-32} />
 
-                <div className="flex h-full items-center" style={{ paddingLeft: 14, paddingRight: 12 }}>
+                {/*
+                 * Punctuality: the WHOLE PLATE is the target, and it asks
+                 * before it writes.
+                 *
+                 * It used to be seven invisible 17px strips laid over the
+                 * track, five of them disabled at any moment — so five taps in
+                 * seven landed on nothing, and a tap anywhere else on the row
+                 * (which is where a thumb goes) landed on a plain div. That is
+                 * the "clicking on punctuality doesn't do anything" a leader
+                 * reported. One target, one meaning: every tap is +1 check-in,
+                 * always behind a confirmation that names the jump.
+                 */}
+                {isPunctuality && (
+                  <button
+                    className="absolute inset-0 z-[2]"
+                    style={{ background: 'transparent', borderRadius: 6 }}
+                    disabled={locked || full}
+                    aria-label={
+                      full
+                        ? `Punctuality — all ${MAX_CHECK_INS} check-ins recorded`
+                        : `Add a check-in — ${ticks} of ${MAX_CHECK_INS}`
+                    }
+                    onClick={() => {
+                      // never the only confirmation — iOS ignores it
+                      navigator.vibrate?.(10)
+                      setPunctualityAsk('add')
+                    }}
+                  />
+                )}
+                {/* Mistakes are fixable: the minus sits above the plate target
+                    and takes the most recent check-in back off, through the
+                    same confirm and the same compensating event. */}
+                {isPunctuality && !locked && ticks > 0 && (
+                  <button
+                    className="absolute z-[4] flex items-center justify-center"
+                    style={{ right: 8, top: 0, bottom: 0, width: 40, background: 'transparent' }}
+                    aria-label={`Remove the most recent check-in — ${ticks} of ${MAX_CHECK_INS}`}
+                    onClick={() => {
+                      navigator.vibrate?.(10)
+                      setPunctualityAsk('remove')
+                    }}
+                  >
+                    <MinusStud />
+                  </button>
+                )}
+
+                <div
+                  className={`flex h-full items-center ${isPunctuality ? 'pointer-events-none' : ''}`}
+                  style={{ paddingLeft: 14, paddingRight: 12 }}
+                >
                   <CategoryGlyph id={c} size={42} />
                   <div className="engraved-v" style={{ height: 32, marginLeft: 6, marginRight: 13 }} />
                   <span className="flex flex-col justify-center">
@@ -539,15 +600,13 @@ export default function TeamSheet() {
                   </span>
                   <span className="flex-1" />
                   {isPunctuality ? (
-                    <PunctualityControl
-                      ticks={score.ticks}
-                      locked={locked}
-                      onAdd={() => {
-                        addCheckIn(activeDay.id, team.id)
-                        navigator.vibrate?.(10)
-                      }}
-                      onRemove={() => removeCheckIn(activeDay.id, team.id)}
-                    />
+                    <>
+                      {/* the track is a gauge now, not a row of hit targets */}
+                      <ChargeTrack ticks={ticks} width={128} capsule surging={surging} />
+                      {/* room reserved for the minus stud, which is drawn on
+                          top of the plate so it can sit above its target */}
+                      <span className="block shrink-0" style={{ width: 40 }} />
+                    </>
                   ) : (
                     /* points given, not a setting switched: the socket takes a
                         lit amber check when the point lands, and the award
@@ -624,6 +683,32 @@ export default function TeamSheet() {
             {keys} HELD TODAY · {keyCount(events, team.id)} THIS CAMP
           </span>
         </div>
+        {/*
+         * The undo chip. It only exists in the minute after a press, it takes
+         * no confirmation, and it dies with the screen — see keyUndoUntil.
+         */}
+        {undoLeft > 0 && (
+          <div className="flex px-1" style={{ marginBottom: 5 }}>
+            <button
+              onClick={onUndoKey}
+              aria-label={`Undo the golden key just awarded — ${undoLeft} seconds left`}
+              className="font-mono uppercase"
+              style={{
+                fontSize: 8.5,
+                letterSpacing: '0.16em',
+                padding: '5px 12px',
+                minHeight: 30,
+                borderRadius: 3,
+                color: 'var(--color-key-hot)',
+                background: 'linear-gradient(180deg, #3a2a12 0%, #241806 100%)',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,232,190,0.28), inset 0 -1px 2px rgba(0,0,0,0.7), 0 1px 2px rgba(0,0,0,0.5)',
+              }}
+            >
+              ◂ Undo key {Math.floor(undoLeft / 60)}:{String(undoLeft % 60).padStart(2, '0')}
+            </button>
+          </div>
+        )}
         <div className="relative">
           {/* helpers see the control greyed with a DIRECTOR tag — visible to
               everyone, enabled only for directors, enforced by RLS */}
@@ -659,6 +744,42 @@ export default function TeamSheet() {
           />
         </div>
       </div>
+
+      {/*
+       * The check-in confirmations name the jump in both currencies — sockets
+       * and points — because the seventh is not worth what the first six are.
+       * Missing it costs 0.4, so at 6/7 the dialog says 0.6 → 1.0 out loud
+       * rather than leaving a leader to read it off the ladder.
+       */}
+      {punctualityAsk === 'add' && (
+        <BrassConfirm
+          title="Add check-in?"
+          body={
+            nextTicks === MAX_CHECK_INS
+              ? `${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → all ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, nextTicks)}: the seventh is worth 0.4, not 0.1.`
+              : `${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → ${nextTicks} of ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, nextTicks)}.`
+          }
+          confirmLabel="Add check-in"
+          onConfirm={() => {
+            setPunctualityAsk(null)
+            navigator.vibrate?.(nextTicks === MAX_CHECK_INS ? [18, 50, 40] : 12)
+            void addCheckIn(activeDay.id, team.id)
+          }}
+          onCancel={() => setPunctualityAsk(null)}
+        />
+      )}
+      {punctualityAsk === 'remove' && (
+        <BrassConfirm
+          title="Remove check-in?"
+          body={`${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → ${prevTicks} of ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, prevTicks)}. The check-in is reversed in the log; nothing is deleted.`}
+          confirmLabel="Remove check-in"
+          onConfirm={() => {
+            setPunctualityAsk(null)
+            void removeCheckIn(activeDay.id, team.id)
+          }}
+          onCancel={() => setPunctualityAsk(null)}
+        />
+      )}
 
       {confirmRemove && (
         <BrassConfirm
@@ -772,92 +893,40 @@ function Equation({
   )
 }
 
-/* ---- punctuality: the charge track plus its seven hit targets ----------- */
+/* ---- punctuality: the minus stud --------------------------------------- */
 
 /**
- * The track is drawn once by ChargeTrack; the interaction is seven invisible
- * buttons laid on the socket centres it publishes. The seventh socket sits off
- * the six's rhythm on purpose, so an evenly-spaced overlay would not line up
- * with the thing it toggles — hence reading the centres from the component.
+ * A small brass stud with a minus struck into it, seated in a shallow recess.
+ * It is the way back from a mis-tap: the plate adds, this takes the most
+ * recent check-in off again, and both go through the same confirmation.
  *
- * Check-ins are ordinal ticks: a filled socket drains the most recent tick,
- * and only the next empty socket adds one — there is no "which activity" any
- * more, only how far along the rail the team is.
+ * Deliberately quiet hardware rather than a lit control — removing a point is
+ * a correction, not an award, and nothing on this screen should light up for
+ * taking something away.
  */
-function PunctualityControl({
-  ticks,
-  locked,
-  onAdd,
-  onRemove,
-}: {
-  ticks: number
-  locked: boolean
-  onAdd: () => void
-  onRemove: () => void
-}) {
-  const width = 162
-  /* Set when the seventh check-in is tapped here; the surge flash is a
-     one-shot, and it unmounts again if the seventh is removed so a re-add
-     replays it. */
-  const [surging, setSurging] = useState(false)
-  /*
-   * Socket pitch is ~18px, so a 22px-wide target overlapped its neighbour by
-   * 4px and the last one painted won — tapping a socket's right edge recorded
-   * the *next* socket. Targets are the pitch minus a 1px gap, and the full
-   * row height vertically, which is where the reachable area comes from.
-   */
-  const pitch = ((CAPSULE_SOCKET_PCT[1] - CAPSULE_SOCKET_PCT[0]) / 100) * width
-  const hit = Math.floor(pitch) - 1
+function MinusStud() {
   return (
-    <span className="relative block shrink-0" style={{ width }}>
-      <ChargeTrack ticks={ticks} width={width} capsule surging={surging && ticks >= MAX_CHECK_INS} />
-      <span className="absolute" style={{ left: 0, right: 0, top: -12, bottom: -12 }}>
-        {CAPSULE_SOCKET_PCT.map((pct, i) => {
-          const on = i < ticks
-          const next = i === ticks
-          const last = i === CAPSULE_SOCKET_PCT.length - 1
-          /*
-           * The seventh sits off the six's rhythm with a gap in front of it, so
-           * it takes everything from the sixth's right edge to the end of the
-           * control — a 44px target, and still no overlap with its neighbour.
-           */
-          const style: CSSProperties = last
-            ? {
-                left: (CAPSULE_SOCKET_PCT[5] / 100) * width + hit / 2,
-                right: -6,
-                top: 0,
-                bottom: 0,
-                background: 'transparent',
-              }
-            : {
-                left: `${pct}%`,
-                top: 0,
-                bottom: 0,
-                width: hit,
-                transform: 'translateX(-50%)',
-                background: 'transparent',
-              }
-          return (
-            <button
-              key={i}
-              disabled={locked || (!on && !next)}
-              aria-pressed={on}
-              aria-label={
-                last ? `Final check-in — worth 0.4` : `Check-in ${i + 1} of ${CAPSULE_SOCKET_PCT.length}`
-              }
-              onClick={() => {
-                if (on) onRemove()
-                else {
-                  onAdd()
-                  if (last) setSurging(true)
-                }
-              }}
-              className="absolute"
-              style={style}
-            />
-          )
-        })}
-      </span>
+    <span
+      aria-hidden
+      className="relative flex items-center justify-center"
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 9999,
+        background: 'linear-gradient(158deg, #9b8256 0%, #7d663c 34%, #5c4828 68%, #3d2d15 100%)',
+        boxShadow:
+          'inset 0 1px 0 rgba(255,244,214,0.55), inset 0 -1px 1px rgba(24,14,4,0.7), 0 1px 2px rgba(0,0,0,0.6)',
+      }}
+    >
+      <span
+        style={{
+          width: 13,
+          height: 3,
+          borderRadius: 1,
+          background: 'rgba(30,18,6,0.88)',
+          boxShadow: '0 1px 0 rgba(255,240,206,0.4)',
+        }}
+      />
     </span>
   )
 }

@@ -1056,29 +1056,110 @@ export function TickGauge({
   )
 }
 
+/* ---- Back ---------------------------------------------------------------
+ *
+ * One back control, one size, one place, on every screen that has one.
+ *
+ * It was a 46x44 tab on the team sheet, a 44x44 chevron on standings, a 42x24
+ * rocker on roll call and a 9px text label on the menu — four different targets
+ * for the same errand, the smallest of them well under a thumb. At camp this is
+ * pressed between every award, one-handed, by someone facing a room, so it is
+ * now the largest piece of chrome on the screen that is not a score control:
+ * a 68x56 target carrying a 46x28 brass tab, hard against the top-left corner.
+ *
+ * The tab sits at the top-left OF that target rather than centred in it: the
+ * corner is where the thumb arrives, and a control whose visible mass sits in
+ * the middle of a large invisible zone reads as a small sticker with a
+ * mysterious dead margin around it.
+ */
+export const BACK_HIT_W = 68
+export const BACK_HIT_H = 56
+const BACK_TAB_W = 46
+const BACK_TAB_H = 28
+
+/**
+ * The chevron, struck into a chamfered brass tab. Same hardware language as
+ * everything else on the wall: a lit top-left chamfer, a shadowed bottom-right
+ * edge, and a contact shadow thrown down-right by the one key light.
+ */
+export function BackTab({
+  onClick,
+  label = 'Back',
+  className = '',
+  style,
+}: {
+  /** Defaults to history back. Pass a route when "back" has a fixed home. */
+  onClick?: () => void
+  label?: string
+  className?: string
+  style?: CSSProperties
+}) {
+  const navigate = useNavigate()
+  const uid = useId()
+  return (
+    <button
+      aria-label={label}
+      onClick={onClick ?? (() => navigate(-1))}
+      className={`flex shrink-0 items-start justify-start ${className}`}
+      style={{ width: BACK_HIT_W, height: BACK_HIT_H, padding: '3px 0 0 4px', ...style }}
+    >
+      <svg
+        width={BACK_TAB_W}
+        height={BACK_TAB_H}
+        viewBox="0 0 34 21"
+        aria-hidden
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        <defs>
+          <linearGradient id={`backtab-${uid}`} x1="0.1" y1="0" x2="0.8" y2="1">
+            <stop offset="0%" stopColor="#e0c48d" />
+            <stop offset="24%" stopColor="#b79753" />
+            <stop offset="62%" stopColor="#8a6c34" />
+            <stop offset="100%" stopColor="#4a3617" />
+          </linearGradient>
+        </defs>
+        <path d="M4 0 H34 V17 L30 21 H0 V4 Z" fill="rgba(0,0,0,0.55)" transform="translate(1.2 1.8)" />
+        <path d="M4 0 H34 V17 L30 21 H0 V4 Z" fill={`url(#backtab-${uid})`} />
+        <path
+          d="M0.6 4.2 L4.2 0.6 H33.4"
+          fill="none"
+          stroke="rgba(255,246,222,0.62)"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M33.4 17 L29.7 20.4 H0.7"
+          fill="none"
+          stroke="rgba(26,15,4,0.65)"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M15 5.4 L9.4 10.5 L15 15.6 M10 10.5 H25"
+          fill="none"
+          stroke="rgba(34,20,6,0.88)"
+          strokeWidth="2.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M15 6.5 L10.5 10.5 L15 14.5 M10.9 11.4 H24.6"
+          fill="none"
+          stroke="rgba(255,242,212,0.42)"
+          strokeWidth="1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  )
+}
+
 /** Screen header: optional back arrow, centered display title. */
 export function ScreenHeader({ title, back }: { title: string; back?: boolean }) {
-  const navigate = useNavigate()
   return (
     <header className="relative flex h-14 items-center justify-center">
-      {back && (
-        <button
-          aria-label="Back"
-          onClick={() => navigate(-1)}
-          className="absolute left-1 flex h-11 w-11 items-center justify-center"
-        >
-          <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden>
-            <path
-              d="M10 1 L2 10 L10 19 M2.5 10 H25"
-              fill="none"
-              stroke="var(--color-text)"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      )}
+      {back && <BackTab className="absolute left-0" style={{ top: -1 }} />}
       <h1 className="display-title on-metal text-[26px] leading-none" style={{ letterSpacing: '0.12em' }}>
         {title}
       </h1>
