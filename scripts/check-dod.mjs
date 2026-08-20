@@ -219,15 +219,17 @@ await reduced.close()
  * flattens the hierarchy and costs those three their signal.
  */
 await goto('/')
+// The board carries `shortName` now — the leaderboard row spends its width on
+// the meter, and the full names do not fit beside one at 390px.
 const SHORT_NAMES = [
-  'Pink Junkyard Warriors',
-  'Precious Pieces',
-  'Hidden Gems',
-  "God's Pearls",
-  'Fire Knights',
-  'Innocent',
-  'Forged',
-  'Rust Revival Co.',
+  'WARRIORS',
+  'PRECIOUS',
+  'GEMS',
+  'PEARLS',
+  'KNIGHTS',
+  'INNOCENT',
+  'FORGED',
+  'RUST CO.',
 ]
 const tinted = await page.evaluate((names) => {
   const cream = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim()

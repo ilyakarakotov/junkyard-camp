@@ -38,23 +38,30 @@ import type { Team } from '../data/types'
 const ROW_H = 80
 /** 8px gutters, as REFERENCE-SPEC asks: the wall shows through between plates. */
 const ROW_GAP = 8
-const RANK_W = 32
+const RANK_W = 30
 /**
  * The reference chip measures 30×32 CSS — near square, not the tall slot we
  * had. A 32×52 chip puts 20px of dark floor above and below the numerals for
  * nothing, and dark floor is the one thing this screen has too much of.
  */
 const RANK_H = 34
-const CREST = 66
+const CREST = 44
 /**
- * The recessed channel carrying the full team name. Its left end runs *under*
- * the medallion — the coin overhangs the recess, which is what makes the two
- * read as separate pieces of hardware stacked in depth. Its right edge clears
- * the TODAY text block, which stands 71px in from the plate's right edge.
+ * The row's content column: everything between the medallion and the score
+ * window. The name and today's figure sit on its top line, the meter fills its
+ * bottom line — so the meter's zero and the name's left edge share one rule
+ * down all eight rows, and the meter's full length is the same span on every
+ * row whatever the score.
  */
-const CH_L = 98
-const CH_R = 128
+const COL_L = 96
+const COL_R = 76
 const SCREW = 6
+/**
+ * The meter never reads empty. A team on 0.0 still gets a stub of lit colour,
+ * because the bar is also the row's colour key and a row with no bar at all
+ * looks like a rendering fault rather than a score of zero.
+ */
+const BAR_STUB = 6
 
 /**
  * Warm oxide. Painted as an overlay rather than baked into the plate, because
@@ -310,6 +317,16 @@ export default function Board() {
   )
 
   /*
+   * The meters are scaled to the leader, so the top row always reads full and
+   * the gap to it is what the board is actually about. Scaling to the
+   * theoretical ceiling instead would leave every bar a stub on Day 1.
+   */
+  const leaderDeci = useMemo(
+    () => ordered.reduce((m, t) => Math.max(m, overallByTeam.get(t.id) ?? 0), 0),
+    [ordered, overallByTeam],
+  )
+
+  /*
    * Day locks: the pilot lamp marks the day that actually accepts scores, and
    * every other scoring day sits behind a padlock — amber while a director's
    * unlock holds on this device.
@@ -562,7 +579,7 @@ export default function Board() {
         </div>
       )}
 
-      {/* ---- eight rows, each its own plate ---- */}
+      {/* ---- eight rows, each its own plate, each a meter ---- */}
       <div className="flex flex-col" style={{ gap: ROW_GAP }}>
         {ordered.map((team, i) => {
           const mine = overallByTeam.get(team.id) ?? 0
@@ -576,6 +593,7 @@ export default function Board() {
               tied={mine === above || mine === below}
               today={todayByTeam.get(team.id)?.totalDeci ?? 0}
               overall={mine}
+              leader={leaderDeci}
               keys={keysByTeam.get(team.id) ?? 0}
             />
           )
@@ -635,10 +653,14 @@ export default function Board() {
 }
 
 /**
- * A board row: rank, crest, full name, and the two numbers that answer the
- * only two questions the board exists for — *how is the team doing TODAY* and
- * *how is the team doing OVERALL*. Read-and-navigate only; the whole plate is
- * one link to the team sheet. Per-category state lives on the team sheet.
+ * A board row: position, crest, name, keys, a meter, and the camp total.
+ *
+ * The meter is the point. A leader standing in front of the camp should be able
+ * to see who is winning from the *lengths* alone, before reading a single
+ * numeral — so the bar's length is the team's real camp total (base plus keys)
+ * scaled against the leader's, and the numeral in the window is the same figure
+ * spelled out. Read-and-navigate only; the whole plate is one link to the team
+ * sheet, which is where anything gets scored.
  */
 function BoardRow({
   team,
@@ -646,6 +668,7 @@ function BoardRow({
   tied,
   today,
   overall,
+  leader,
   keys,
 }: {
   team: Team
@@ -653,15 +676,20 @@ function BoardRow({
   tied: boolean
   today: number
   overall: number
+  /** The top row's total — the meter's full-scale end. */
+  leader: number
   keys: number
 }) {
-  const navigate = useNavigate()
+  const color = `var(--color-team-${team.colorToken})`
+  /* Integer tenths in, a ratio out — the division is for geometry only and
+     never touches a score. */
+  const pct = leader > 0 ? Math.max(0, Math.min(1, overall / leader)) * 100 : 0
   return (
     <Plate chamfer={6} screws={false} style={{ height: ROW_H }} dataPart="board-row">
       <CornerRivets inset={5} size={SCREW} right={false} />
       <Link
         to={`/team/${team.id}`}
-        aria-label={`${team.name}, position ${position} of 8, ${formatDeci(today)} today, ${formatDeci(overall)} overall`}
+        aria-label={`${team.name}, position ${position} of 8, ${formatDeci(overall)} points, ${keys} golden keys, ${formatDeci(today)} today — open the team sheet`}
         className="absolute inset-0 block"
       >
         {/* rank chip: a shallow recess in the plate's own metal, not a window */}
@@ -691,94 +719,107 @@ function BoardRow({
           )}
         </Recess>
 
+        {/* the medallion, struck proud of the plate face */}
+        <div className="absolute" style={{ left: 44, top: (ROW_H - CREST) / 2, zIndex: 1 }}>
+          <TeamCrest teamId={team.id} size={CREST} />
+        </div>
+
         {/*
-         * The recessed channel the full team name sits in: a mid-height band,
-         * so lit plate face survives above and below it. Full-height channels
-         * plus two dark readout windows pulled the route's median luminance
-         * below the material band — the screen is brightened by spending area
-         * on metal, never by unmotivated glow.
+         * The top line: the board name, the keys held, and today's figure
+         * printed straight onto the plate face — small and engraved, because
+         * the one dark window per row belongs to the camp total.
+         *
+         * Keys stay counted, never multiplied: lit glyphs and a numeral, no
+         * `×` anywhere. They sit next to the name rather than in their own
+         * control now — the whole plate opens the team sheet, and the rail
+         * there is where a key is actually struck.
          */}
-        <Well
-          radius={8}
-          style={{
-            position: 'absolute',
-            left: CH_L,
-            right: CH_R,
-            top: (ROW_H - 44) / 2,
-            height: 44,
-            background: 'linear-gradient(180deg,#211911 0%,#261d15 52%,#2c2118 100%)',
-          }}
+        <div
+          className="absolute flex items-center"
+          style={{ left: COL_L, right: COL_R, top: 12, height: 22, gap: 8 }}
         >
-          <Rim radius={8} />
           <span
-            className="font-display absolute inset-0 flex items-center font-semibold uppercase"
+            className="font-display min-w-0 flex-shrink truncate font-semibold uppercase"
             style={{
-              paddingLeft: 24,
-              paddingRight: 34,
-              fontSize: 15,
-              lineHeight: 1.08,
+              fontSize: 17,
+              lineHeight: 1,
               letterSpacing: '0.025em',
               color: 'var(--color-text)',
               textShadow: '0 1px 1px rgba(16,9,4,0.55)',
             }}
           >
-            {team.name}
+            {team.shortName}
           </span>
-        </Well>
-
-        {/* The key count is the row's second control, and it opens the team
-            sheet — the rail there is where a key is struck now. There is no
-            ceremony screen any more: at the evening gathering the director
-            cannot spend a screen change and a gesture on every key. */}
-        <button
-          onClick={() => navigate(`/team/${team.id}`)}
-          aria-label={`Golden keys for ${team.name} — open the team sheet`}
-          className="absolute flex items-center justify-center"
-          style={{
-            right: CH_R + 4,
-            top: (ROW_H - 44) / 2,
-            height: 44,
-            width: 34,
-            background: 'transparent',
-            borderRadius: 4,
-            zIndex: 1,
-          }}
-        >
-          <KeyCount keys={keys} size={22} />
-        </button>
-
-        {/* the medallion overhangs the channel's left end and the plate's edges */}
-        <div className="absolute" style={{ left: 45, top: (ROW_H - CREST) / 2, zIndex: 1 }}>
-          <TeamCrest teamId={team.id} size={CREST} />
+          <KeyCount keys={keys} size={15} />
+          <span
+            className="ml-auto whitespace-nowrap font-mono uppercase tabular-nums"
+            style={{ fontSize: 7.5, letterSpacing: '0.1em', color: 'rgba(52,37,22,0.92)' }}
+          >
+            {`Today ${formatDeci(today)}`}
+          </span>
         </div>
 
         {/*
-         * TODAY is printed on the plate face — small, dim, no window. OVERALL
-         * gets the one framed dark window per row, exactly the single score
-         * readout the reference row carries. The size and material difference
-         * is what keeps the two numbers unmistakable.
+         * The meter. A channel milled into the plate with a lit lower-right
+         * lip, and the team's own colour filling it from the left — length is
+         * the team's camp total against the leader's, so the eight lengths are
+         * the standings before a single numeral is read.
+         *
+         * The fill is a lit strip, not a glowing decal: the colour is brightest
+         * at its leading end where the light lands, and it spills a short warm
+         * halo onto the channel floor just beyond the tip, the way an
+         * illuminated segment spills onto the metal around it.
          */}
-        <span className="absolute text-right" style={{ right: 71, top: 18, width: 52 }}>
-          <span
-            aria-hidden
-            className="block font-mono uppercase"
-            style={{ fontSize: 6, letterSpacing: '0.12em', color: 'rgba(58,42,26,0.9)' }}
-          >
-            Today
-          </span>
-          <span
-            className="numeral block tabular-nums"
+        <div
+          className="absolute"
+          style={{ left: COL_L, right: COL_R, top: 44, height: 18, borderRadius: 3 }}
+        >
+          <Well
+            radius={3}
             style={{
-              fontSize: 19,
-              lineHeight: 1.15,
-              color: 'var(--color-text-dim)',
-              textShadow: '0 1px 0 rgba(255,240,206,0.16)',
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg,#1b140e 0%,#221a12 55%,#180f0a 100%)',
             }}
           >
-            {formatDeci(today)}
-          </span>
-        </span>
-        <Readout label="Overall" value={overall} right={1} width={54} />
+            <Rim radius={3} />
+            {/* engraved quarter ticks, so a length can be read, not just felt */}
+            {[25, 50, 75].map((t) => (
+              <span
+                key={t}
+                aria-hidden
+                className="absolute"
+                style={{
+                  left: `${t}%`,
+                  top: 3,
+                  bottom: 3,
+                  width: 1,
+                  background: 'rgba(255,238,205,0.10)',
+                }}
+              />
+            ))}
+            <span
+              aria-hidden
+              className="absolute"
+              style={{
+                left: 2,
+                top: 2,
+                bottom: 2,
+                width: `max(${BAR_STUB}px, calc(${pct}% - 4px))`,
+                borderRadius: 2,
+                background: `linear-gradient(90deg, color-mix(in oklab, ${color} 62%, #2a1a0e) 0%, ${color} 78%, color-mix(in oklab, ${color} 78%, #ffffff) 100%)`,
+                boxShadow: `0 0 6px -1px color-mix(in oklab, ${color} 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(0,0,0,0.35)`,
+              }}
+            />
+          </Well>
+        </div>
+
+        {/*
+         * The one dark window per row, and the figure the meter is drawn from:
+         * the whole camp, not the day. Labelled against TODAY on the line above
+         * so the two numbers can never be read as the same thing.
+         */}
+        <Readout label="Camp" value={overall} right={1} width={54} />
       </Link>
 
       {/* oxide in the crevices: the lower lip and the two bottom corners */}

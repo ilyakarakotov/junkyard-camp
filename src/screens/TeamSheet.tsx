@@ -56,6 +56,13 @@ const GUT = 10
 /* How far a hung key drops below the rail bar — the space it needs beneath. */
 const KEY_DROP = 50
 
+/** "1st", "2nd", "3rd", "4th" — for naming the key about to be struck. */
+function ordinal(n: number): string {
+  const rem100 = n % 100
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+}
+
 /**
  * The category row's face, sampled straight down a reference row plate.
  *
@@ -208,6 +215,13 @@ export default function TeamSheet() {
      is worth a tenth, the seventh is worth four, and the plate is one big
      target that a pocket can find. */
   const [punctualityAsk, setPunctualityAsk] = useState<'add' | 'remove' | null>(null)
+  /*
+   * A key is worth as much as a whole day of every other category put together,
+   * so the press asks first — same BrassConfirm as a check-in. What follows a
+   * yes is unchanged: the key lands instantly, sparkles, and the UNDO chip
+   * holds it reversible for a minute (the chip itself needs no confirmation).
+   */
+  const [confirmAward, setConfirmAward] = useState(false)
   /*
    * Set synchronously before the await: two taps on the hook must not award
    * two keys. The store's client UUIDs make a *retried* event idempotent, but
@@ -735,7 +749,7 @@ export default function TeamSheet() {
             keys={keys}
             width={CONTENT}
             disabled={locked || !isDirector}
-            onAdd={() => void onAwardKey()}
+            onAdd={() => setConfirmAward(true)}
             onRemoveKey={
               !locked && isDirector && keys > 0 ? () => setConfirmRemove(true) : undefined
             }
@@ -778,6 +792,19 @@ export default function TeamSheet() {
             void removeCheckIn(activeDay.id, team.id)
           }}
           onCancel={() => setPunctualityAsk(null)}
+        />
+      )}
+
+      {confirmAward && (
+        <BrassConfirm
+          title="Award a golden key?"
+          body={`${team.name} · ${activeDay.name} — +1.0 · ${ordinal(keys + 1)} key today. You can undo it for a minute after.`}
+          confirmLabel="Award key"
+          onConfirm={() => {
+            setConfirmAward(false)
+            void onAwardKey()
+          }}
+          onCancel={() => setConfirmAward(false)}
         />
       )}
 

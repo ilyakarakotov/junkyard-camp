@@ -162,14 +162,20 @@ for (const route of ['#/team/precious', '#/call/good_deed', '#/standings', '#/me
 /*
  * A key is one press on the team sheet's rail now, undoable for a minute.
  * Nothing routes to `/key/:teamId` any more and the screen no longer exists,
- * so this proves the board's key control lands on the team sheet instead of a
- * blank route.
+ * so this proves the board's key count lands on the team sheet instead of a
+ * blank route. The board is a leaderboard now and the key count no longer has
+ * a control of its own — the whole row is the one target, which is the flow
+ * this is really guarding.
  */
 await goto('/')
-await page.locator('button[aria-label*="Golden keys for"]').first().click()
+const keyRowLabel = await page.evaluate(
+  () => document.querySelector('a[href*="#/team/"]')?.getAttribute('aria-label') ?? '',
+)
+check('board: the row states its key count', /golden keys/i.test(keyRowLabel), true)
+await page.locator('a[href*="#/team/"]').first().click()
 await page.waitForTimeout(400)
 const afterKeyTap = await page.evaluate(() => location.hash)
-check(`board: the key count opens the team sheet (${afterKeyTap})`, /^#\/team\//.test(afterKeyTap), true)
+check(`board: the row opens the team sheet (${afterKeyTap})`, /^#\/team\//.test(afterKeyTap), true)
 
 /* ---- 3. Only today is editable; other days are visibly locked ---------- */
 
