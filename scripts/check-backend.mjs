@@ -137,7 +137,7 @@ try {
 
   /* ---- 4. Another device's award arrives live (§6.4) ---------------------- */
   const seen = await page.evaluate(() => {
-    const k = 'jr:events:v3'
+    const k = 'jr:events:v4'
     return JSON.parse(localStorage.getItem(k) ?? '[]').length
   })
   const dirId = (await (await api(`app_users?select=id&username=eq.${dUser}`, {}, dirTok)).json())[0].id
@@ -164,7 +164,7 @@ try {
   let arrived = 0
   for (let i = 0; i < 40; i++) {
     arrived = await page.evaluate(
-      (id) => JSON.parse(localStorage.getItem('jr:events:v3') ?? '[]').filter((e) => e.id === id).length,
+      (id) => JSON.parse(localStorage.getItem('jr:events:v4') ?? '[]').filter((e) => e.id === id).length,
       remoteId,
     )
     if (arrived) break
@@ -187,7 +187,7 @@ try {
       if (v && typeof v.setBinary === 'function') { store = v; break }
     }
     await store.setBinary(store.activeDay.id, 'forged', 'behavior', true)
-    const live = JSON.parse(localStorage.getItem('jr:events:v3') ?? '[]')
+    const live = JSON.parse(localStorage.getItem('jr:events:v4') ?? '[]')
     return { pending: live.filter((e) => e.syncedAt == null).length }
   })
   check('scoring offline is not blocked by the network', offline.pending >= 1, true)
@@ -209,7 +209,7 @@ try {
   check('a second flush is a no-op, never a double award', await countTagged(), after)
 
   const stillPending = await page.evaluate(
-    () => JSON.parse(localStorage.getItem('jr:events:v3') ?? '[]').filter((e) => e.syncedAt == null).length,
+    () => JSON.parse(localStorage.getItem('jr:events:v4') ?? '[]').filter((e) => e.syncedAt == null).length,
   )
   check('the unsynced count returns to zero', stillPending, 0)
 } finally {

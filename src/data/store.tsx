@@ -43,7 +43,7 @@ interface StoreValue {
 
   /** The signed-in staff account (a local director in local-only mode). */
   user: AuthUser | null
-  /** Directors award golden keys and may unlock past days; helpers cannot. */
+  /** Directors may unlock past days; every staff member awards points and keys. */
   isDirector: boolean
 
   /**
@@ -308,20 +308,15 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   const awardKey = useCallback<StoreValue['awardKey']>(
     async (dayId, teamId, note) => {
       if (!isEditableDay(dayId)) return
-      // Keys are the director's alone. RLS is the real boundary and the UI
-      // disables the control, but this is the one award a helper must never
-      // reach, so it does not rely on a screen being drawn correctly —
-      // `unlockDay` guards itself here for the same reason.
-      if (!isDirector) return
+      // Keys are points like any other: every staff member may award them.
       await push([newEvent(dayId, teamId, 'golden_key', KEY_DECI, note ?? null)])
     },
-    [newEvent, push, isEditableDay, isDirector],
+    [newEvent, push, isEditableDay],
   )
 
   const removeKey = useCallback<StoreValue['removeKey']>(
     async (dayId, teamId) => {
       if (!isEditableDay(dayId)) return
-      if (!isDirector) return
       // The mirror is ordered, so the last live key is the most recent one.
       const latest = liveEvents(events)
         .filter((e) => e.dayId === dayId && e.teamId === teamId && e.categoryId === 'golden_key')
@@ -329,7 +324,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       if (!latest) return
       await push([reversalOf(latest, getDeviceId(), 'Correction')])
     },
-    [events, push, isEditableDay, isDirector],
+    [events, push, isEditableDay],
   )
 
   const undoBatch = useCallback<StoreValue['undoBatch']>(

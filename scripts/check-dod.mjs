@@ -32,6 +32,16 @@ const check = (label, actual, expected) => {
 const goto = async (route) => {
   await page.goto(BASE + route.replace(/^\//, ''), { waitUntil: 'networkidle' })
   await page.evaluate(() => document.fonts.ready)
+  /*
+   * Wait for the route to have painted something, not merely for the network
+   * to have gone quiet. The audit log renders two hundred rows off a derived
+   * walk of the whole event log and takes longer than the flat 250ms below —
+   * measuring it early found an empty page and reported, cheerfully, that
+   * nothing on it was clipped.
+   */
+  await page
+    .waitForFunction(() => document.body.innerText.trim().length > 0, null, { timeout: 5000 })
+    .catch(() => {})
   await page.waitForTimeout(250)
 }
 
@@ -250,6 +260,81 @@ const tinted = await page.evaluate((names) => {
   return bad
 }, SHORT_NAMES)
 check(`board team names are cream${tinted.length ? ` (${tinted.join(', ')})` : ''}`, tinted.length, 0)
+
+/*
+ * 8. No team name is clipped, anywhere.
+ *
+ * A leader reads the board by looking for their team, so a name cut off
+ * mid-word is worse than a wrong colour. Every surface either carries
+ * `shortName` (the board, roll call, standings, the audit log, exports) or
+ * fits the full name to the space it has (the big screen's two-line
+ * nameplate, the team sheet's crest legend) — this measures the outcome
+ * rather than trusting either.
+ *
+ * Overflow, not ellipsis, is what is measured: `text-overflow: ellipsis`
+ * hides the clipping from the eye but scrollWidth still exceeds clientWidth,
+ * so a truncated "RUST REVIVAL C…" fails here exactly as a clipped one does.
+ */
+const TEAM_NAMES = [
+  ...SHORT_NAMES,
+  'Pink Junkyard Warriors',
+  'Precious Pieces',
+  'Hidden Gems',
+  "God's Pearls",
+  'Fire Knights',
+  'Innocent',
+  'Forged',
+  'Rust Revival Co.',
+]
+for (const spec of [...MOBILE.map((r) => ({ route: r, w: 390, h: 844 })), { route: '#/display', w: 1920, h: 1080 }]) {
+  await page.setViewportSize({ width: spec.w, height: spec.h })
+  await goto(spec.route)
+  const found = await page.evaluate((names) => {
+    const upper = names.map((n) => n.toUpperCase())
+    const out = []
+    let seen = 0
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.children.length) continue // leaf text only
+      const text = (el.textContent ?? '').trim()
+      if (!text || !upper.includes(text.toUpperCase())) continue
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) continue
+      seen++
+      // Clipped inside its own box, or hanging off the side of the screen.
+      if (el.scrollWidth > el.clientWidth + 1) out.push(`${text} clipped by ${el.scrollWidth - el.clientWidth}px`)
+      else if (r.left < -1 || r.right > window.innerWidth + 1) out.push(`${text} off screen`)
+    }
+    return { bad: out, seen }
+  }, TEAM_NAMES)
+  // The count keeps this honest: a selector that stopped matching anything
+  // would otherwise pass every route silently.
+  check(
+    `${spec.route} no team name clipped or off screen (${found.seen} measured)`,
+    found.bad.length,
+    0,
+  )
+  if (found.bad.length) console.log('   ', found.bad)
+  if (spec.route !== '#/menu') check(`${spec.route} renders team names at all`, found.seen > 0, true)
+}
+await page.setViewportSize({ width: 390, height: 844 })
+
+/*
+ * 9. A golden key cannot be given without a reason. The key decides the camp —
+ * every other category is capped — so the one award with no ceiling has to
+ * carry why on the record. The confirm's button stays inert until the field
+ * holds something that is not whitespace.
+ */
+await goto('#/team/rustco')
+await page.locator('button[aria-label*="Award a golden key" i]').click()
+await page.waitForTimeout(250)
+const reason = page.locator('input[aria-label="Reason"]')
+check('the key confirm asks for a reason', await reason.count(), 1)
+const awardBtn = page.locator('button', { hasText: 'Award key' })
+check('…and refuses an empty one', await awardBtn.isDisabled(), true)
+await reason.fill('   ')
+check('…and refuses whitespace', await awardBtn.isDisabled(), true)
+await reason.fill('Stayed behind to clear the field')
+check('…and arms once a reason is typed', await awardBtn.isDisabled(), false)
 
 await browser.close()
 if (failures > 0) {

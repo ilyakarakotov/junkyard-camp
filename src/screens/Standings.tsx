@@ -12,6 +12,7 @@ import TeamCrest from '../components/TeamCrest'
 import { BackTab, KeyGlyph, Lamp, Plate, Well } from '../components/chrome'
 import { ArcBolt, usePrefersReducedMotion } from '../fx/Arc'
 import { recentActivity, standings } from '../data/derive'
+import { displayNote } from '../data/export'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 import type { Category, ScoreEvent, Standing, Team } from '../data/types'
@@ -1361,7 +1362,12 @@ function ActivityFeed({
         {feed.map(({ event, reversed }, i) => {
           const team = byId.get(event.teamId)
           const category = categories.find((c) => c.id === event.categoryId)
-          const reason = category?.label ?? 'Adjustment'
+          // A golden key carries the reason it was given for; the feed is the
+          // first place anyone looks after one lands, so it says what for.
+          const note = displayNote(event.note)
+          const reason = note
+            ? `${category?.label ?? 'Adjustment'} · ${note}`
+            : (category?.label ?? 'Adjustment')
           return (
             <div
               key={event.id}

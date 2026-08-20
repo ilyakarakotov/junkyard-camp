@@ -1,4 +1,5 @@
 import { LocalStorageDataProvider, getDeviceId } from './LocalStorageDataProvider'
+import { SANDBOX_EVENTS_KEY } from './epoch'
 import { CATEGORIES, DAYS, TEAMS } from './seed'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
 import type { CategoryId, ScoreEvent, TeamId } from './types'
@@ -12,7 +13,7 @@ import type { CategoryId, ScoreEvent, TeamId } from './types'
  * sandboxed director can award anything to anyone on any day, and Postgres
  * never hears about it.
  */
-export const SANDBOX_EVENTS_KEY = 'jr:sandbox-events:v1'
+export { SANDBOX_EVENTS_KEY }
 
 /** What the test screen may do to the sandbox, surfaced through the store. */
 export interface SandboxOps {

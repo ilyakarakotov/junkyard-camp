@@ -1,4 +1,4 @@
-import { useEffect, useId, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 /**
@@ -325,6 +325,11 @@ export function ScreenFrame({
  * "github.io says…" dialog breaks the machine harder than anything else on
  * it. Replaces every window.confirm. Focus lands on cancel — the destructive
  * button has to be chosen, not defaulted into.
+ *
+ * `prompt` turns it into an ask-and-answer: one required line of text, and a
+ * confirm button that stays dead until something has been typed. The golden
+ * key uses it — a key is worth a whole day of every other category put
+ * together, so it may not be handed out without a reason on the record.
  */
 export function BrassConfirm({
   title,
@@ -332,13 +337,26 @@ export function BrassConfirm({
   confirmLabel,
   onConfirm,
   onCancel,
+  prompt,
 }: {
   title: string
   body: string
   confirmLabel: string
-  onConfirm: () => void
+  /** The typed answer when `prompt` is set, trimmed; undefined otherwise. */
+  onConfirm: (answer?: string) => void
   onCancel: () => void
+  prompt?: {
+    /** Engraved label over the field. */
+    label: string
+    placeholder: string
+    /** Longer than this and it stops being a reason and starts being an essay. */
+    maxLength?: number
+  }
 }) {
+  const [answer, setAnswer] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const filled = answer.trim().length > 0
+  const ready = !prompt || filled
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
@@ -346,13 +364,31 @@ export function BrassConfirm({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancel])
+  const submit = () => {
+    if (!ready) {
+      inputRef.current?.focus()
+      return
+    }
+    onConfirm(prompt ? answer.trim() : undefined)
+  }
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      /*
+       * Scrollable and top-aligned once a keyboard is up: the viewport meta
+       * carries `interactive-widget=resizes-content`, so the on-screen
+       * keyboard shrinks this fixed layer rather than covering it — but a
+       * dialog taller than what is left has to be reachable, and a centred
+       * one taller than its scroller clips its own top off.
+       */
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-6 py-6"
       style={{ background: 'rgba(10,6,3,0.72)' }}
       onClick={onCancel}
     >
-      <div className="plate-shadow relative w-full" style={{ maxWidth: 300 }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="plate-shadow relative my-auto w-full"
+        style={{ maxWidth: 300 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Plate chamfer={10} screws={false} className="w-full" style={{ height: 'auto' }}>
           <CornerScrews inset={6} size={9} />
           <div className="relative flex flex-col items-center px-5 py-5" style={{ gap: 10 }}>
@@ -368,9 +404,46 @@ export function BrassConfirm({
             >
               {body}
             </span>
+            {prompt && (
+              <label className="block w-full">
+                <span
+                  className="tech-label block"
+                  style={{ fontSize: 8, letterSpacing: '0.18em', marginBottom: 4 }}
+                >
+                  {prompt.label}
+                </span>
+                <Well radius={3} className="w-full">
+                  <input
+                    ref={inputRef}
+                    autoFocus
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        submit()
+                      }
+                    }}
+                    placeholder={prompt.placeholder}
+                    maxLength={prompt.maxLength ?? 80}
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    autoCorrect="on"
+                    className="w-full bg-transparent font-body outline-none"
+                    /* 16px is deliberate: iOS zooms the page for any sub-16px
+                       input on focus and never restores the scale. */
+                    style={{ padding: '9px 10px', fontSize: 16, color: 'var(--color-text)' }}
+                    aria-label={prompt.label}
+                  />
+                </Well>
+              </label>
+            )}
             <div className="flex w-full" style={{ gap: 8 }}>
               <button
-                autoFocus
+                /* Focus defaults to cancel so a destructive confirm has to be
+                   chosen — unless there is a field to fill, which needs the
+                   keyboard up the moment the dialog appears. */
+                autoFocus={!prompt}
                 onClick={onCancel}
                 className="font-display flex-1 uppercase"
                 style={{
@@ -386,7 +459,9 @@ export function BrassConfirm({
                 Cancel
               </button>
               <button
-                onClick={onConfirm}
+                onClick={submit}
+                disabled={!ready}
+                aria-disabled={!ready}
                 className="font-display flex-1 uppercase"
                 style={{
                   padding: '10px 0',
@@ -397,6 +472,10 @@ export function BrassConfirm({
                   background:
                     'linear-gradient(180deg, var(--color-brass-hi) 0%, var(--color-brass) 55%, var(--color-brass-lo) 100%)',
                   boxShadow: '0 2px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,244,214,0.7)',
+                  /* Unpowered brass rather than a hidden button: the control
+                     is there, it just has nothing to act on yet. */
+                  opacity: ready ? 1 : 0.4,
+                  filter: ready ? undefined : 'saturate(0.5)',
                 }}
               >
                 {confirmLabel}

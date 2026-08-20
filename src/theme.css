@@ -408,6 +408,16 @@
     );
   }
 
+  /*
+   * Placeholder text in a recess. The browser default is a cool grey, which is
+   * the one colour family this interface does not contain — and at default
+   * opacity it reads as typed-in text rather than as a hint.
+   */
+  input::placeholder {
+    color: var(--color-text-dim);
+    opacity: 0.65;
+  }
+
   /* ---- Typographic and decorative details ------------------------------- */
 
   /* Tiny monospaced technical label. */

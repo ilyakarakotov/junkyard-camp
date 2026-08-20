@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
-import { buildAuditRows, buildDayRows, buildEventsCsv, buildWorkbook } from './export'
+import { buildAuditRows, buildDayRows, buildEventsCsv, buildWorkbook, displayNote } from './export'
 import { reversalOf, standings } from './derive'
 import type { CategoryId, ScoreEvent, TeamId } from './types'
 import { CATEGORIES, DAYS, TEAMS } from './seed'
@@ -127,5 +127,21 @@ describe('the workbook', () => {
     expect(rows[0]).toEqual(['Rank', 'Team', 'Base Points', 'Golden Keys', 'Key Points', 'Overall Total'])
     const gems = rows.slice(1).find((r) => r[1] === 'Hidden Gems')!
     expect(gems[3]).toBe(1) // one key, counted — never a multiplier
+  })
+})
+
+describe('displayNote', () => {
+  it('keeps the reason a golden key was given for', () => {
+    expect(displayNote('Golden key · Day 1 · led the whole verse from memory')).toBe(
+      'led the whole verse from memory',
+    )
+  })
+
+  it('drops the notes that only repeat the row', () => {
+    expect(displayNote(null)).toBeNull()
+    expect(displayNote('Correction')).toBeNull()
+    expect(displayNote('sandbox')).toBeNull()
+    // the pre-reason auto-note, from before a reason was required
+    expect(displayNote('Golden key · Day 1')).toBeNull()
   })
 })

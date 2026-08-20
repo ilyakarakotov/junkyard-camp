@@ -19,7 +19,7 @@ const check = (label, actual, expected) => {
 }
 const liveCount = () =>
   page.evaluate(() => {
-    const all = JSON.parse(localStorage.getItem('jr:events:v3') ?? '[]')
+    const all = JSON.parse(localStorage.getItem('jr:events:v4') ?? '[]')
     const reversed = new Set(all.filter((e) => e.reversesEventId).map((e) => e.reversesEventId))
     return all.filter((e) => !e.reversesEventId && !reversed.has(e.id)).length
   })
@@ -60,7 +60,7 @@ await page.waitForTimeout(400)
 const undone = await liveCount()
 check(`undo returns live count to baseline (${undone})`, undone, before)
 
-const raw = await page.evaluate(() => JSON.parse(localStorage.getItem('jr:events:v3') ?? '[]').length)
+const raw = await page.evaluate(() => JSON.parse(localStorage.getItem('jr:events:v4') ?? '[]').length)
 check(`log is append-only — nothing deleted (${raw} rows on disk)`, raw >= before + 2, true)
 
 await browser.close()

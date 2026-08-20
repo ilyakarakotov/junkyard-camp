@@ -150,6 +150,24 @@ export function buildAuditRows(events: ScoreEvent[]): AuditRow[] {
   return out.reverse()
 }
 
+/**
+ * The part of an event's note worth showing beside it on screen.
+ *
+ * A golden key cannot be awarded without a reason (TeamSheet's confirm), and
+ * it is stored as `Golden key · Day 1 · they cleaned the whole yard` — the
+ * prefix repeats what the row's own category and day columns already say, so
+ * only the reason is returned. `Correction` is what every reversal carries and
+ * `sandbox` is what test mode stamps on its rows: neither adds anything, and
+ * printing them under every undo would bury the one note that matters.
+ */
+export function displayNote(note: string | null): string | null {
+  if (!note) return null
+  const text = note.replace(/^Golden key · [^·]+ · /, '').trim()
+  if (!text || text === 'Correction' || text === 'sandbox') return null
+  if (/^Golden key ·/.test(text)) return null // an older, reasonless auto-note
+  return text
+}
+
 /** The Audit sheet: one row per event, who/what/when and the running total. */
 export function buildAuditSheetRows(
   events: ScoreEvent[],

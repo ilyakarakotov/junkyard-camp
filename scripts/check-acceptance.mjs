@@ -227,7 +227,7 @@ const liveControls = await page.evaluate(
 )
 check('locked day: no check-in is reachable', liveControls, 0)
 
-/* ---- 4. The role split holds in the UI (RLS covers the server) --------- */
+/* ---- 4. Keys are open to every staff member (helpers included) --------- */
 
 await goto('#/team/precious')
 const asDirector = await page.evaluate(() => {
@@ -247,13 +247,12 @@ const asHelper = await page.evaluate(() => {
   const b = [...document.querySelectorAll('button')].find((x) =>
     /award a golden key/i.test(x.getAttribute('aria-label') ?? ''),
   )
-  return { present: !!b, disabled: !!b?.disabled, tagged: /director/i.test(document.body.innerText) }
+  return { present: !!b, disabled: !!b?.disabled }
 })
-// Visible-but-disabled, never hidden: a helper should understand the mechanic
-// exists and is not theirs (§6.2).
-check('helper: the key control is still visible', asHelper.present, true)
-check('helper: the key control is disabled', asHelper.disabled, true)
-check('helper: it is tagged DIRECTOR', asHelper.tagged, true)
+// Keys are points like any other: a helper's control is as live as a
+// director's.
+check('helper: the key control is present', asHelper.present, true)
+check('helper: the key control is live', asHelper.disabled, false)
 
 await goto('#/menu?as=helper')
 // innerText renders through CSS text-transform: uppercase, so the source's
@@ -261,20 +260,13 @@ await goto('#/menu?as=helper')
 check('helper: the menu says Helper', /helper/i.test(await bodyText()), true)
 
 /*
- * ---- 4b. awardKey() refuses a helper on its own, not just via the button --
+ * ---- 4b. awardKey() appends exactly one event for either role -----------
  *
- * `awardKey` now returns early `if (!isDirector)` (src/data/store.tsx), a
- * second guard behind the disabled control above — for exactly the case
- * where a broken render, a stale build, or devtools reaches it directly.
- * That is the one thing the checks above cannot prove, and there is no UI
- * path left to click that would prove it either: a helper's key control on
- * the rail is `disabled`, so Playwright cannot dispatch a click through it
- * at all. So this reaches the store the same way devtools tampering would:
- * through the
- * React fiber tree from any rendered node, calling awardKey() directly
- * rather than through a click that never lands on it.
+ * Reaches the store through the React fiber tree, the same way devtools
+ * tampering would, so the append behaviour is proven independent of any
+ * particular button render.
  */
-const EVENTS_KEY = 'jr:events:v3'
+const EVENTS_KEY = 'jr:events:v4'
 const liveKeyCount = (teamId) =>
   page.evaluate(
     ({ teamId, EVENTS_KEY }) => {
@@ -319,9 +311,9 @@ try {
   check('awardKey() guard probe actually reaches the store (helper)', helperCall.called, true)
   const afterHelper = await liveKeyCount('precious')
   check(
-    `helper: awardKey() itself refuses, not just the button (${beforeHelper} -> ${afterHelper})`,
-    afterHelper,
-    beforeHelper,
+    `helper: awardKey() appends exactly one event (${beforeHelper} -> ${afterHelper})`,
+    afterHelper - beforeHelper,
+    1,
   )
 
   // Control: without this, the check above would pass for the boring reason

@@ -1,9 +1,14 @@
 import type { DataProvider } from './DataProvider'
 import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { CATEGORIES, DAYS, TEAMS, seedEvents } from './seed'
+import { EVENTS_KEY } from './epoch'
 
-/** Shared with SupabaseDataProvider — the mirror must live under one key. */
-export const EVENTS_KEY = 'jr:events:v3'
+/**
+ * Shared with SupabaseDataProvider — the mirror must live under one key, and
+ * that key carries the data epoch so a new camp cannot inherit an old one's
+ * scores off a phone (src/data/epoch.ts).
+ */
+export { EVENTS_KEY }
 const DEVICE_KEY = 'jr:device-id'
 export const SETTING_PREFIX = 'jr:setting:'
 
@@ -37,7 +42,16 @@ export class LocalStorageDataProvider implements DataProvider {
     seedEmpty = true,
   ) {
     if (localStorage.getItem(this.key) === null) {
-      this.write(seedEmpty ? seedEvents(getDeviceId()) : [])
+      /*
+       * Mock camp state exists for the screenshot gates and for developing
+       * against a board that is not eight zeroes. It is never real data, so a
+       * PRODUCTION build seeds nothing whatever the caller asks for: were the
+       * Supabase env ever missing from a Pages build, the app would fall back
+       * to this provider and every leader's phone would open on invented
+       * scores that look exactly like real ones. `import.meta.env.DEV` is true
+       * for `npm run dev` and `npm run dev:gates` and false for `vite build`.
+       */
+      this.write(seedEmpty && import.meta.env.DEV ? seedEvents(getDeviceId()) : [])
     }
     window.addEventListener('storage', (e) => {
       if (e.key === this.key) {

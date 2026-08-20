@@ -195,7 +195,6 @@ export default function TeamSheet() {
     removeCheckIn,
     awardKey,
     removeKey,
-    isDirector,
     isEditableDay,
     editableDayId,
     unlockedDayIds,
@@ -296,13 +295,20 @@ export default function TeamSheet() {
    * Gating is unchanged: the rail is disabled off-day and for non-directors,
    * and `awardKey` refuses both again in the store regardless of this screen.
    */
-  const onAwardKey = async () => {
+  const onAwardKey = async (reason: string) => {
     if (awarding.current) return
     awarding.current = true
     // never the only confirmation — iOS ignores it
     navigator.vibrate?.([18, 60, 40])
     try {
-      await awardKey(activeDay.id, team.id, `Golden key · ${activeDay.name}`)
+      /*
+       * The reason goes on the event itself, so the audit log and the exported
+       * workbook can both answer "what was that key for?" months later. It is
+       * appended to the automatic note rather than replacing it: the day is
+       * worth keeping alongside it, and the note column is the only place
+       * either survives.
+       */
+      await awardKey(activeDay.id, team.id, `Golden key · ${activeDay.name} · ${reason}`)
       setClock(Date.now())
       setKeyUndoUntil(Date.now() + 60_000)
     } finally {
@@ -724,37 +730,15 @@ export default function TeamSheet() {
           </div>
         )}
         <div className="relative">
-          {/* helpers see the control greyed with a DIRECTOR tag — visible to
-              everyone, enabled only for directors, enforced by RLS */}
-          {!isDirector && (
-            <span
-              className="absolute font-mono uppercase"
-              style={{
-                right: 8,
-                top: -9,
-                zIndex: 4,
-                fontSize: 7,
-                letterSpacing: '0.16em',
-                padding: '1px 6px',
-                borderRadius: 2,
-                color: 'var(--color-text-dim)',
-                background: 'linear-gradient(180deg, #2c2013 0%, #1c130a 100%)',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.7), 0 1px 0 rgba(255,232,190,0.14)',
-              }}
-            >
-              Director
-            </span>
-          )}
+          {/* keys are points like any other: every staff member awards them */}
           <KeyHookRail
             keys={keys}
             width={CONTENT}
-            disabled={locked || !isDirector}
+            disabled={locked}
             onAdd={() => setConfirmAward(true)}
-            onRemoveKey={
-              !locked && isDirector && keys > 0 ? () => setConfirmRemove(true) : undefined
-            }
+            onRemoveKey={!locked && keys > 0 ? () => setConfirmRemove(true) : undefined}
             justAdded={keyJustAdded}
-            tabNote={locked ? 'DAY LOCKED' : !isDirector ? 'DIRECTOR ONLY' : undefined}
+            tabNote={locked ? 'DAY LOCKED' : undefined}
           />
         </div>
       </div>
@@ -798,11 +782,18 @@ export default function TeamSheet() {
       {confirmAward && (
         <BrassConfirm
           title="Award a golden key?"
-          body={`${team.name} · ${activeDay.name} — +1.0 · ${ordinal(keys + 1)} key today. You can undo it for a minute after.`}
+          body={`${team.name} · ${activeDay.name} — +1.0 · ${ordinal(keys + 1)} key today. Say what it was for; you can undo it for a minute after.`}
           confirmLabel="Award key"
-          onConfirm={() => {
+          /*
+           * A key is worth as much as a whole day of every other category put
+           * together, and it is the award that decides the camp. So it cannot
+           * be handed out anonymously: the reason is required, it is stored on
+           * the event, and it is what the audit log shows beside the award.
+           */
+          prompt={{ label: 'Reason', placeholder: 'Why did they earn it?', maxLength: 80 }}
+          onConfirm={(reason) => {
             setConfirmAward(false)
-            void onAwardKey()
+            void onAwardKey(reason ?? '')
           }}
           onCancel={() => setConfirmAward(false)}
         />

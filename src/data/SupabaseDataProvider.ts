@@ -1,6 +1,7 @@
 import type { DataProvider } from './DataProvider'
 import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { EVENTS_KEY, SETTING_PREFIX } from './LocalStorageDataProvider'
+import { inEpoch } from './epoch'
 import { CATEGORIES, DAYS, TEAMS } from './seed'
 import { IdbOutbox, type OutboxStore } from './outbox'
 import {
@@ -213,10 +214,15 @@ export class SupabaseDataProvider implements DataProvider {
     }
   }
 
-  /** One-time migration: Phase-0 mock events are not real camp data. */
+  /**
+   * One-time migration: Phase-0 mock events are not real camp data, and
+   * neither is anything that happened before the data epoch — a rehearsal
+   * score carried over from a previous build (src/data/epoch.ts).
+   */
   private dropSeedEvents(): void {
     const events = this.read()
-    if (events.some(isSeedEvent)) this.write(events.filter((e) => !isSeedEvent(e)))
+    const keep = events.filter((e) => !isSeedEvent(e) && inEpoch(e))
+    if (keep.length !== events.length) this.write(keep)
   }
 
   /**
@@ -228,7 +234,14 @@ export class SupabaseDataProvider implements DataProvider {
   private async reconcileOutbox(): Promise<void> {
     const outbox = this.outbox()
     if (!outbox) return
-    const pending = await outbox.all()
+    const all = await outbox.all()
+    // A rehearsal award queued on a phone that never came back online must
+    // not reach Postgres days later, and must not be merged back into a
+    // mirror the epoch just cleared. Dropped from the outbox, not merely
+    // skipped, so it cannot be reconsidered on the next boot.
+    const stale = all.filter((e) => !inEpoch(e))
+    if (stale.length > 0) await outbox.delete(stale.map((e) => e.id))
+    const pending = all.filter(inEpoch)
     const pendingIds = new Set(pending.map((e) => e.id))
     const mirrorIds = new Set(this.read().map((e) => e.id))
     const missing = pending.filter((e) => !mirrorIds.has(e.id))
@@ -259,7 +272,15 @@ export class SupabaseDataProvider implements DataProvider {
    * still unsynced (the server's `created_at` is authoritative). The mirror
    * stays sorted by occurredAt, matching seed.ts.
    */
-  private mergeRemote(remoteEvents: ScoreEvent[]): void {
+  private mergeRemote(incoming: ScoreEvent[]): void {
+    /*
+     * The shared log is the one place a cleared device can be re-seeded from:
+     * a phone wiped by the epoch fetches the server on boot and merges
+     * whatever is there. `supabase/reset-camp.sql` empties that table, but
+     * the client must converge to zero whether or not it has been run — so
+     * pre-epoch rows are ignored here rather than trusted.
+     */
+    const remoteEvents = incoming.filter(inEpoch)
     if (remoteEvents.length === 0) return
     const byId = new Map(this.read().map((e) => [e.id, e]))
     let changed = false

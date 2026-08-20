@@ -205,6 +205,41 @@ describe('SupabaseDataProvider', () => {
     expect((await provider.getEvents()).every((e) => e.syncedAt !== null)).toBe(true)
   })
 
+  /*
+   * The data epoch (src/data/epoch.ts). A phone that ran the rehearsal build
+   * must open the camp on zeroes, and the shared log must not put the
+   * rehearsal back — with or without supabase/reset-camp.sql having been run.
+   */
+  it('ignores server rows from before the data epoch', async () => {
+    const old = { ...ev('knights'), occurredAt: '2026-08-19T09:00:00.000Z' }
+    const fresh = ev('pearls')
+    remote.rows = [asRow(old, '2026-08-19T09:00:01.000Z'), asRow(fresh)]
+
+    await provider.getEvents() // boot fetch
+    await vi.waitFor(async () => {
+      expect((await provider.getEvents()).map((e) => e.id)).toEqual([fresh.id])
+    })
+
+    // …and a realtime insert of one is ignored too, not merely the boot fetch.
+    remote.emit(asRow({ ...ev('forged'), occurredAt: '2026-08-18T12:00:00.000Z' }))
+    expect((await provider.getEvents()).map((e) => e.id)).toEqual([fresh.id])
+  })
+
+  it('drops a pre-epoch mirror and never flushes a pre-epoch outbox row', async () => {
+    const stale = { ...ev(), occurredAt: '2026-08-14T09:00:00.000Z' }
+    const real = ev()
+    localStorage.setItem(EVENTS_KEY, JSON.stringify([stale, real]))
+    const box = new MemoryOutbox()
+    await box.put([stale])
+
+    const p = new SupabaseDataProvider(remote, box)
+    expect((await p.getEvents()).map((e) => e.id)).toEqual([real.id])
+    await vi.waitFor(async () => expect(await box.all()).toHaveLength(0))
+    await p.flush()
+    expect(remote.rows.map((r) => r.id)).not.toContain(stale.id)
+    p.close()
+  })
+
   it('drops Phase-0 seed events so mock data never reaches the backend', async () => {
     const real = ev()
     localStorage.setItem(

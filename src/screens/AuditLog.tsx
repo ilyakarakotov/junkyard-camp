@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BackTab, CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { CAMP_TIMEZONE } from '../data/campday'
-import { buildAuditRows } from '../data/export'
+import { buildAuditRows, displayNote } from '../data/export'
 import { formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
 
@@ -299,44 +299,76 @@ function AuditLine({
 }) {
   const e = row.event
   const value = `${row.valueDeci >= 0 ? '+' : '−'}${formatDeci(Math.abs(row.valueDeci))}`
+  const note = displayNote(e.note)
   return (
-    <div
-      className="flex items-center font-mono"
-      style={{
-        height: 26,
-        paddingLeft: COL.padX,
-        paddingRight: COL.padX,
-        gap: COL.gap,
-        borderTop: first ? undefined : '1px solid rgba(28,16,6,0.55)',
-        fontSize: 8.5,
-        letterSpacing: '0.04em',
-        // the original of a reversal stays on the page, struck through
-        opacity: row.struck ? 0.48 : 1,
-        textDecoration: row.struck ? 'line-through' : undefined,
-      }}
-    >
-      <span style={{ color: 'var(--color-text-dim)', width: COL.time }}>{timeFmt.format(new Date(e.occurredAt))}</span>
-      <span
-        className="uppercase"
-        style={{ color: 'var(--color-text)', width: COL.actor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+    <div style={{ borderTop: first ? undefined : '1px solid rgba(28,16,6,0.55)' }}>
+      <div
+        className="flex items-center font-mono"
+        style={{
+          height: 26,
+          paddingLeft: COL.padX,
+          paddingRight: COL.padX,
+          gap: COL.gap,
+          fontSize: 8.5,
+          letterSpacing: '0.04em',
+          // the original of a reversal stays on the page, struck through
+          opacity: row.struck ? 0.48 : 1,
+          textDecoration: row.struck ? 'line-through' : undefined,
+        }}
       >
-        {actor}
-      </span>
-      <span style={{ color: 'var(--color-text)', width: COL.team }}>{team}</span>
-      <span style={{ color: 'var(--color-text-dim)', width: COL.cat }}>{cat}</span>
-      {row.reversal && (
-        <span style={{ color: 'var(--color-lamp)', fontSize: 7, letterSpacing: '0.1em' }}>UNDO</span>
+        <span style={{ color: 'var(--color-text-dim)', width: COL.time }}>
+          {timeFmt.format(new Date(e.occurredAt))}
+        </span>
+        <span
+          className="uppercase"
+          style={{ color: 'var(--color-text)', width: COL.actor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {actor}
+        </span>
+        <span style={{ color: 'var(--color-text)', width: COL.team }}>{team}</span>
+        <span style={{ color: 'var(--color-text-dim)', width: COL.cat }}>{cat}</span>
+        {row.reversal && (
+          <span style={{ color: 'var(--color-lamp)', fontSize: 7, letterSpacing: '0.1em' }}>UNDO</span>
+        )}
+        <span className="flex-1" />
+        <span
+          className="tabular-nums"
+          style={{ color: row.valueDeci < 0 ? 'var(--color-lamp)' : 'var(--color-text)', width: COL.value, textAlign: 'right' }}
+        >
+          {value}
+        </span>
+        <span className="tabular-nums" style={{ color: 'var(--color-text-dim)', width: COL.total, textAlign: 'right' }}>
+          {formatDeci(row.runningDeci)}
+        </span>
+      </div>
+      {/*
+       * The reason, on its own line under the award it belongs to. A golden
+       * key cannot be given without one (TeamSheet's confirm), and this is
+       * where it has to be readable — "who gave what to whom, and when" is
+       * not accountability for the one award that decides the camp unless
+       * "what for" is on the page beside it. Indented to the actor column so
+       * it reads as a continuation of the row rather than as another row.
+       */}
+      {note && (
+        <div
+          className="font-body"
+          style={{
+            paddingLeft: COL.padX + COL.time + COL.gap,
+            paddingRight: COL.padX,
+            paddingBottom: 4,
+            marginTop: -3,
+            fontSize: 10,
+            lineHeight: 1.2,
+            color: e.categoryId === 'golden_key' ? 'var(--color-key)' : 'var(--color-text-dim)',
+            opacity: row.struck ? 0.48 : 0.95,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {note}
+        </div>
       )}
-      <span className="flex-1" />
-      <span
-        className="tabular-nums"
-        style={{ color: row.valueDeci < 0 ? 'var(--color-lamp)' : 'var(--color-text)', width: COL.value, textAlign: 'right' }}
-      >
-        {value}
-      </span>
-      <span className="tabular-nums" style={{ color: 'var(--color-text-dim)', width: COL.total, textAlign: 'right' }}>
-        {formatDeci(row.runningDeci)}
-      </span>
     </div>
   )
 }

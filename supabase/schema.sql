@@ -165,13 +165,12 @@ create policy r_cats   on categories   for select to authenticated using (privat
 create policy r_users  on app_users    for select to authenticated using (private.is_staff());
 create policy r_events on score_events for select to authenticated using (private.is_staff());
 
--- you may only write as yourself, only for the editable day, and only
--- directors award keys
+-- you may only write as yourself and only for the editable day. Keys are
+-- points like any other: every active staff member may award them.
 create policy w_events on score_events for insert to authenticated
 with check (
   actor_id = auth.uid()
   and (camp_can_edit_day(day_id) or private.is_director())
-  and (category_id <> 'golden_key' or private.is_director())
 );
 
 -- deliberately no update and no delete policies: the log is append-only
