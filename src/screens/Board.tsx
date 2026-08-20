@@ -740,11 +740,12 @@ function BoardRow({
          * and window is this line's to spend.
          *
          * The two are separate spans on purpose. The name stays cream display
-         * caps; the leader is a small dim condensed tag, so the pair reads as
-         * one thing and one label rather than two names competing. Keeping the
-         * leader out of the name's own text node also keeps the DoD gate able
-         * to find each roster name as an exact leaf and measure it for
-         * clipping.
+         * caps; the leader is cream too — the director wants it read, not
+         * squinted at — but a step smaller and in the body face, so the pair
+         * reads as one thing and its keeper rather than two names competing.
+         * Keeping the leader out of the name's own text node also keeps the
+         * DoD gate able to find each roster name as an exact leaf and measure
+         * it for clipping.
          *
          * 14px, not 16: the longest pair on the roster is "PINK JUNKYARD
          * WARRIORS · IRA", and at 16 the name alone spends 182 of the 196px
@@ -768,17 +769,18 @@ function BoardRow({
             {team.name}
           </span>
           <span
-            className="font-body flex-shrink-0 whitespace-nowrap uppercase"
+            className="font-body flex-shrink-0 whitespace-nowrap font-semibold uppercase"
             style={{
-              marginLeft: 4,
-              fontSize: 11,
+              marginLeft: 5,
+              fontSize: 13,
               lineHeight: 1,
-              letterSpacing: '0.06em',
-              color: 'var(--color-text-dim)',
-              textShadow: '0 1px 1px rgba(16,9,4,0.5)',
+              letterSpacing: '0.05em',
+              color: 'var(--color-text)',
+              textShadow: '0 1px 1px rgba(16,9,4,0.55)',
             }}
           >
-            · {team.leader}
+            <span style={{ color: 'var(--color-text-dim)' }}>· </span>
+            {team.leader}
           </span>
         </div>
 
