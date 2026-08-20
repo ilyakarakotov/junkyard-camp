@@ -4,3 +4,4 @@ dist
 .env
 users.json
 shots/
+*.tsbuildinfo
