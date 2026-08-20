@@ -28,16 +28,26 @@ createRoot(document.getElementById('root')!).render(
 )
 
 /*
- * The splash plate in index.html covers the JS download. Two frames after
- * React's first render the real UI is painted underneath, so fade the plate
- * and take it out of the tree — opacity only, per the motion rules.
+ * The splash plate in index.html covers the JS download — but on a warm cache
+ * that download takes 100ms and the marquee read as a flicker, so the plate
+ * holds for ~1.5s measured FROM NAVIGATION START before fading. A slow first
+ * load that already spent the budget gets the app the moment it's ready; the
+ * hold never adds waiting on top of real loading. Gates mode drops the hold so
+ * the screenshot checks measure the screens, not the splash. The fade is
+ * opacity only, per the motion rules, and runs two frames after React's first
+ * render so the real UI is already painted underneath.
  */
 const splash = document.getElementById('splash')
 if (splash) {
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      splash.style.opacity = '0'
-      setTimeout(() => splash.remove(), 450)
-    }),
+  const MIN_SHOW_MS = import.meta.env.MODE === 'gates' ? 0 : 1500
+  setTimeout(
+    () =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          splash.style.opacity = '0'
+          setTimeout(() => splash.remove(), 450)
+        }),
+      ),
+    Math.max(0, MIN_SHOW_MS - performance.now()),
   )
 }
