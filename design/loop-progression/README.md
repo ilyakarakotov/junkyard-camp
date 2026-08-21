@@ -73,10 +73,27 @@ only holds the line it is told to measure.
 ## Files
 
 ```
+reel-9x16/  9:16 reel stills (1080x1920) + transparent overlays
 frames/     23 individual frames — <stage>__<screen>.jpg, full-res, for editing
 strips/     six labelled A→B→C→D→concept-art progression sheets, one per screen
 strips/convergence-chart.jpg   findings per round, by severity
 ```
+
+### reel-9x16/
+
+Cut for vertical video, 1080x1920, key content inside the caption-safe band
+(y 190-1600). The three `overlay-*.png` are transparent-background PNGs meant
+to composite over your own footage.
+
+| File | What it proves |
+|---|---|
+| `01-before-after.jpg` | the loop worked — flat table vs. machined brass |
+| `02-app-vs-concept.jpg` | fidelity — the mockup and the running app, unlabelled |
+| `03-hero-final.jpg` | the finished board, no copy |
+| `04-macro-detail.jpg` | the material up close — no raster assets, every bevel CSS |
+| `05-convergence.jpg` | 94 to 23 across five rounds |
+| `06-cascade.jpg` | all four stages in one frame |
+| `07/08/09-overlay-*.png` | transparent stat callouts |
 
 `D-head__key.jpg` is absent on purpose: `/key/:teamId` no longer exists. A later
 loop folded the ceremony into the team sheet ("One press for a key", `941dddb`).
