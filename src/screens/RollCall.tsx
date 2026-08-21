@@ -4,6 +4,7 @@ import Lever from '../components/Lever'
 import TeamCrest from '../components/TeamCrest'
 import { BrassConfirm, CornerScrews, Plate, ScreenFrame, Well } from '../components/chrome'
 import { ArcStrike, usePrefersReducedMotion } from '../fx/Arc'
+import { formatCampDate } from '../data/campday'
 import { checkInCount, hasBinary } from '../data/derive'
 import { BINARY_DECI, MAX_CHECK_INS, formatDeci, punctualityDeci } from '../data/scoring'
 import { useStore } from '../data/store'
@@ -498,7 +499,8 @@ export default function RollCall() {
   const { categoryId } = useParams<{ categoryId: string }>()
   const navigate = useNavigate()
   const reduced = usePrefersReducedMotion()
-  const { teams, categories, activeDay, events, commitRollCall, undoBatch, isEditableDay, ready } = useStore()
+  const { teams, categories, activeDay, events, commitRollCall, undoBatch, isEditableDay, isBackdating, ready } =
+    useStore()
 
   const category = categories.find((c) => c.id === categoryId)
   const isPunctuality = category?.kind === 'track'
@@ -680,10 +682,16 @@ export default function RollCall() {
           </button>
         </>
       ) : (
-        <span className="engraved tech-label text-[8px]">
-          {selected.size === 0
+        <span
+          className="engraved tech-label text-[8px]"
+          /* The last thing read before the pull. A queue count says how many
+             teams; while backdating, which day is the part that can be wrong. */
+          style={isBackdating ? { color: 'var(--color-lamp)' } : undefined}
+        >
+          {(selected.size === 0
             ? `${selectableCount} OPEN`
-            : `${selected.size} TEAM${selected.size === 1 ? '' : 'S'} QUEUED`}
+            : `${selected.size} TEAM${selected.size === 1 ? '' : 'S'} QUEUED`) +
+            (isBackdating ? ` → ${activeDay.name}` : '')}
         </span>
       )}
     </>
@@ -786,11 +794,39 @@ export default function RollCall() {
               >
                 {category.label}
               </span>
+              {/*
+               * The day the machine is about to score, and — while that day is
+               * not today — the warning itself.
+               *
+               * The band the board and the team sheet carry will not fit here:
+               * this screen's height budget is already tight and a 24px strip
+               * pushes the lever grip below the fold — a lever a thumb has to
+               * scroll to find is a worse outcome than the warning it was
+               * bought with. So the warning goes where it is already being
+               * read, the machine's own readout of what it will commit, and it
+               * lights up — the one thing a dark LCD well can do that a line
+               * of dim mono cannot. Amber, like every energized contact here.
+               *
+               * The day NAME goes, though the board and the team sheet both
+               * keep it: this well is 212x34 and holds one line of about
+               * thirty characters. With the name in it the line wrapped, and
+               * the second line drove the category title 11px up under the
+               * bezel — a warning that eats the word CLEANLINESS has made the
+               * screen worse, not safer. The date says which day on its own.
+               */}
               <span
                 className="tech-label mt-[3px] block text-center"
-                style={{ fontSize: 9.5, letterSpacing: '0.12em', color: '#e0cbab', opacity: 0.95 }}
+                style={{
+                  fontSize: 9.5,
+                  letterSpacing: '0.12em',
+                  color: isBackdating ? 'var(--color-lamp-hot)' : '#e0cbab',
+                  opacity: isBackdating ? 1 : 0.95,
+                  textShadow: isBackdating
+                    ? '0 0 7px rgba(237,144,64,0.85), 0 0 14px rgba(237,144,64,0.4)'
+                    : undefined,
+                }}
               >
-                {activeDay.name}
+                {isBackdating ? `Backdating · ${formatCampDate(activeDay.date)}` : activeDay.name}
               </span>
               {selectableCount === 0 && (
                 <span className="sr-only">All eight teams are already logged for today</span>
@@ -1153,7 +1189,11 @@ export default function RollCall() {
       {deedAsk && (
         <BrassConfirm
           title="Award the good deed?"
-          body={`${selected.size} team${selected.size === 1 ? '' : 's'} · ${activeDay.name} — +1.0 each. The deed is the point: say what they did. One note covers every selected team.`}
+          body={`${selected.size} team${selected.size === 1 ? '' : 's'} · ${activeDay.name} — +1.0 each. The deed is the point: say what they did. One note covers every selected team.${
+            isBackdating
+              ? ` This is a PREVIOUS DAY: it lands on ${formatCampDate(activeDay.date)}, not today.`
+              : ''
+          }`}
           confirmLabel="Award"
           prompt={{ label: 'What they did', placeholder: 'What was the good deed?', maxLength: 80 }}
           onConfirm={(reason) => {

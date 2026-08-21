@@ -25,7 +25,7 @@ import { isTestMode } from './testMode'
 import { useAuth, type AuthUser } from './auth'
 import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
-import { DAYS, resolveActiveDay, resolveEditableDayId } from './seed'
+import { DAYS, canBackdateDay, resolveActiveDay, resolveEditableDayId } from './seed'
 
 interface StoreValue {
   teams: Team[]
@@ -43,13 +43,14 @@ interface StoreValue {
 
   /** The signed-in staff account (a local director in local-only mode). */
   user: AuthUser | null
-  /** Directors may unlock past days; every staff member awards points and keys. */
+  /** Directors may unlock any day; everyone awards points, keys and backdates. */
   isDirector: boolean
 
   /**
-   * Only today is editable; every other day is view-only. The store refuses
-   * writes to locked days — an event the server would reject (RLS permits
-   * today only, or any day for directors) must never sit in the outbox.
+   * Only today is editable; every other day is view-only until reopened. The
+   * store refuses writes to locked days — an event the server would reject
+   * (RLS permits today, any PAST scoring day, or any day at all for a
+   * director) must never sit in the outbox.
    */
   isEditableDay(dayId: string): boolean
   /**
@@ -60,10 +61,23 @@ interface StoreValue {
    * setup, including the day it would in fact accept scores for.
    */
   editableDayId: string | null
-  /** Days a director has unlocked on this device (the banner turns amber). */
+  /** Days reopened on this device (the banner turns amber while one holds). */
   unlockedDayIds: ReadonlySet<string>
-  /** Directors only: unlock a past day to fix a mistake (behind a confirm). */
+  /**
+   * Whether this person may reopen `dayId` at all: a past scoring day for
+   * anyone, any locked day for a director. Screens read this to decide whether
+   * to offer the unlock, so the button and the guard behind it agree.
+   */
+  canUnlockDay(dayId: string): boolean
+  /** Reopen a day to fix a miss (behind a confirm the screen owns). */
   unlockDay(dayId: string): void
+  /**
+   * True while the day on screen is open for editing but is **not** the camp's
+   * today: every award from here lands on a previous day. Screens must keep a
+   * warning up the whole time this holds — a dialog dismissed thirty seconds
+   * ago is not a warning, and backdating is silent by nature.
+   */
+  isBackdating: boolean
 
   /**
    * Backend sync readout for the unsynced chrome: is the network up, and how
@@ -176,16 +190,35 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [syncAware, online, events],
   )
 
-  // Day locks. Per-device by design: a director unlocks the device in hand to
-  // fix a mistake, and the RLS policy already permits director inserts into
-  // any day — the lock is UI state, never a data change.
+  // Day locks. Per-device by design: someone reopens the device in hand to fix
+  // a miss, and the RLS policy permits the matching insert — the lock is UI
+  // state, never a data change.
   //
   // The camp's "today", resolved by resolveEditableDayId (src/data/seed.ts) so
   // the rail, the banner and the write guards all read one answer. Before camp
   // — and on Arrival, which scores nothing — the next scoring day stands in;
-  // after camp nothing is editable without a director's unlock.
+  // after camp nothing is editable until a day is reopened.
   const editableDayId = useMemo(() => resolveEditableDayId(days), [days])
   const [unlockedDayIds, setUnlockedDayIds] = useState<ReadonlySet<string>>(new Set())
+  /*
+   * Who may reopen which day. This is the client half of the RLS policy in
+   * supabase/schema.sql and has to stay no wider than it: an event the server
+   * refuses never lands anywhere a leader can see it fail — it just sits in
+   * the outbox while the phone shows the point awarded.
+   *
+   *   past scoring day  -> anyone (canBackdateDay, mirroring camp_can_backdate_day)
+   *   any locked day    -> a director (private.is_director())
+   */
+  const canUnlockDay = useCallback(
+    (dayId: string) => {
+      if (testMode) return false
+      if (dayId === editableDayId) return false
+      const day = days.find((d) => d.id === dayId)
+      if (!day || !day.scored) return false
+      return isDirector || canBackdateDay(day)
+    },
+    [testMode, days, editableDayId, isDirector],
+  )
   const isEditableDay = useCallback(
     (dayId: string) => {
       // The sandbox has no calendar to protect: every scoring day is open, so
@@ -194,16 +227,20 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       // rule of the camp rather than a lock.
       if (testMode) return days.find((d) => d.id === dayId)?.scored ?? false
       if (dayId === editableDayId) return true
-      return isDirector && unlockedDayIds.has(dayId)
+      // Re-checked here rather than trusted from the set: a day unlocked at
+      // 02:00 is still unlocked at 03:01, when the rollover has made it today
+      // — or made the day after it reachable. The set records intent; this
+      // decides, every render, against the clock as it is now.
+      return unlockedDayIds.has(dayId) && canUnlockDay(dayId)
     },
-    [testMode, days, editableDayId, isDirector, unlockedDayIds],
+    [testMode, days, editableDayId, unlockedDayIds, canUnlockDay],
   )
   const unlockDay = useCallback(
     (dayId: string) => {
-      if (!isDirector) return
+      if (!canUnlockDay(dayId)) return
       setUnlockedDayIds((s) => new Set(s).add(dayId))
     },
-    [isDirector],
+    [canUnlockDay],
   )
 
   const newEvent = useCallback(
@@ -354,6 +391,16 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [days, activeDayId],
   )
 
+  /*
+   * The one flag every screen reads to know it is scoring the past. Derived
+   * rather than stored: the day on screen is editable, and it is not the day
+   * the camp is actually on. Test mode is excluded — the sandbox opens the
+   * whole camp on purpose, and a standing warning on all five days is noise
+   * that teaches leaders to ignore the one that matters.
+   */
+  const isBackdating =
+    !testMode && activeDay.id !== editableDayId && isEditableDay(activeDay.id)
+
   // Sandbox controls. Every one of them rewrites the log wholesale, which no
   // real provider may ever do — so they exist only on the sandbox class and
   // are exposed as null everywhere else, and each refreshes the store's copy
@@ -388,7 +435,9 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       isEditableDay,
       editableDayId,
       unlockedDayIds,
+      canUnlockDay,
       unlockDay,
+      isBackdating,
       sync,
       commitRollCall,
       setBinary,
@@ -413,7 +462,9 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       isEditableDay,
       editableDayId,
       unlockedDayIds,
+      canUnlockDay,
       unlockDay,
+      isBackdating,
       sync,
       commitRollCall,
       setBinary,

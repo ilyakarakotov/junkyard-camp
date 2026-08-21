@@ -263,8 +263,8 @@ with check (
 **Team leaders do not get accounts** — a leader scoring their own team is the one real integrity hole. Only helpers and directors sign in.
 
 Two roles:
-- `helper` — awards the six normal categories, today only
-- `director` — additionally awards Golden Keys and can unlock a past day to fix a mistake
+- `helper` — awards every category, for today or for any day already past (see backdating)
+- `director` — additionally reaches days the camp has not got to yet
 
 If everyone should have equal powers, that is a one-line change: seed every user as `director`. Build it so that works.
 
@@ -318,7 +318,7 @@ Username + password, full junkyard treatment. Persistent session, so this is see
 
 The default screen after sign-in.
 
-- **Day rail across the top:** five chips. Today is lit and active. Every other day shows a **padlock** and is view-only. Tapping a locked day opens it read-only with a banner: `DAY 1 · LOCKED — VIEW ONLY`. Directors get an `UNLOCK` action there behind a confirm; while unlocked the banner turns amber and stays visible.
+- **Day rail across the top:** five chips. Today is lit and active. Every other day shows a **padlock** and is view-only. Tapping a locked day opens it read-only with a banner: `DAY 1 · LOCKED — VIEW ONLY`. Anyone gets an `ADD POINTS` action on a **past** day behind a confirm naming its date; directors also get `UNLOCK` on a future one. While the day is open the banner is an amber warning band that stays visible on every screen that can score.
 - **Eight team rows.** Each shows: crest, **full team name** (not the short name — there is room here), **today's points**, and **overall points**, clearly distinguished from each other. All zeros by default.
 - Rows are sorted by overall points descending, with a rank numeral.
 - **Menu button** top-left opens the menu (6.5).
@@ -481,8 +481,10 @@ Already defined in `CLAUDE.md` and `theme.css`. The essentials:
 - [ ] Punctuality rail is six plain circles **plus a visibly distinct seventh**
 - [ ] Every scoring control uses the electrical/charge language — no toggle switches
 - [ ] Every control states its point value on screen
-- [ ] Only today is editable; past and future days are visibly locked
-- [ ] A director can unlock a past day; a helper cannot
+- [ ] Only today is editable until a day is reopened; every other day is visibly locked
+- [ ] Anyone can reopen a **past** day to add points, and cannot do so without confirming a warning that names its date
+- [ ] The warning stays on screen — board, team sheet and roll call — for as long as that day is open
+- [ ] A future day stays locked to everyone but a director
 - [ ] Helpers cannot award Golden Keys, enforced in RLS and not only in the UI
 - [ ] Sign-in persists across app restarts for the length of the camp
 - [ ] Airplane-mode test: award offline, reconnect, exactly one row lands, no duplicates

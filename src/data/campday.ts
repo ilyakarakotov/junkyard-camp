@@ -78,3 +78,31 @@ export function campTodayCandidates(now: Date = new Date()): string[] {
   const device = deviceToday(now)
   return camp === device ? [camp] : [camp, device]
 }
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
+
+/**
+ * A camp date (YYYY-MM-DD) as a leader reads it — "Thu 20 Aug".
+ *
+ * Two things this deliberately does not do.
+ *
+ * It does not hand the string to `new Date(iso)`: a bare date is parsed as
+ * UTC, so anywhere west of Greenwich `new Date('2026-08-20')` formats as the
+ * 19th. The backdating warning is built out of this, and a warning that names
+ * the wrong day is worse than no warning at all.
+ *
+ * And it does not go through `Intl.DateTimeFormat`. It did, and the same call
+ * produced "Thu 20 Aug" under Node and "Thu, 20 Aug" in Chromium — two
+ * different ICU builds — so the unit test asserted a string the app never
+ * actually rendered, and the extra comma was enough to push the board's
+ * warning band into an ellipsis that ate the words "not today". The camp's
+ * copy is English and its five dates are fixed, so a table is both exact and
+ * the same everywhere.
+ */
+export function formatCampDate(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  if (!y || !m || !d || m < 1 || m > 12) return date
+  const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()]
+  return `${weekday} ${d} ${MONTHS[m - 1]}`
+}

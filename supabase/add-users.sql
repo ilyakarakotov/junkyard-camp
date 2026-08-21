@@ -10,9 +10,10 @@
 --
 -- Nobody types an email: the sign-in screen appends @junkyard.camp itself.
 --
--- Roles: `helper` awards the six normal categories for the current day.
--- `director` also awards Golden Keys and can unlock a past day. Want everyone
--- to have equal powers? Make every role 'director'.
+-- Roles: every active account awards all six categories and Golden Keys, for
+-- today and for any day already past (backdating, behind a warning). A
+-- `director` additionally reaches days the camp has not got to yet. Want
+-- everyone to have equal powers? Make every role 'director'.
 --
 -- Re-running is safe: an existing username has its password, display name and
 -- role updated rather than being duplicated.

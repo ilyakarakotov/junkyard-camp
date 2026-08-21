@@ -67,7 +67,7 @@ create or replace function camp_today() returns date
   select ((now() at time zone 'America/Los_Angeles') - interval '3 hours')::date;
 $$;
 
--- Which day accepts writes without a director's unlock. This mirrors
+-- Which day accepts writes with nothing reopened at all. This mirrors
 -- seed.ts's resolveEditableDayId exactly, and it must: comparing a day's date
 -- to camp_today() directly means that before camp opens no date matches, so
 -- every helper insert is refused while the client happily accepts it — the
@@ -110,6 +110,29 @@ create or replace function camp_can_edit_day(d text) returns boolean
          where id = d and scored
            and date between camp_today() - 1 and camp_today() + 1
       );
+$$;
+
+-- Whether a day may be reopened for BACKDATING — awarding points to a day that
+-- has already been and gone.
+--
+-- A leader who forgets a good deed on Tuesday has to be able to put it right on
+-- Wednesday. Before this, only a director could: the point was earned, the
+-- scoreboard could not record it, and the only way in was to find the director
+-- during the evening gathering. So a past scoring day accepts every active
+-- staff member's insert, and what protects the log is not a role — it is the
+-- warning the client makes them confirm, the banner it keeps up for as long as
+-- the day is open, and the actor_id and occurred_at this append-only table
+-- keeps on every row. src/data/seed.ts's canBackdateDay mirrors this exactly.
+--
+-- Past only. A future day has nothing to correct, so it stays closed to
+-- everyone but a director: awarding Thursday's points on Wednesday is a
+-- mis-tap, never a fix.
+create or replace function camp_can_backdate_day(d text) returns boolean
+  language sql stable set search_path = public as $$
+  select exists (
+    select 1 from days
+     where id = d and scored and date <= camp_today()
+  );
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -165,12 +188,18 @@ create policy r_cats   on categories   for select to authenticated using (privat
 create policy r_users  on app_users    for select to authenticated using (private.is_staff());
 create policy r_events on score_events for select to authenticated using (private.is_staff());
 
--- you may only write as yourself and only for the editable day. Keys are
--- points like any other: every active staff member may award them.
+-- You may only write as yourself, and only for a day that is open to you:
+-- today, any day already past (backdating a miss), or — for a director —
+-- any day at all. Keys are points like any other: every active staff member
+-- may award them.
 create policy w_events on score_events for insert to authenticated
 with check (
   actor_id = auth.uid()
-  and (camp_can_edit_day(day_id) or private.is_director())
+  and (
+    camp_can_edit_day(day_id)
+    or camp_can_backdate_day(day_id)
+    or private.is_director()
+  )
 );
 
 -- deliberately no update and no delete policies: the log is append-only

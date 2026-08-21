@@ -109,12 +109,39 @@ export function resolveEditableDayId(days: Day[], now: Date = new Date()): strin
 }
 
 /**
- * Only today is editable; every other day is view-only. Directors may unlock
- * a day per device to fix a mistake (the RLS policy permits director inserts
- * into any day) — the unlock itself is UI state, never a data change.
+ * Only today is editable; every other day is view-only. A day is reopened per
+ * device — by anyone for a past day (see canBackdateDay), by a director for
+ * any day at all — and the unlock itself is UI state, never a data change.
  */
 export function isToday(day: Day, now: Date = new Date()): boolean {
   return day.date === campToday(now)
+}
+
+/**
+ * Whether a day may be reopened for **backdating** — awarding points to a day
+ * that has already been and gone.
+ *
+ * A leader who forgets to award a good deed on Tuesday should be able to put
+ * it right on Wednesday without hunting down a director at the evening
+ * gathering; the point was earned, and a scoreboard that cannot record it is
+ * wrong in a way nobody can fix. So a past scoring day is open to every staff
+ * member, and what protects the log is not a role but a warning they have to
+ * confirm, a banner that stays up for as long as the day is open, and the
+ * actor and timestamp the append-only log keeps on every row.
+ *
+ * Two bounds, both deliberate:
+ *
+ *  - **Past only.** A future day has nothing to correct, so it stays locked to
+ *    everyone but a director. Awarding Thursday's points on Wednesday is a
+ *    mis-tap, never a fix.
+ *  - **`campToday` specifically**, not `campTodayCandidates`. This mirrors
+ *    `camp_can_backdate_day()` in supabase/schema.sql exactly, and it must:
+ *    the permissive reading would let a phone east of the camp timezone open a
+ *    day the server still calls tomorrow, and every award would sit in the
+ *    outbox forever with nothing on screen saying why.
+ */
+export function canBackdateDay(day: Day, now: Date = new Date()): boolean {
+  return day.scored && day.date <= campToday(now)
 }
 
 // ---------------------------------------------------------------------------

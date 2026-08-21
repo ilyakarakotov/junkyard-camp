@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { formatCampDate } from '../data/campday'
+import type { Day } from '../data/types'
 
 /**
  * Shared hardware vocabulary. Every screen is assembled from these parts, so
@@ -1253,6 +1255,82 @@ export function BracketRule({ className }: { className?: string }) {
       <div className="hairline" />
       <div className="absolute -top-1 left-0 h-2 w-px bg-[rgba(192,138,62,0.5)]" />
       <div className="absolute -top-1 right-0 h-2 w-px bg-[rgba(192,138,62,0.5)]" />
+    </div>
+  )
+}
+
+/**
+ * The backdating warning: a lit caution chip that stays up for as long as a
+ * leader is scoring a day that is not today.
+ *
+ * Every screen that can put a point on a day carries this — the board, the
+ * team sheet, roll call — because the danger is not the unlock, it is the
+ * twenty minutes after it. A confirmation dialog is read once and dismissed;
+ * this is the thing still on screen when the ninth award of the session lands.
+ *
+ * Material: the band is the emitter, so the amber spill onto the metal around
+ * it is motivated light rather than decoration, and the eye is pulled here
+ * before it reaches the controls underneath. Amber because an energized
+ * contact is amber everywhere in this app and teal is only ever electricity.
+ * The hazard cap on the left is machined caution striping — salvage-yard
+ * vocabulary, and the one shape on screen that reads as a warning at a glance
+ * without spending a word on it.
+ *
+ * The date is spelled out in full. "Day 1" is what the day rail already says,
+ * and it is exactly what a leader reads straight past at 21:00 with eight
+ * teams waiting; "Thu 20 Aug" is not.
+ */
+export function BackdateBanner({
+  day,
+  className = '',
+  compact = false,
+}: {
+  day: Day
+  /** Layout only — this component owns its own height and material. */
+  className?: string
+  /**
+   * Drops the day NAME, keeping the date and the "not today". Used where the
+   * screen already says which day is selected — the team sheet's tab rail sits
+   * directly above this — and where the band is narrower than the board's.
+   * What never drops is the last clause: "not today" is the whole warning, and
+   * an ellipsis eating it is the one failure this component cannot have.
+   */
+  compact?: boolean
+}) {
+  return (
+    <div
+      role="status"
+      className={`relative flex items-center overflow-hidden font-mono uppercase ${className}`}
+      style={{
+        height: 24,
+        borderRadius: 4,
+        fontSize: 8.5,
+        // 0.11em rather than the 0.13em the other mono strips carry: at the
+        // board's width the full line measures 350px into a 350px box, and a
+        // warning that ends in an ellipsis is not a warning. Two hundredths of
+        // an em buys ~7px of headroom and reads the same.
+        letterSpacing: '0.11em',
+        color: 'var(--color-lamp-hot)',
+        background: 'linear-gradient(180deg, #33200a 0%, #281607 55%, #1e1005 100%)',
+        boxShadow:
+          'inset 0 2px 3px rgba(0,0,0,0.75), inset 0 -1px 0 rgba(254,223,151,0.3), 0 0 10px rgba(237,144,64,0.28)',
+      }}
+    >
+      {/* the hazard cap: struck caution striping across the band's left end */}
+      <span
+        aria-hidden
+        style={{
+          width: 16,
+          alignSelf: 'stretch',
+          background:
+            'repeating-linear-gradient(135deg, var(--color-lamp) 0 3px, #2a1607 3px 6px)',
+          boxShadow: 'inset -1px 0 0 rgba(20,10,3,0.8), 1px 0 0 rgba(254,223,151,0.22)',
+          opacity: 0.9,
+        }}
+      />
+      <span className="flex-1 truncate px-2">
+        Backdating{compact ? '' : ` · ${day.name}`} · {formatCampDate(day.date)} — not today
+      </span>
     </div>
   )
 }
