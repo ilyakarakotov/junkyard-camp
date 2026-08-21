@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import DayRail from '../components/DayRail'
 import { KeyCount } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
-import { BrassConfirm, Plate, Well, textureOffset } from '../components/chrome'
+import { BackdateBanner, BrassConfirm, Plate, Well, textureOffset } from '../components/chrome'
+import { formatCampDate } from '../data/campday'
+import { canBackdateDay } from '../data/seed'
 import { dayScores, keyCount, standings } from '../data/derive'
 import { BASE_CEILING_DECI, formatDeci } from '../data/scoring'
 import { useStore } from '../data/store'
@@ -280,10 +282,9 @@ export default function Board() {
     setActiveDayId,
     events,
     ready,
-    isDirector,
     isEditableDay,
     editableDayId,
-    unlockedDayIds,
+    canUnlockDay,
     unlockDay,
     testMode,
   } = useStore()
@@ -341,9 +342,29 @@ export default function Board() {
         : new Set(days.filter((d) => d.scored && d.id !== todayId).map((d) => d.id)),
     [days, todayId, testMode],
   )
+  /*
+   * A padlock turns amber only while the day is *actually* open, not merely
+   * while it sits in the unlocked set: `isEditableDay` re-checks against the
+   * clock every render, so a day reopened before the 03:00 rollover stops
+   * being amber the moment the rollover takes it back.
+   */
+  const openedIds = useMemo(
+    () => new Set(days.filter((d) => d.id !== todayId && isEditableDay(d.id)).map((d) => d.id)),
+    [days, todayId, isEditableDay],
+  )
   const viewingLocked = activeDay.scored && !isEditableDay(activeDay.id)
-  const viewingUnlocked =
-    activeDay.scored && activeDay.id !== todayId && unlockedDayIds.has(activeDay.id)
+  const viewingUnlocked = activeDay.scored && openedIds.has(activeDay.id)
+  /*
+   * Whether the day on screen can be reopened from here, and whether doing so
+   * would be backdating (a day already gone) or a director reaching forward
+   * into one the camp has not got to yet. The two want different words: the
+   * first is a fix, the second is almost always a mistake. Read through
+   * canBackdateDay rather than compared against today's date here — after the
+   * last camp day there is no today to compare to, and every scoring day is
+   * then in the past.
+   */
+  const canReopen = viewingLocked && canUnlockDay(activeDay.id)
+  const reopenIsBackdate = canBackdateDay(activeDay)
 
   if (!ready) return <div className="min-h-dvh" />
 
@@ -507,7 +528,7 @@ export default function Board() {
         variant="sockets"
         todayId={todayId}
         lockedIds={lockedIds}
-        unlockedIds={unlockedDayIds}
+        unlockedIds={openedIds}
         // The rail's own box is 58px tall around a 10px bar, so trimming 4px of
         // its padding costs nothing visually and puts the first row on the grid.
         className="mx-1 mb-[-4px] mt-[2px]"
@@ -532,9 +553,14 @@ export default function Board() {
           }}
         >
           <span>{activeDay.name} · locked — view only</span>
-          {isDirector && (
+          {canReopen && (
             <button
               onClick={() => setConfirmUnlock(true)}
+              aria-label={
+                reopenIsBackdate
+                  ? `Add points to ${activeDay.name} — a previous day`
+                  : `Unlock ${activeDay.name}`
+              }
               className="font-mono uppercase"
               style={{
                 padding: '3px 10px',
@@ -547,29 +573,12 @@ export default function Board() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,244,214,0.6)',
               }}
             >
-              Unlock
+              {reopenIsBackdate ? 'Add points' : 'Unlock'}
             </button>
           )}
         </div>
       )}
-      {viewingUnlocked && (
-        <div
-          className="mx-1 mt-1 flex items-center font-mono uppercase"
-          style={{
-            height: 24,
-            paddingLeft: 12,
-            borderRadius: 4,
-            fontSize: 8.5,
-            letterSpacing: '0.14em',
-            color: 'var(--color-lamp-hot)',
-            background: 'linear-gradient(180deg, #2c1a08 0%, #241306 55%, #1c0f05 100%)',
-            boxShadow:
-              'inset 0 2px 3px rgba(0,0,0,0.75), inset 0 -1px 0 rgba(254,223,151,0.28), 0 0 8px rgba(237,144,64,0.18)',
-          }}
-        >
-          {activeDay.name} · unlocked by director — editing enabled
-        </div>
-      )}
+      {viewingUnlocked && <BackdateBanner day={activeDay} className="mx-1 mt-1" />}
 
       {/*
         ---- eight rows, each its own plate, each a meter ----
@@ -640,9 +649,23 @@ export default function Board() {
 
       {confirmUnlock && (
         <BrassConfirm
-          title={`Unlock ${activeDay.name}?`}
-          body="This device may edit that day until you leave it. The log keeps who wrote what."
-          confirmLabel="Unlock"
+          title={
+            reopenIsBackdate
+              ? `Add points to ${activeDay.name}?`
+              : `Unlock ${activeDay.name}?`
+          }
+          /*
+           * Names the date, not just the day. "Day 1" is what the rail already
+           * says and it is the part a tired leader reads past; the date is the
+           * sentence that makes them stop. It also says where the points land,
+           * because that — not the unlock — is the thing that goes wrong.
+           */
+          body={
+            reopenIsBackdate
+              ? `${activeDay.name} was ${formatCampDate(activeDay.date)}. Anything you award now counts towards THAT day, not today, and the log records who backdated it and when. This device stays open on ${activeDay.name} until you pick another day.`
+              : `${activeDay.name} is ${formatCampDate(activeDay.date)} — the camp has not reached it. This device may edit that day until you pick another. The log keeps who wrote what.`
+          }
+          confirmLabel={reopenIsBackdate ? 'Add points' : 'Unlock'}
           onConfirm={() => {
             setConfirmUnlock(false)
             unlockDay(activeDay.id)

@@ -235,6 +235,16 @@ the full names don't fit at 390px.
 **Arrival does not score** — it is travel and settling in. It appears on the day
 rail as a non-scoring day and contributes nothing to standings.
 
+**A past day can be reopened to add points.** A leader who missed an award
+yesterday puts it right by picking that day on the board and confirming a
+warning that names its date; the day then accepts writes on that device until
+another is picked, and an amber warning band stays up on every screen that can
+score. Future days stay locked to everyone but a director — a day the camp has
+not reached has nothing to correct. The rule lives in `canBackdateDay`
+(`src/data/seed.ts`) and is mirrored exactly by `camp_can_backdate_day()` in
+`supabase/schema.sql`: **the client must never be the wider of the two**, or a
+backdated award sits in the outbox forever while the phone shows it as given.
+
 Each scoring day carries seven activities for punctuality:
 `Morning exercise 8:30 · Breakfast 9:00 · Morning line up 9:45 · Lesson 10:15 ·
 Lunch 13:00 · Dinner 17:30 · Evening service 19:30`

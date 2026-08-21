@@ -120,9 +120,11 @@ Setup, start to finish — four steps, about ten minutes:
    some projects, and the SQL path sidesteps it. Either way the **service-role
    key must never reach the repo or the client bundle**.
 
-   Roles: `helper` awards the six normal categories for the current day;
-   `director` also awards Golden Keys and can unlock a past day. Want everyone
-   equal? Make every role `director`.
+   Roles: every active account awards all six categories and Golden Keys, for
+   today and for any day already past — a missed award is put right by
+   reopening that day, behind a warning naming its date. A `director`
+   additionally reaches days the camp has not got to yet. Want everyone equal?
+   Make every role `director`.
 
 4. Set `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
    Copy `.env.example` to `.env` for local dev; for the Pages build set the same

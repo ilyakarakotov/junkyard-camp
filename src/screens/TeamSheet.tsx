@@ -7,15 +7,8 @@ import DayRail from '../components/DayRail'
 import { KeyHookRail } from '../components/KeyRail'
 import TeamCrest from '../components/TeamCrest'
 import { ArcStrike } from '../fx/Arc'
-import {
-  BackTab,
-  BrassConfirm,
-  BrassFrame,
-  KeyGlyph,
-  Plate,
-  Screw,
-  textureOffset,
-} from '../components/chrome'
+import { BackdateBanner, BackTab, BrassConfirm, BrassFrame, KeyGlyph, Plate, Screw, textureOffset } from '../components/chrome'
+import { formatCampDate } from '../data/campday'
 import { dayScore, keyCount, liveEvents } from '../data/derive'
 import {
   BASE_CEILING_DECI,
@@ -196,8 +189,7 @@ export default function TeamSheet() {
     awardKey,
     removeKey,
     isEditableDay,
-    editableDayId,
-    unlockedDayIds,
+    isBackdating,
     ready,
   } = useStore()
 
@@ -264,8 +256,16 @@ export default function TeamSheet() {
   // Only today (or a director-unlocked day) is editable — the store refuses
   // the write anyway, so the controls must read inert before the tap.
   const locked = !isEditableDay(activeDay.id)
-  const unlockedHere = activeDay.id !== editableDayId && unlockedDayIds.has(activeDay.id)
   const keys = score.keys
+  /*
+   * Every confirmation on this screen already names the day. While backdating,
+   * the day name is no longer a label — it is the whole warning — so the date
+   * goes in it too. The banner is up behind the dialog the entire time; this is
+   * the sentence directly in front of the thumb about to press.
+   */
+  const backdateNote = isBackdating
+    ? ` This is a PREVIOUS DAY: it lands on ${formatCampDate(activeDay.date)}, not today.`
+    : ''
 
   /* A key struck within the last few seconds settles hot-to-cool on the rail
      and throws its sparkle; older keys hang cold. */
@@ -514,20 +514,23 @@ export default function TeamSheet() {
         >
           {activeDay.name.toUpperCase()} · LOCKED — VIEW ONLY
         </div>
-      ) : unlockedHere ? (
-        <div
-          className="tech-label mt-[6px] text-center text-[8px]"
-          style={{ color: 'var(--color-lamp-hot)', textShadow: '0 1px 0 rgba(255,236,205,0.10)' }}
-        >
-          {activeDay.name.toUpperCase()} · UNLOCKED — EDITING ENABLED
-        </div>
+      ) : isBackdating ? (
+        /*
+         * The one screen where backdating actually costs something: six live
+         * plates and a key hook, every one of them one tap from a point on the
+         * wrong day. So the warning is the band, not the 8px tech-label the
+         * unlock state used to get — a leader who scrolled past a line of dim
+         * mono type and awarded a key to Tuesday is the failure this exists to
+         * prevent.
+         */
+        <BackdateBanner day={activeDay} className="mx-4 mt-[6px]" compact />
       ) : null}
 
       {/* ---- six identical plates; punctuality is one of them ---- */}
       <div
         className="flex flex-col px-4"
         style={{
-          marginTop: locked || !activeDay.scored ? 12 : 14,
+          marginTop: locked || !activeDay.scored ? 12 : isBackdating ? 10 : 14,
           gap: GUT,
           // A locked day reads inert at a glance: everything recessed and
           // desaturated, no hover, no lit idle states.
@@ -782,8 +785,8 @@ export default function TeamSheet() {
           title="Add check-in?"
           body={
             nextTicks === MAX_CHECK_INS
-              ? `${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → all ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, nextTicks)}: the seventh is worth 0.4, not 0.1.`
-              : `${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → ${nextTicks} of ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, nextTicks)}.`
+              ? `${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → all ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, nextTicks)}: the seventh is worth 0.4, not 0.1.${backdateNote}`
+              : `${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → ${nextTicks} of ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, nextTicks)}.${backdateNote}`
           }
           confirmLabel="Add check-in"
           onConfirm={() => {
@@ -797,7 +800,7 @@ export default function TeamSheet() {
       {punctualityAsk === 'remove' && (
         <BrassConfirm
           title="Remove check-in?"
-          body={`${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → ${prevTicks} of ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, prevTicks)}. The check-in is reversed in the log; nothing is deleted.`}
+          body={`${team.shortName} · ${activeDay.name} — check-ins ${ticks} of ${MAX_CHECK_INS} → ${prevTicks} of ${MAX_CHECK_INS}. Punctuality ${ladder(ticks, prevTicks)}. The check-in is reversed in the log; nothing is deleted.${backdateNote}`}
           confirmLabel="Remove check-in"
           onConfirm={() => {
             setPunctualityAsk(null)
@@ -810,7 +813,7 @@ export default function TeamSheet() {
       {confirmDeed && (
         <BrassConfirm
           title="Award the good deed?"
-          body={`${team.name} · ${activeDay.name} — +1.0. The deed is the point: say what they did.`}
+          body={`${team.name} · ${activeDay.name} — +1.0. The deed is the point: say what they did.${backdateNote}`}
           confirmLabel="Award point"
           prompt={{ label: 'What they did', placeholder: 'What was the good deed?', maxLength: 80 }}
           onConfirm={(reason) => {
@@ -826,7 +829,7 @@ export default function TeamSheet() {
       {confirmAward && (
         <BrassConfirm
           title="Award a golden key?"
-          body={`${team.name} · ${activeDay.name} — +1.0 · ${ordinal(keys + 1)} key today. Say what it was for; you can undo it for a minute after.`}
+          body={`${team.name} · ${activeDay.name} — +1.0 · ${ordinal(keys + 1)} key today. Say what it was for; you can undo it for a minute after.${backdateNote}`}
           confirmLabel="Award key"
           /*
            * A key is worth as much as a whole day of every other category put
@@ -846,7 +849,7 @@ export default function TeamSheet() {
       {confirmRemove && (
         <BrassConfirm
           title="Remove the last key?"
-          body={`The most recent golden key on ${activeDay.name} is reversed in the log. Nothing is ever deleted.`}
+          body={`The most recent golden key on ${activeDay.name} is reversed in the log. Nothing is ever deleted.${backdateNote}`}
           confirmLabel="Remove key"
           onConfirm={() => {
             setConfirmRemove(false)
