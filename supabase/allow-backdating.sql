@@ -22,6 +22,12 @@
 -- outbox forever while the phone shows the point as awarded.
 --
 -- Already folded into schema.sql — this file is only for a live project.
+--
+-- ALTER POLICY rather than DROP + CREATE, because this runs against a camp
+-- that is mid-week: a drop leaves score_events with no insert policy at all,
+-- and a leader awarding a point in that window is refused for no reason they
+-- could ever understand. ALTER swaps the expression in place. It does require
+-- w_events to exist already — on a project that has run schema.sql it does.
 
 create or replace function camp_can_backdate_day(d text) returns boolean
   language sql stable set search_path = public as $$
@@ -31,9 +37,7 @@ create or replace function camp_can_backdate_day(d text) returns boolean
   );
 $$;
 
-drop policy if exists w_events on score_events;
-
-create policy w_events on score_events for insert to authenticated
+alter policy w_events on score_events
 with check (
   actor_id = auth.uid()
   and (
