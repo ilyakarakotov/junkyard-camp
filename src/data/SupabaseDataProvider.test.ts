@@ -3,6 +3,7 @@ import { SupabaseDataProvider } from './SupabaseDataProvider'
 import { EVENTS_KEY } from './LocalStorageDataProvider'
 import { MemoryOutbox } from './outbox'
 import { fromRow, toRow, type RemoteEventStore, type ScoreEventInsert, type ScoreEventRow } from './remote'
+import { RemoteError, classifyServerError } from './syncFault'
 import type { CategoryId, ScoreEvent, TeamId } from './types'
 
 /**
@@ -37,19 +38,37 @@ const asRow = (e: ScoreEvent, createdAt = '2026-08-20T09:00:01.000Z'): ScoreEven
   created_at: createdAt,
 })
 
+const OFFLINE = { message: 'TypeError: Failed to fetch', code: '' }
+/** What Postgres answers when RLS refuses a row. */
+const REFUSED = {
+  message: 'new row violates row-level security policy for table "score_events"',
+  code: '42501',
+}
+
 class FakeRemote implements RemoteEventStore {
   rows: ScoreEventRow[] = []
   upsertCalls: ScoreEventInsert[][] = []
+  /** The link is down: every call fails, whatever is in it. */
   failUpsert = false
+  /**
+   * Event ids the server refuses. Postgres fails the WHOLE statement over one
+   * bad row, so a batch containing any of these is rejected entire — which is
+   * the behaviour the provider has to cope with.
+   */
+  reject = new Set<string>()
   private cb: ((row: ScoreEventRow) => void) | null = null
 
   async fetchAll(): Promise<ScoreEventRow[]> {
+    if (this.failUpsert) throw new RemoteError(classifyServerError(OFFLINE, new Date().toISOString()))
     return this.rows
   }
 
   async upsert(rows: ScoreEventInsert[]): Promise<void> {
     this.upsertCalls.push(rows)
-    if (this.failUpsert) throw new Error('offline')
+    if (this.failUpsert) throw new RemoteError(classifyServerError(OFFLINE, new Date().toISOString()))
+    if (rows.some((r) => this.reject.has(r.id))) {
+      throw new RemoteError(classifyServerError(REFUSED, new Date().toISOString()))
+    }
     const now = new Date().toISOString()
     for (const r of rows) {
       if (!this.rows.some((x) => x.id === r.id)) this.rows.push({ ...r, created_at: now })
@@ -254,6 +273,189 @@ describe('SupabaseDataProvider', () => {
     await p.flush()
     expect(remote.rows.map((r) => r.id)).toEqual([real.id])
     p.close()
+  })
+})
+
+/*
+ * The bug this was written for. A leader with four bars could not sync, and
+ * nothing in the app or the code could say why: every failure in the write
+ * path was caught by a bare `catch { return }` commented "still offline", and
+ * the whole outbox went up as one statement — so a single row the server
+ * refused failed the statement and held every award behind it, silently,
+ * retried every fifteen seconds for the rest of camp.
+ */
+describe('one refused award does not hold the rest', () => {
+  it('sends the batch one at a time once the batch is refused, and lands the good ones', async () => {
+    const good1 = ev('gems')
+    const bad = ev('knights')
+    const good2 = ev('pearls')
+    remote.reject.add(bad.id)
+
+    await provider.appendEvents([good1, bad, good2])
+    await provider.flush()
+
+    // The two clean awards are on the server.
+    expect(remote.rows.map((r) => r.id).sort()).toEqual([good1.id, good2.id].sort())
+    // The batch went once, was refused, and was then re-sent row by row.
+    expect(remote.upsertCalls[0]).toHaveLength(3)
+    expect(remote.upsertCalls.slice(1).every((c) => c.length === 1)).toBe(true)
+
+    const events = await provider.getEvents()
+    const byId = new Map(events.map((e) => [e.id, e]))
+    expect(byId.get(good1.id)?.syncedAt).not.toBeNull()
+    expect(byId.get(good2.id)?.syncedAt).not.toBeNull()
+    expect(byId.get(bad.id)?.syncedAt).toBeNull()
+  })
+
+  it('keeps the refused award — in the outbox, in the mirror, and on the board', async () => {
+    const bad = ev('knights')
+    remote.reject.add(bad.id)
+    await provider.appendEvents([bad, ev('gems')])
+
+    // Nothing is discarded, however many times it is asked.
+    for (let i = 0; i < 5; i++) await provider.flush()
+
+    expect((await outbox.all()).map((e) => e.id)).toEqual([bad.id])
+    expect((await provider.getEvents()).map((e) => e.id)).toContain(bad.id)
+    // The award still counts on this phone: only `syncedAt` says otherwise.
+    expect((await provider.getEvents()).find((e) => e.id === bad.id)?.deltaDeci).toBe(10)
+  })
+
+  it('stops retrying the refused award unattended, so later awards go straight out', async () => {
+    const bad = ev('knights')
+    remote.reject.add(bad.id)
+    await provider.appendEvent(bad)
+    await provider.flush()
+
+    remote.upsertCalls.length = 0
+    const later = ev('forged')
+    await provider.appendEvent(later)
+    await provider.flush()
+
+    // One clean request carrying only the new award — the held one is not in it.
+    expect(remote.upsertCalls.every((c) => c.every((r) => r.id !== bad.id))).toBe(true)
+    expect(remote.rows.map((r) => r.id)).toContain(later.id)
+  })
+
+  it('reports what is held and why', async () => {
+    const bad = ev('knights')
+    remote.reject.add(bad.id)
+    await provider.appendEvents([bad, ev('gems')])
+    await provider.flush()
+
+    const state = provider.getSyncState()
+    expect(state.blocked).toBe(1)
+    expect(state.fault?.kind).toBe('refused')
+    expect(state.fault?.code).toBe('42501')
+    expect(state.lastSyncAt).not.toBeNull() // the good one did land
+
+    const held = await provider.getBlockedEvents()
+    expect(held).toHaveLength(1)
+    expect(held[0].event.id).toBe(bad.id)
+    expect(held[0].event.teamId).toBe('knights')
+    expect(held[0].fault.kind).toBe('refused')
+    expect(held[0].attempts).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('a dead link is not a refusal', () => {
+  it('does not fan out into one request per award when the network is down', async () => {
+    await provider.appendEvents([ev('gems'), ev('knights'), ev('pearls')])
+    await provider.flush()
+    remote.upsertCalls.length = 0
+
+    remote.failUpsert = true
+    await provider.appendEvents([ev('forged'), ev('rustco'), ev('innocent')])
+    await provider.flush()
+
+    // One batch attempt, not three probes into a dead zone.
+    expect(remote.upsertCalls).toHaveLength(1)
+    expect(remote.upsertCalls[0]).toHaveLength(3)
+    expect(provider.getSyncState().fault?.kind).toBe('network')
+    // Nothing is held: the awards are fine, the link is not.
+    expect(provider.getSyncState().blocked).toBe(0)
+    expect(await provider.getBlockedEvents()).toHaveLength(0)
+  })
+
+  it('drains everything by itself once the link comes back', async () => {
+    remote.failUpsert = true
+    await provider.appendEvents([ev('gems'), ev('knights')])
+    await provider.flush()
+    expect(provider.getSyncState().fault?.kind).toBe('network')
+
+    remote.failUpsert = false
+    await provider.flush()
+
+    expect(remote.rows).toHaveLength(2)
+    expect(await outbox.all()).toHaveLength(0)
+    expect(provider.getSyncState().fault).toBeNull()
+  })
+})
+
+describe('forceSync — the retry button', () => {
+  it('retries a held award, and drains it once the server accepts it', async () => {
+    const bad = ev('knights')
+    remote.reject.add(bad.id)
+    await provider.appendEvent(bad)
+    await provider.flush()
+    expect(provider.getSyncState().blocked).toBe(1)
+
+    // Whatever was wrong is put right — the right leader signs in, the day is
+    // reopened, the session refreshes.
+    remote.reject.delete(bad.id)
+    const state = await provider.forceSync()
+
+    expect(state.blocked).toBe(0)
+    expect(state.fault).toBeNull()
+    expect(remote.rows.map((r) => r.id)).toEqual([bad.id])
+    expect(await outbox.all()).toHaveLength(0)
+    expect((await provider.getEvents())[0].syncedAt).not.toBeNull()
+  })
+
+  it('asks again even when nothing has changed, and still loses nothing', async () => {
+    const bad = ev('knights')
+    remote.reject.add(bad.id)
+    await provider.appendEvent(bad)
+    await provider.flush()
+    remote.upsertCalls.length = 0
+
+    const state = await provider.forceSync()
+
+    // It really did try the held award again.
+    expect(remote.upsertCalls.flat().map((r) => r.id)).toContain(bad.id)
+    expect(state.blocked).toBe(1)
+    expect((await outbox.all()).map((e) => e.id)).toEqual([bad.id])
+  })
+
+  it('is safe with an empty queue — it just re-reads the shared log', async () => {
+    const mine = ev('gems')
+    await provider.appendEvent(mine)
+    await provider.flush()
+    remote.rows.push(asRow(ev('forged'), '2026-08-20T10:00:00.000Z'))
+
+    const state = await provider.forceSync()
+    expect(state.fault).toBeNull()
+    expect(state.blocked).toBe(0)
+    expect((await provider.getEvents())).toHaveLength(2)
+  })
+})
+
+describe('the sync readout', () => {
+  it('records a failed read of the shared log rather than swallowing it', async () => {
+    remote.failUpsert = true // fetchAll fails too
+    await provider.getEvents() // boot fetch
+    await vi.waitFor(() => expect(provider.getSyncState().fault?.kind).toBe('network'))
+  })
+
+  it('stays quiet on an idle tick', async () => {
+    await provider.appendEvent(ev())
+    await provider.flush()
+    const listener = vi.fn()
+    provider.subscribe(listener)
+
+    await provider.flush()
+    await provider.flush()
+    expect(listener).not.toHaveBeenCalled()
   })
 })
 

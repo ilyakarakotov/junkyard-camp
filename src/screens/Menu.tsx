@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../data/auth'
+import { useStore } from '../data/store'
 import { mayUseTestMode } from '../data/testMode'
 import { BackTab, BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../components/chrome'
 
@@ -12,7 +13,22 @@ import { BackTab, BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../comp
 export default function Menu() {
   const navigate = useNavigate()
   const { user, isDirector, signOut } = useAuth()
+  const { sync } = useStore()
   const [confirmOut, setConfirmOut] = useState(false)
+
+  /*
+   * The sync row carries its own state in the note. A leader who has been
+   * told "check sync" needs the number before they tap, and a leader who has
+   * not been told anything needs a reason to look — `3 held` is that reason.
+   * Hidden entirely in local-only mode, where there is nothing to sync to.
+   */
+  const syncNote = !sync
+    ? null
+    : sync.blocked > 0
+      ? `${sync.blocked} held · needs you`
+      : sync.pending > 0
+        ? `${sync.pending} waiting to send`
+        : 'All sent'
 
   const items = [
     { to: '/', label: 'Board', note: 'Today at a glance' },
@@ -21,6 +37,7 @@ export default function Menu() {
     { to: '/standings', label: 'Standings', note: 'The camp so far' },
     { to: '/exports', label: 'Exports & Analytics', note: 'Excel · charts' },
     { to: '/audit', label: 'Audit Log', note: 'Who gave what' },
+    ...(syncNote ? [{ to: '/sync', label: 'Sync', note: syncNote }] : []),
     // The rehearsal room, for the camp director only. Everyone else never
     // learns the route exists, and /test turns them away if they guess it.
     ...(mayUseTestMode(user) ? [{ to: '/test', label: 'Test Mode', note: 'Sandbox · safe' }] : []),

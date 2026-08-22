@@ -39,6 +39,13 @@ const EPOCH_MS = Date.parse(EPOCH_AT)
 export const EVENTS_KEY = `jr:events:v${DATA_EPOCH}`
 /** Test mode's own log — a different world, never a copy of the real one. */
 export const SANDBOX_EVENTS_KEY = `jr:sandbox-events:v${DATA_EPOCH}`
+/**
+ * Why the server refused an award, by event id — read out on the sync screen.
+ * Epoch-keyed with the log it describes: a reason for an award that no longer
+ * exists explains nothing. Losing this map costs a sentence, never a point;
+ * the awards themselves live in the outbox.
+ */
+export const BLOCKED_KEY = `jr:sync-blocked:v${DATA_EPOCH}`
 /** Which epoch this device has already been swept for. */
 const EPOCH_KEY = 'jr:epoch'
 
@@ -52,7 +59,8 @@ export function inEpoch(event: { occurredAt: string }): boolean {
 
 const isStaleLogKey = (key: string) =>
   (key.startsWith('jr:events:') && key !== EVENTS_KEY) ||
-  (key.startsWith('jr:sandbox-events:') && key !== SANDBOX_EVENTS_KEY)
+  (key.startsWith('jr:sandbox-events:') && key !== SANDBOX_EVENTS_KEY) ||
+  (key.startsWith('jr:sync-blocked:') && key !== BLOCKED_KEY)
 
 /**
  * The one-time sweep, run before anything reads storage (src/main.tsx).

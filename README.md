@@ -171,4 +171,15 @@ footer shows the pending count), sync automatically when the network returns,
 and can't double-award — retries reuse the same client-generated event id.
 Other leaders' awards arrive live over a realtime subscription.
 
+**When sync fails anyway** — `#/sync`, reachable from the menu and from the
+corner badge. A phone with signal can still be unable to write: an expired
+session, an award recorded under a different account, a day the server has
+closed. Postgres fails a whole statement over one bad row, so a batch that
+comes back refused is re-sent one award at a time — the good ones land, and
+only the row the server objects to is held back, with the reason it gave.
+The sync screen reads that reason out, says what to do about it, and forces a
+full retry (held awards included) on demand. A held award is never discarded:
+it stays in the outbox and keeps counting on that phone's board until the
+server takes it.
+
 See `CLAUDE.md` for the design system and the full data model.

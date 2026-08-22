@@ -1,4 +1,5 @@
 import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
+import type { SyncFault } from './syncFault'
 
 /**
  * The single seam between the app and storage. Phase 0 implements this over
@@ -32,4 +33,49 @@ export interface DataProvider {
 
   /** Change notification (covers cross-tab updates for the big screen). */
   subscribe(listener: () => void): () => void
+}
+
+/**
+ * What the sync engine knows about its own health, for the sync screen and
+ * the unsynced chrome. Local-only providers have none of this — see
+ * `isSyncCapable`.
+ */
+export interface SyncState {
+  /** `navigator.onLine`: the phone has a link. It does NOT mean sync works. */
+  online: boolean
+  /** Awards held back because the server refuses them (never discarded). */
+  blocked: number
+  /** A flush is in flight right now. */
+  syncing: boolean
+  /** ISO instant the last award actually landed on the server. */
+  lastSyncAt: string | null
+  /** The most recent thing that went wrong, or null if the last pass was clean. */
+  fault: SyncFault | null
+}
+
+/** An award the server has refused, with the reason and how often it has tried. */
+export interface BlockedEvent {
+  event: ScoreEvent
+  fault: SyncFault
+  attempts: number
+}
+
+/**
+ * The extra surface a backed provider carries. Kept off `DataProvider` itself
+ * so local-only mode does not have to pretend to have a network.
+ */
+export interface SyncCapableProvider {
+  getSyncState(): SyncState
+  /** Everything currently held back, joined with why. */
+  getBlockedEvents(): Promise<BlockedEvent[]>
+  /**
+   * Retry everything now, held-back awards included, and re-read the shared
+   * log. This is the "force sync" button: it clears the quarantine so every
+   * queued award gets one more real attempt, whatever happened last time.
+   */
+  forceSync(): Promise<SyncState>
+}
+
+export function isSyncCapable(dp: DataProvider): dp is DataProvider & SyncCapableProvider {
+  return typeof (dp as Partial<SyncCapableProvider>).getSyncState === 'function'
 }

@@ -18,6 +18,7 @@ const ROUTES = [
   '#/team/precious',
   '#/standings',
   '#/display',
+  '#/sync',
   '#/exports',
   '#/audit',
   '#/lab',

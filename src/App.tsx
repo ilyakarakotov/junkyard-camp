@@ -20,6 +20,10 @@ import BigScreen from './screens/BigScreen'
  * lab is a component bench that never ships anywhere useful.
  */
 const Exports = lazy(() => import('./screens/Exports'))
+// Split too: the sync screen is opened when something has gone wrong, not
+// while scoring, and it is the last thing that should compete for a bad link
+// with the awards it is trying to push.
+const Sync = lazy(() => import('./screens/Sync'))
 const AuditLog = lazy(() => import('./screens/AuditLog'))
 const Lab = lazy(() => import('./screens/Lab'))
 const TestMode = lazy(() => import('./screens/TestMode'))
@@ -51,6 +55,7 @@ export default function App() {
                       <Route path="/team/:teamId" element={<TeamSheet />} />
                       <Route path="/standings" element={<Standings />} />
                       <Route path="/display" element={<BigScreen />} />
+                      <Route path="/sync" element={<Sync />} />
                       <Route path="/exports" element={<Exports />} />
                       <Route path="/audit" element={<AuditLog />} />
                       <Route path="/lab" element={<Lab />} />

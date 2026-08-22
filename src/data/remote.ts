@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { ScoreEvent } from './types'
+import { RemoteError, classifyServerError } from './syncFault'
 
 /**
  * The network seam for Phase 1. Everything that knows about Supabase lives in
@@ -67,7 +68,16 @@ export function fromRow(r: ScoreEventRow): ScoreEvent {
 export interface RemoteEventStore {
   /** The whole shared log. Camp-scale data: well under one page's 10k range. */
   fetchAll(): Promise<ScoreEventRow[]>
-  /** Idempotent by primary key: re-sending an id is a no-op, not a double award. */
+  /**
+   * Idempotent by primary key: re-sending an id is a no-op, not a double
+   * award.
+   *
+   * Throws `RemoteError` carrying a classified `SyncFault`, never a bare
+   * Error: the caller has to be able to tell a dead network (wait) from a
+   * refused row (hold it back and say so), and one rejected row fails the
+   * whole statement, so the caller also has to be able to decide to re-send
+   * the rows one at a time.
+   */
   upsert(rows: ScoreEventInsert[]): Promise<void>
   /** Register the handler for rows inserted by other devices (realtime). */
   onInsert(cb: (row: ScoreEventRow) => void): void
@@ -120,14 +130,14 @@ export function createSupabaseEventStore(): RemoteEventStore | null {
   return {
     async fetchAll() {
       const { data, error } = await supabase.from('score_events').select('*').range(0, 9999)
-      if (error) throw new Error(error.message)
+      if (error) throw new RemoteError(classifyServerError(error, new Date().toISOString()))
       return data as ScoreEventRow[]
     },
     async upsert(rows) {
       const { error } = await supabase
         .from('score_events')
         .upsert(rows, { onConflict: 'id', ignoreDuplicates: true })
-      if (error) throw new Error(error.message)
+      if (error) throw new RemoteError(classifyServerError(error, new Date().toISOString()))
     },
     onInsert(fn) {
       cb = fn

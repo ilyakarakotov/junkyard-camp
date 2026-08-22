@@ -7,7 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { DataProvider } from './DataProvider'
+import type { BlockedEvent, DataProvider, SyncState } from './DataProvider'
+import { isSyncCapable } from './DataProvider'
 import type {
   AppUser,
   Category,
@@ -80,10 +81,25 @@ interface StoreValue {
   isBackdating: boolean
 
   /**
-   * Backend sync readout for the unsynced chrome: is the network up, and how
-   * many events are still waiting in the outbox. Null in local-only mode.
+   * Backend sync readout for the unsynced chrome and the sync screen. Null in
+   * local-only mode, where there is nothing to sync to.
+   *
+   * `online` is `navigator.onLine` — the phone has a link, which is NOT the
+   * same as sync working, and telling those two apart is the whole point of
+   * `fault`. `pending` counts awards still waiting; `blocked` counts the
+   * subset the server has actually refused and which will not go without
+   * someone doing something about it.
    */
-  sync: { online: boolean; pending: number } | null
+  sync: (SyncState & { pending: number }) | null
+
+  /**
+   * Retry now — held-back awards included — and re-read the shared log. The
+   * sync screen's force button. Resolves once the attempt is finished, so the
+   * screen can report what happened rather than guessing.
+   */
+  forceSync(): Promise<void>
+  /** The awards the server is refusing, with the reason for each. */
+  listBlockedEvents(): Promise<BlockedEvent[]>
 
   /** Roll call: commit a whole column of teams in one gesture. A note rides
       on every awarded event — good deeds require one, like keys. */
@@ -178,16 +194,45 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     }
   }, [])
 
-  // Only a backend-aware provider (SupabaseDataProvider.getSyncState) gets a
-  // sync readout; in local-only mode `sync` stays null and the unsynced
-  // chrome hides itself.
-  const syncAware = 'getSyncState' in dp
+  // Only a backend-aware provider (SupabaseDataProvider) gets a sync readout;
+  // in local-only mode `sync` stays null and the unsynced chrome hides itself.
+  const syncDp = isSyncCapable(dp) ? dp : null
+  const [syncState, setSyncState] = useState<SyncState | null>(() => syncDp?.getSyncState() ?? null)
+  useEffect(() => {
+    if (!syncDp) return
+    const read = () => setSyncState(syncDp.getSyncState())
+    read()
+    // The provider notifies on every flush outcome, so a fault appears on the
+    // sync screen as soon as it happens rather than on the next award.
+    return syncDp.subscribe(read)
+  }, [syncDp])
+
   const sync = useMemo(
     () =>
-      syncAware
-        ? { online, pending: events.filter((e) => e.syncedAt === null).length }
+      syncState
+        ? {
+            ...syncState,
+            // Counted off the mirror rather than the outbox: it is the same
+            // set (reconcileOutbox keeps them in step) and it is synchronous,
+            // so the badge moves the instant an award is made.
+            online,
+            pending: events.filter((e) => e.syncedAt === null).length,
+          }
         : null,
-    [syncAware, online, events],
+    [syncState, online, events],
+  )
+
+  const forceSync = useCallback(async () => {
+    if (!syncDp) return
+    setSyncState({ ...syncDp.getSyncState(), syncing: true })
+    const next = await syncDp.forceSync()
+    setSyncState(next)
+    setEvents(await dp.getEvents())
+  }, [syncDp, dp])
+
+  const listBlockedEvents = useCallback(
+    async () => (syncDp ? syncDp.getBlockedEvents() : []),
+    [syncDp],
   )
 
   // Day locks. Per-device by design: someone reopens the device in hand to fix
@@ -439,6 +484,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unlockDay,
       isBackdating,
       sync,
+      forceSync,
+      listBlockedEvents,
       commitRollCall,
       setBinary,
       addCheckIn,
@@ -466,6 +513,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unlockDay,
       isBackdating,
       sync,
+      forceSync,
+      listBlockedEvents,
       commitRollCall,
       setBinary,
       addCheckIn,
