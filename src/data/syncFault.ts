@@ -163,11 +163,11 @@ export function faultHeadline(fault: SyncFault): string {
 export function faultRemedy(fault: SyncFault): string {
   switch (fault.kind) {
     case 'network':
-      return 'The phone has a connection but this app could not get through — captive-wifi sign-in pages and blocked domains both look like this. Try mobile data, then force sync.'
+      return 'The phone has a connection but this app could not get through to the database. On camp wifi that is usually a sign-in page or a blocked domain, so try mobile data. If it fails on mobile data too, the phone is fine and the backend is the problem — check the Supabase project is awake, then force sync.'
     case 'auth':
       return 'Sign out and sign back in from the menu. Nothing queued is lost by signing out.'
     case 'refused':
-      return 'Usually it was recorded under a different account than the one signed in now. Force sync re-sends it as you, which clears that; if it holds after that, the day itself is closed and a director has to open it.'
+      return 'Either it was recorded under a different account than the one signed in now — force sync re-sends it as you, which clears that — or the database will not accept awards for that day from you. A past day refusing a helper means the backdating policy has not been applied to the live database yet (supabase/allow-backdating.sql); until it is, only a director can add to a day that has been and gone.'
     case 'malformed':
       return 'It was recorded before anyone signed in on this device, so the server has no one to credit it to. Force sync re-sends it as you.'
     case 'missing-reference':

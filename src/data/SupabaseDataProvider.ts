@@ -7,7 +7,7 @@ import type {
 } from './DataProvider'
 import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { EVENTS_KEY, SETTING_PREFIX } from './LocalStorageDataProvider'
-import { BLOCKED_KEY, inEpoch } from './epoch'
+import { BLOCKED_KEY, LAST_SYNC_KEY, inEpoch } from './epoch'
 import { CATEGORIES, DAYS, TEAMS } from './seed'
 import { IdbOutbox, type OutboxStore } from './outbox'
 import { faultOf, isRepairable, isTransient, type SyncFault } from './syncFault'
@@ -153,7 +153,18 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
    * nothing to send.
    */
   private readFault: SyncFault | null = null
+  /**
+   * When the backend was last reached — by a write that landed OR a read that
+   * came back. Both prove the link, and "is this phone talking to the server
+   * at all" is the question a leader is actually asking; the pending and held
+   * counts already say what is happening to the awards.
+   *
+   * Persisted (see LAST_SYNC_KEY): in memory alone it reset to null on every
+   * launch, so the screen announced "not yet" to a phone that had been syncing
+   * all week.
+   */
   private lastSyncAt: string | null = null
+  private lastSyncLoaded = false
   /** Last state broadcast, so an idle tick does not re-render the big screen. */
   private lastSignature = ''
   private mirrorDirty = false
@@ -254,6 +265,7 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
    */
   getSyncState(): SyncState {
     this.loadBlocked()
+    this.loadLastSync()
     return {
       online: this.online,
       blocked: this.heldIds().size,
@@ -442,6 +454,8 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
       const rows = await remote.fetchAll()
       this.mergeRemote(rows.map(fromRow))
       this.readFault = null
+      // A read that came back is contact with the backend, and counts.
+      this.markReached()
     } catch (err) {
       // The mirror is already on screen, so a failed read costs nothing — but
       // it is recorded rather than swallowed. "Cannot even read the log" is
@@ -602,7 +616,7 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
     const stamp = new Date().toISOString()
     const done = new Set(sent.map((e) => e.id))
     this.write(this.read().map((e) => (done.has(e.id) ? { ...e, syncedAt: stamp } : e)))
-    this.lastSyncAt = stamp
+    this.markReached(stamp)
     this.mirrorDirty = true
     // Writing proves the link: whatever the last read said is now stale.
     this.readFault = null
@@ -628,6 +642,7 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
    */
   private settleState(fault: SyncFault | null): void {
     this.fault = fault
+    this.loadLastSync()
     this.saveBlocked()
     const shown = fault ?? this.readFault
     const sig = [
@@ -642,6 +657,26 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
     this.lastSignature = sig
     this.mirrorDirty = false
     if (changed) this.notify()
+  }
+
+  private markReached(at: string = new Date().toISOString()): void {
+    this.lastSyncLoaded = true
+    this.lastSyncAt = at
+    try {
+      localStorage.setItem(LAST_SYNC_KEY, at)
+    } catch {
+      // Quota or private browsing: the readout is right for this session.
+    }
+  }
+
+  private loadLastSync(): void {
+    if (this.lastSyncLoaded) return
+    this.lastSyncLoaded = true
+    try {
+      this.lastSyncAt = localStorage.getItem(LAST_SYNC_KEY)
+    } catch {
+      this.lastSyncAt = null
+    }
   }
 
   private loadBlocked(): void {

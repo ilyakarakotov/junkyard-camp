@@ -610,6 +610,39 @@ describe('a correction is sent after the award it reverses', () => {
   })
 })
 
+/*
+ * "LAST REACHED SERVER — not yet" was shown to a leader on 5G whose phone had
+ * been syncing all week. The field was in memory only, so every launch reset
+ * it, and a readout built to answer "is this phone talking to the server"
+ * answered "never" every morning.
+ */
+describe('when the backend was last reached', () => {
+  it('survives a restart', async () => {
+    await provider.appendEvent(ev())
+    await provider.flush()
+    const stamp = provider.getSyncState().lastSyncAt
+    expect(stamp).not.toBeNull()
+
+    provider.close()
+    const next = new SupabaseDataProvider(remote, outbox)
+    expect(next.getSyncState().lastSyncAt).toBe(stamp)
+    next.close()
+  })
+
+  it('counts a read that came back, not only a write that landed', async () => {
+    remote.rows = [asRow(ev('pearls'))]
+    await provider.getEvents() // boot fetch, nothing queued to write
+    await vi.waitFor(() => expect(provider.getSyncState().lastSyncAt).not.toBeNull())
+  })
+
+  it('stays null while the link has never come up', async () => {
+    remote.failUpsert = true
+    await provider.appendEvent(ev())
+    await provider.flush()
+    expect(provider.getSyncState().lastSyncAt).toBeNull()
+  })
+})
+
 describe('row mapping', () => {
   it('round-trips camelCase ScoreEvent <-> snake_case row', () => {
     const e = { ...ev(), note: 'Evening gathering' }

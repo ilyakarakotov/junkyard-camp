@@ -46,6 +46,14 @@ export const SANDBOX_EVENTS_KEY = `jr:sandbox-events:v${DATA_EPOCH}`
  * the awards themselves live in the outbox.
  */
 export const BLOCKED_KEY = `jr:sync-blocked:v${DATA_EPOCH}`
+/**
+ * When this phone last reached the backend. Persisted, because the readout
+ * built on it said "not yet" on every launch — the field was in memory only,
+ * so a phone that had been syncing happily all week reported never having
+ * reached the server the moment the app was reopened. Shown to a leader
+ * chasing a sync problem, that is not a stale number, it is a false alarm.
+ */
+export const LAST_SYNC_KEY = `jr:last-sync:v${DATA_EPOCH}`
 /** Which epoch this device has already been swept for. */
 const EPOCH_KEY = 'jr:epoch'
 
@@ -60,7 +68,8 @@ export function inEpoch(event: { occurredAt: string }): boolean {
 const isStaleLogKey = (key: string) =>
   (key.startsWith('jr:events:') && key !== EVENTS_KEY) ||
   (key.startsWith('jr:sandbox-events:') && key !== SANDBOX_EVENTS_KEY) ||
-  (key.startsWith('jr:sync-blocked:') && key !== BLOCKED_KEY)
+  (key.startsWith('jr:sync-blocked:') && key !== BLOCKED_KEY) ||
+  (key.startsWith('jr:last-sync:') && key !== LAST_SYNC_KEY)
 
 /**
  * The one-time sweep, run before anything reads storage (src/main.tsx).
