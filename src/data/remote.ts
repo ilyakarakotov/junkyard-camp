@@ -90,6 +90,27 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
+ * The host this build was compiled to talk to, for the sync screen to read
+ * out. Host only — never the key, which is in the bundle anyway but has no
+ * business on screen.
+ *
+ * Both values are baked in at build time, so "is there a backend at all" is a
+ * property of the deployed bundle rather than of the phone holding it. That
+ * is worth showing: a build shipped without them behaves exactly like a phone
+ * with no signal, forever, on every device at once — and until this was on
+ * screen there was nothing anywhere in the app that could tell the two apart.
+ */
+export function backendHost(): string | null {
+  const url = import.meta.env.VITE_SUPABASE_URL
+  if (!url || !import.meta.env.VITE_SUPABASE_ANON_KEY) return null
+  try {
+    return new URL(url).host
+  } catch {
+    return String(url)
+  }
+}
+
+/**
  * The app holds one client: auth session, data and realtime all ride on it.
  * Sign in once for the whole camp — the session persists in localStorage and
  * refreshes itself; the only sign-out is the explicit menu item.

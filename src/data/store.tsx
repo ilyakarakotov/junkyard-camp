@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { BlockedEvent, DataProvider, SyncState } from './DataProvider'
 import { isSyncCapable } from './DataProvider'
+import { backendHost, isSupabaseConfigured } from './remote'
 import type {
   AppUser,
   Category,
@@ -91,6 +92,14 @@ interface StoreValue {
    * someone doing something about it.
    */
   sync: (SyncState & { pending: number }) | null
+
+  /**
+   * What this BUILD was compiled to talk to, which is not the same question as
+   * `sync`. `sync` is null both when the bundle has no backend and when this
+   * phone is in the sandbox, and those two need telling apart: one is a deploy
+   * that never had credentials, the other is one phone in rehearsal mode.
+   */
+  backend: { configured: boolean; host: string | null }
 
   /**
    * Retry now — held-back awards included — and re-read the shared log. The
@@ -224,6 +233,11 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
           }
         : null,
     [syncState, online, events],
+  )
+
+  const backend = useMemo(
+    () => ({ configured: isSupabaseConfigured(), host: backendHost() }),
+    [],
   )
 
   const forceSync = useCallback(async () => {
@@ -498,6 +512,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unlockDay,
       isBackdating,
       sync,
+      backend,
       forceSync,
       listBlockedEvents,
       commitRollCall,
@@ -527,6 +542,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unlockDay,
       isBackdating,
       sync,
+      backend,
       forceSync,
       listBlockedEvents,
       commitRollCall,

@@ -26,7 +26,8 @@ import { useStore } from '../data/store'
  */
 export default function Sync() {
   const navigate = useNavigate()
-  const { sync, forceSync, listBlockedEvents, teams, categories, days } = useStore()
+  const { sync, backend, testMode, forceSync, listBlockedEvents, teams, categories, days } =
+    useStore()
   const [blocked, setBlocked] = useState<BlockedEvent[]>([])
   const [busy, setBusy] = useState(false)
   const [ran, setRan] = useState(false)
@@ -84,7 +85,13 @@ export default function Sync() {
             <BackTab label="Back to menu" onClick={() => navigate('/menu')} style={{ marginLeft: -4 }} />
             <span className="flex-1" />
             <span className="tech-label" style={{ color: 'var(--color-text-dim)' }}>
-              {sync ? (sync.online ? 'Link up' : 'Link down') : 'Local only'}
+              {testMode
+                ? 'Sandbox'
+                : !backend.configured
+                  ? 'No backend'
+                  : sync?.online
+                    ? 'Link up'
+                    : 'Link down'}
             </span>
           </div>
 
@@ -93,13 +100,7 @@ export default function Sync() {
           </h1>
 
           {sync === null ? (
-            <Plate chamfer={8} screws={false} style={{ height: 'auto' }}>
-              <CornerScrews inset={5} size={8} />
-              <p className="relative z-[1] px-4 py-4 font-body" style={{ fontSize: 13, color: 'var(--color-text)' }}>
-                This build has no backend configured, so scores stay on this
-                device. Nothing is waiting to be sent, and nothing is lost.
-              </p>
-            </Plate>
+            <NotConnected testMode={testMode} />
           ) : (
             <>
               <Readout
@@ -108,6 +109,7 @@ export default function Sync() {
                 held={held}
                 lastSyncAt={sync.lastSyncAt}
                 online={sync.online}
+                host={backend.host}
               />
 
               {fault && <Fault headline={faultHeadline(fault)} remedy={faultRemedy(fault)} code={fault.code} message={fault.message} />}
@@ -184,6 +186,90 @@ export default function Sync() {
   )
 }
 
+/**
+ * What the screen says when there is no sync engine to report on.
+ *
+ * Two very different situations land here and they must not be blurred into
+ * one apologetic sentence. The sandbox is one phone in rehearsal and the
+ * person holding it can fix it in ten seconds. A bundle built without
+ * credentials is every phone in the camp, silently local, with awards piling
+ * up that no other screen will ever see — and no amount of pressing a retry
+ * button anywhere will change it, because there is nothing to retry against.
+ */
+function NotConnected({ testMode }: { testMode: boolean }) {
+  // `sync` is null only for the sandbox and the local-only provider, and the
+  // local-only provider is chosen only when the build has no credentials — so
+  // "not the sandbox" is exactly "no backend", by construction in provider.ts.
+  const sandbox = testMode
+  return (
+    <>
+      <div
+        role="status"
+        className="relative overflow-hidden"
+        style={{
+          borderRadius: 4,
+          background: 'linear-gradient(180deg, #33200a 0%, #281607 55%, #1e1005 100%)',
+          boxShadow:
+            'inset 0 2px 3px rgba(0,0,0,0.75), inset 0 -1px 0 rgba(254,223,151,0.3), 0 0 10px rgba(237,144,64,0.28)',
+        }}
+      >
+        <span
+          aria-hidden
+          className="absolute left-0 top-0 h-full"
+          style={{
+            width: 10,
+            background:
+              'repeating-linear-gradient(135deg, var(--color-lamp) 0 3px, #2a1607 3px 6px)',
+            boxShadow: 'inset -1px 0 0 rgba(20,10,3,0.8), 1px 0 0 rgba(254,223,151,0.22)',
+            opacity: 0.9,
+          }}
+        />
+        <div style={{ paddingLeft: 20, paddingRight: 12, paddingTop: 9, paddingBottom: 10 }}>
+          <p
+            className="font-display uppercase"
+            style={{ fontSize: 13, letterSpacing: '0.07em', color: 'var(--color-lamp-hot)' }}
+          >
+            {sandbox ? 'This phone is in the sandbox' : 'This build has no backend'}
+          </p>
+          <p
+            className="font-body"
+            style={{ marginTop: 4, fontSize: 12.5, lineHeight: 1.45, color: 'var(--color-text)' }}
+          >
+            {sandbox
+              ? 'Test mode is on, so nothing scored on this phone is real and nothing is sent anywhere. Turn it off in Menu → Test Mode and the app comes back to the camp’s real scores.'
+              : 'Nothing scored on this phone is reaching anyone else — not the other leaders, not the big screen. Awards are still safe on this device, and they still count here, but this app was published without the two build values that point it at the shared database, so there is nothing to send them to and no retry that can change that.'}
+          </p>
+          {!sandbox && (
+            <p
+              className="font-mono"
+              style={{
+                marginTop: 6,
+                fontSize: 9,
+                lineHeight: 1.6,
+                letterSpacing: '0.04em',
+                color: 'var(--color-text-dim)',
+                wordBreak: 'break-word',
+              }}
+            >
+              VITE_SUPABASE_URL · VITE_SUPABASE_ANON_KEY — set on the repository
+              (Settings → Secrets and variables → Actions) and deploy again. They are read at
+              build time, so a redeploy is what applies them.
+            </p>
+          )}
+        </div>
+      </div>
+      <p
+        className="font-body"
+        style={{ marginTop: 14, fontSize: 11.5, lineHeight: 1.5, color: 'var(--color-text-dim)' }}
+      >
+        {sandbox
+          ? 'The camp’s real scores are untouched underneath — the sandbox keeps its own separate log and has never written to theirs.'
+          : 'Nothing is lost. Every award made on this phone is saved on this phone, and once a build with the backend reaches it they go up from here.'}
+      </p>
+    </>
+  )
+}
+
 const timeFmt = new Intl.DateTimeFormat('en-GB', {
   timeZone: CAMP_TIMEZONE,
   hour: '2-digit',
@@ -198,12 +284,14 @@ function Readout({
   held,
   lastSyncAt,
   online,
+  host,
 }: {
   clear: boolean
   pending: number
   held: number
   lastSyncAt: string | null
   online: boolean
+  host: string | null
 }) {
   const stamp = lastSyncAt ? new Date(lastSyncAt) : null
   return (
@@ -249,7 +337,8 @@ function Readout({
             value={stamp ? `${timeFmt.format(stamp)} · ${formatCampDate(stamp.toISOString().slice(0, 10))}` : 'not yet'}
             dim={!stamp}
           />
-          <Row label="Phone link" value={online ? 'up' : 'down'} dim={!online} last />
+          <Row label="Phone link" value={online ? 'up' : 'down'} dim={!online} />
+          <Row label="Backend" value={host ?? 'none in this build'} dim={!host} last />
         </Well>
       </div>
     </Plate>

@@ -13,22 +13,33 @@ import { BackTab, BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../comp
 export default function Menu() {
   const navigate = useNavigate()
   const { user, isDirector, signOut } = useAuth()
-  const { sync } = useStore()
+  const { sync, backend, testMode } = useStore()
   const [confirmOut, setConfirmOut] = useState(false)
 
   /*
    * The sync row carries its own state in the note. A leader who has been
    * told "check sync" needs the number before they tap, and a leader who has
    * not been told anything needs a reason to look — `3 held` is that reason.
-   * Hidden entirely in local-only mode, where there is nothing to sync to.
+   *
+   * It is ALWAYS here. It was hidden whenever `sync` was null, which was
+   * exactly backwards: `sync` is null when the bundle shipped without a
+   * backend and when the phone is in the sandbox — the two states in which
+   * nothing is being shared with anyone and nobody can see why. Hiding the
+   * one screen that explains sync precisely when sync is most broken is how
+   * you end up with a camp asking why the board is empty and an app with no
+   * answer anywhere in it.
    */
-  const syncNote = !sync
-    ? null
-    : sync.blocked > 0
-      ? `${sync.blocked} held · needs you`
-      : sync.pending > 0
-        ? `${sync.pending} waiting to send`
-        : 'All sent'
+  const syncNote = testMode
+    ? 'Sandbox · nothing is sent'
+    : !backend.configured
+      ? 'No backend · not shared'
+      : !sync
+        ? 'Check the connection'
+        : sync.blocked > 0
+          ? `${sync.blocked} held · needs you`
+          : sync.pending > 0
+            ? `${sync.pending} waiting to send`
+            : 'All sent'
 
   const items = [
     { to: '/', label: 'Board', note: 'Today at a glance' },
@@ -37,7 +48,7 @@ export default function Menu() {
     { to: '/standings', label: 'Standings', note: 'The camp so far' },
     { to: '/exports', label: 'Exports & Analytics', note: 'Excel · charts' },
     { to: '/audit', label: 'Audit Log', note: 'Who gave what' },
-    ...(syncNote ? [{ to: '/sync', label: 'Sync', note: syncNote }] : []),
+    { to: '/sync', label: 'Sync', note: syncNote },
     // The rehearsal room, for the camp director only. Everyone else never
     // learns the route exists, and /test turns them away if they guess it.
     ...(mayUseTestMode(user) ? [{ to: '/test', label: 'Test Mode', note: 'Sandbox · safe' }] : []),
