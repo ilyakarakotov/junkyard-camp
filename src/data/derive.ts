@@ -187,8 +187,25 @@ export function dayRanks(scores: DayScore[]): Map<TeamId, number> {
   return ranks
 }
 
-/** Build the compensating event for an undo. Appended, never edited. */
-export function reversalOf(original: ScoreEvent, deviceId: string, note = 'Undo'): ScoreEvent {
+/**
+ * Build the compensating event for an undo. Appended, never edited.
+ *
+ * `actorId` is **whoever is doing the reversing**, which is not always who
+ * made the award. It defaulted to the original's actor, and that quietly
+ * minted events the backend can never accept: RLS is `actor_id = auth.uid()`,
+ * so the moment one leader corrected another leader's mistake the compensating
+ * row was refused forever — the correction showed on the phone, the shared log
+ * kept the award live, and the two never reconciled. Pass the signed-in user.
+ *
+ * The default is kept for local-only mode and for tests that care about
+ * scoring rather than authorship; every backed call site passes it.
+ */
+export function reversalOf(
+  original: ScoreEvent,
+  deviceId: string,
+  note = 'Undo',
+  actorId: string = original.actorId,
+): ScoreEvent {
   return {
     id: crypto.randomUUID(),
     occurredAt: new Date().toISOString(),
@@ -197,7 +214,7 @@ export function reversalOf(original: ScoreEvent, deviceId: string, note = 'Undo'
     categoryId: original.categoryId,
     deltaDeci: -original.deltaDeci,
     note,
-    actorId: original.actorId,
+    actorId,
     deviceId,
     reversesEventId: original.id,
     syncedAt: null,

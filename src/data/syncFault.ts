@@ -127,6 +127,20 @@ export function isTransient(fault: SyncFault): boolean {
   return fault.kind === 'network' || fault.kind === 'auth'
 }
 
+/**
+ * Whether re-sending the award under the signed-in account could plausibly
+ * get it through.
+ *
+ * Everything the server owns an opinion about — RLS refusing the writer, an
+ * actor it cannot parse, an actor it has never heard of — turns on `actor_id`,
+ * and `unknown` is included deliberately: the point of the force button is
+ * that a bug nobody has classified yet still has one thing left to try.
+ * Transient faults are excluded because there is nothing wrong with the row.
+ */
+export function isRepairable(fault: SyncFault): boolean {
+  return !isTransient(fault)
+}
+
 /** One line, in the app's voice: what happened. */
 export function faultHeadline(fault: SyncFault): string {
   switch (fault.kind) {
@@ -153,12 +167,12 @@ export function faultRemedy(fault: SyncFault): string {
     case 'auth':
       return 'Sign out and sign back in from the menu. Nothing queued is lost by signing out.'
     case 'refused':
-      return 'Either it was recorded under a different account than the one signed in now, or it is for a day the server has closed. Sign in as the leader who awarded it, then force sync.'
+      return 'Usually it was recorded under a different account than the one signed in now. Force sync re-sends it as you, which clears that; if it holds after that, the day itself is closed and a director has to open it.'
     case 'malformed':
-      return 'It was most likely recorded before anyone signed in on this device, so the server has no one to credit it to. Award it again while signed in, and it will go.'
+      return 'It was recorded before anyone signed in on this device, so the server has no one to credit it to. Force sync re-sends it as you.'
     case 'missing-reference':
-      return 'It is a correction whose original award never reached the server. Force sync sends both together; if it still holds, award the corrected value directly.'
+      return 'It is a correction whose original award never reached the server, or it credits someone the server has never heard of. Force sync sends the pair in order and re-sends it as you.'
     case 'unknown':
-      return 'Read out the code and message below to whoever set the backend up. The award is still held on this device — nothing has been thrown away.'
+      return 'Nothing here recognises this one. Force sync will try it again anyway, and then try it re-sent as you. The award is still held on this device either way — nothing has been thrown away.'
   }
 }

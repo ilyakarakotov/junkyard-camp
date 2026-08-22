@@ -56,6 +56,12 @@ class FakeRemote implements RemoteEventStore {
    * the behaviour the provider has to cope with.
    */
   reject = new Set<string>()
+  /**
+   * The signed-in account, as RLS sees it: `actor_id = auth.uid()`. When set,
+   * a row credited to anyone else is refused — which is what happens to an
+   * award recorded by one leader and flushed from another's phone.
+   */
+  authUid: string | null = null
   private cb: ((row: ScoreEventRow) => void) | null = null
 
   async fetchAll(): Promise<ScoreEventRow[]> {
@@ -66,9 +72,10 @@ class FakeRemote implements RemoteEventStore {
   async upsert(rows: ScoreEventInsert[]): Promise<void> {
     this.upsertCalls.push(rows)
     if (this.failUpsert) throw new RemoteError(classifyServerError(OFFLINE, new Date().toISOString()))
-    if (rows.some((r) => this.reject.has(r.id))) {
-      throw new RemoteError(classifyServerError(REFUSED, new Date().toISOString()))
-    }
+    const refused =
+      rows.some((r) => this.reject.has(r.id)) ||
+      (this.authUid !== null && rows.some((r) => r.actor_id !== this.authUid))
+    if (refused) throw new RemoteError(classifyServerError(REFUSED, new Date().toISOString()))
     const now = new Date().toISOString()
     for (const r of rows) {
       if (!this.rows.some((x) => x.id === r.id)) this.rows.push({ ...r, created_at: now })
@@ -456,6 +463,150 @@ describe('the sync readout', () => {
     await provider.flush()
     await provider.flush()
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+/*
+ * "No need for super high security — in case there's some random bug just let
+ * it force sync stuff." Every refusal that is not about the award itself comes
+ * down to actor_id, so the force button is allowed to re-credit a stuck award
+ * to whoever presses it rather than leave a team's point stranded over which
+ * phone recorded it.
+ */
+describe('forceSync recovers an award stuck on who recorded it', () => {
+  it('re-sends a refused award credited to the signer, and says how many', async () => {
+    const mine = { ...ev('gems'), actorId: 'me' }
+    const theirs = { ...ev('knights'), actorId: 'someone-else' }
+    remote.authUid = 'me'
+
+    await provider.appendEvents([mine, theirs])
+    await provider.flush()
+    expect(provider.getSyncState().blocked).toBe(1)
+
+    const result = await provider.forceSync({ actorId: 'me' })
+
+    expect(result.recovered).toBe(1)
+    expect(result.blocked).toBe(0)
+    expect(await outbox.all()).toHaveLength(0)
+    expect(remote.rows.map((r) => r.id).sort()).toEqual([mine.id, theirs.id].sort())
+    // It went up credited to the signer — that is the only reason it landed.
+    expect(remote.rows.find((r) => r.id === theirs.id)?.actor_id).toBe('me')
+  })
+
+  it('keeps the award itself untouched — only the credit moves', async () => {
+    const theirs = {
+      ...ev('knights', 'day2', 'golden_key', 10),
+      actorId: 'someone-else',
+      note: 'Helped clear the yard',
+      reversesEventId: null,
+    }
+    remote.authUid = 'me'
+    await provider.appendEvent(theirs)
+    await provider.flush()
+    await provider.forceSync({ actorId: 'me' })
+
+    const row = remote.rows.find((r) => r.id === theirs.id)!
+    expect(row).toMatchObject({
+      id: theirs.id,
+      occurred_at: theirs.occurredAt,
+      day_id: 'day2',
+      team_id: 'knights',
+      category_id: 'golden_key',
+      delta: 10,
+      reverses_event_id: null,
+    })
+    // The original reason survives, with the swap recorded beside it.
+    expect(row.note).toContain('Helped clear the yard')
+    expect(row.note).toContain('Recovered')
+
+    // …and the phone's own copy agrees with what the server now holds.
+    const local = (await provider.getEvents()).find((e) => e.id === theirs.id)!
+    expect(local.actorId).toBe('me')
+    expect(local.syncedAt).not.toBeNull()
+  })
+
+  it('sends the honest row first and only rewrites one the server refused', async () => {
+    const mine = { ...ev('gems'), actorId: 'me' }
+    remote.authUid = 'me'
+    await provider.appendEvent(mine)
+
+    await provider.forceSync({ actorId: 'me' })
+
+    expect(remote.rows[0].actor_id).toBe('me')
+    expect(remote.rows[0].note).toBeNull() // never marked as recovered
+    expect(remote.upsertCalls.flat()).toHaveLength(1) // one attempt, no rewrite
+  })
+
+  it('leaves the award held when re-crediting is not the problem', async () => {
+    const bad = ev('knights')
+    remote.reject.add(bad.id) // refused whoever asks — a closed day
+    await provider.appendEvent(bad)
+    await provider.flush()
+
+    const result = await provider.forceSync({ actorId: 'me' })
+
+    expect(result.recovered).toBe(0)
+    expect(result.blocked).toBe(1)
+    // Still here. Nothing is thrown away because a rewrite did not help.
+    expect((await outbox.all()).map((e) => e.id)).toEqual([bad.id])
+    expect((await provider.getEvents()).find((e) => e.id === bad.id)?.actorId).toBe('leader-1')
+  })
+
+  it('never touches the reversal pointer, which would re-award the category', async () => {
+    const award = { ...ev('gems'), id: 'aaa-award', actorId: 'someone-else' }
+    const undo = {
+      ...ev('gems'),
+      id: 'bbb-undo',
+      occurredAt: '2026-08-20T09:05:00.000Z',
+      deltaDeci: -10,
+      reversesEventId: award.id,
+      actorId: 'someone-else',
+    }
+    remote.authUid = 'me'
+    await provider.appendEvents([award, undo])
+    await provider.flush()
+    await provider.forceSync({ actorId: 'me' })
+
+    // Both recovered — and the undo still names what it undoes. `liveEvents`
+    // reads that pointer in both directions, so stripping it to dodge a
+    // foreign-key failure would turn the undo into a live event of its own and
+    // silently put the good deed back on the board.
+    expect(remote.rows.find((r) => r.id === undo.id)?.reverses_event_id).toBe(award.id)
+    expect((await provider.getEvents()).find((e) => e.id === undo.id)?.reversesEventId).toBe(
+      award.id,
+    )
+  })
+
+  it('does not re-credit anything on an ordinary background flush', async () => {
+    const theirs = { ...ev('knights'), actorId: 'someone-else' }
+    remote.authUid = 'me'
+    await provider.appendEvent(theirs)
+
+    await provider.flush()
+    await provider.flush()
+
+    expect(remote.rows).toHaveLength(0)
+    expect(provider.getSyncState().blocked).toBe(1)
+  })
+})
+
+describe('a correction is sent after the award it reverses', () => {
+  it('orders the queue by when things happened, not by random uuid', async () => {
+    // Deliberately named so id order is the opposite of chronological order:
+    // IdbOutbox.getAll() returns key order, which would send the undo first
+    // and trip the foreign key on reverses_event_id.
+    const award = { ...ev('gems'), id: 'zzz-award', occurredAt: '2026-08-20T09:00:00.000Z' }
+    const undo = {
+      ...ev('gems'),
+      id: 'aaa-undo',
+      occurredAt: '2026-08-20T09:05:00.000Z',
+      deltaDeci: -10,
+      reversesEventId: award.id,
+    }
+    await provider.appendEvents([award, undo])
+    await provider.flush()
+
+    expect(remote.upsertCalls[0].map((r) => r.id)).toEqual([award.id, undo.id])
   })
 })
 

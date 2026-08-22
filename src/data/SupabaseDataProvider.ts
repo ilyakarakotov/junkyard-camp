@@ -1,10 +1,16 @@
-import type { BlockedEvent, DataProvider, SyncCapableProvider, SyncState } from './DataProvider'
+import type {
+  BlockedEvent,
+  DataProvider,
+  ForceSyncResult,
+  SyncCapableProvider,
+  SyncState,
+} from './DataProvider'
 import type { AppUser, Category, Day, ScoreEvent, Team } from './types'
 import { EVENTS_KEY, SETTING_PREFIX } from './LocalStorageDataProvider'
 import { BLOCKED_KEY, inEpoch } from './epoch'
 import { CATEGORIES, DAYS, TEAMS } from './seed'
 import { IdbOutbox, type OutboxStore } from './outbox'
-import { faultOf, isTransient, type SyncFault } from './syncFault'
+import { faultOf, isRepairable, isTransient, type SyncFault } from './syncFault'
 import {
   createSupabaseEventStore,
   fromRow,
@@ -41,6 +47,55 @@ const isRowFault = (fault: SyncFault): boolean =>
 
 const isHeld = (rec: BlockRecord): boolean =>
   isRowFault(rec.fault) || rec.attempts >= UNKNOWN_ATTEMPTS_BEFORE_HOLD
+
+/**
+ * The one field a forced sync is allowed to rewrite, and why.
+ *
+ * Everything the server can refuse an award over that is not the award itself
+ * comes down to `actor_id`: RLS demands `actor_id = auth.uid()`, the column
+ * is a UUID with a foreign key into `app_users`, and an award recorded under
+ * someone else's account — or before anyone signed in at all — is refused for
+ * good, however many times it is retried. That is a point a team earned,
+ * stranded on a technicality about who typed it.
+ *
+ * So the force button may re-stamp it with the person pressing the button.
+ * The award's meaning — day, team, category, delta, id, when it happened — is
+ * never touched, and the swap is written into the note so the audit log still
+ * shows where it came from.
+ *
+ * This is not an edit to the log. The row has never reached the server; it is
+ * an outbox entry being addressed correctly before it is posted. Once it
+ * lands it is as immutable as every other row.
+ *
+ * `reversesEventId` is emphatically NOT repairable, however tempting a
+ * foreign-key failure makes it look. `liveEvents` reads that pointer in both
+ * directions — a compensating event is excluded, and so is the event it names
+ * — so a reversal with the pointer stripped stops cancelling anything and
+ * becomes a live event in its own right. `scoreFromLive` keys binaries off
+ * existence rather than sign, so a de-linked undo would silently RE-AWARD the
+ * category it was undoing. The fix for an orphaned correction is ordering
+ * (below), never nulling the link.
+ */
+function repaired(event: ScoreEvent, actorId: string): ScoreEvent {
+  const mark = `Recovered · was ${event.actorId.slice(0, 8)}`
+  return {
+    ...event,
+    actorId,
+    note: event.note ? `${event.note} · ${mark}` : mark,
+  }
+}
+
+/**
+ * Outbox order for sending.
+ *
+ * `IdbOutbox.all()` is `getAll()`, which returns rows in key order — and the
+ * key is a random UUID. A correction could therefore be sent before the award
+ * it reverses, and the foreign key would refuse it for a reason that would
+ * have fixed itself one row later. Chronological order is the order these
+ * things happened in, and it is the order that satisfies the constraint.
+ */
+const inOrder = (events: ScoreEvent[]): ScoreEvent[] =>
+  [...events].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt) || a.id.localeCompare(b.id))
 
 /** Phase-0 mock camp state must never reach the real backend. */
 const isSeedEvent = (e: ScoreEvent) => e.id.startsWith('seed-')
@@ -102,6 +157,10 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
   /** Last state broadcast, so an idle tick does not re-render the big screen. */
   private lastSignature = ''
   private mirrorDirty = false
+  /** Who a forced pass may re-credit a refused award to; null outside one. */
+  private repairAs: string | null = null
+  /** Awards the current forced pass got through by re-crediting them. */
+  private recovered = 0
 
   constructor(store?: RemoteEventStore | null, outbox?: OutboxStore | null) {
     this.store = store
@@ -236,14 +295,22 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
    * award including the held-back ones — the quarantine is advice to the
    * background flusher, never a verdict, and a leader who has just signed in
    * as the right person (or walked to where the signal is) gets to overrule it.
+   *
+   * Pass `actorId` (the signed-in user) and the pass gets one more move: an
+   * award the server still refuses is re-sent credited to them. Held awards
+   * are points a team earned, and a stuck one should not stay stuck over
+   * which phone or which account recorded it.
    */
-  async forceSync(): Promise<SyncState> {
+  async forceSync(opts: { actorId?: string } = {}): Promise<ForceSyncResult> {
     this.ensureStarted()
     this.online = navigator.onLine
+    this.repairAs = opts.actorId ?? null
+    this.recovered = 0
     await this.reconcileOutbox()
     await this.refreshFromServer()
     await this.flush(true)
-    return this.getSyncState()
+    this.repairAs = null
+    return { ...this.getSyncState(), recovered: this.recovered }
   }
 
   /**
@@ -450,7 +517,7 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
     for (const id of [...this.blocked.keys()]) if (!live.has(id)) this.blocked.delete(id)
 
     const held = this.heldIds()
-    const ready = force ? queued : queued.filter((e) => !held.has(e.id))
+    const ready = inOrder(force ? queued : queued.filter((e) => !held.has(e.id)))
     if (ready.length === 0) return this.settleState(this.fault)
 
     try {
@@ -460,8 +527,11 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
       return this.settleState(null)
     } catch (err) {
       const fault = faultOf(err)
-      if (isTransient(fault)) return this.settleState(fault)
-      if (ready.length === 1) {
+      // A forced pass goes row by row regardless: the caller has asked for
+      // this explicitly, and a misclassified one-off must not be able to end
+      // the attempt on the strength of a guess about what the message meant.
+      if (isTransient(fault) && !force) return this.settleState(fault)
+      if (ready.length === 1 && !force) {
         this.block(ready[0], fault)
         return this.settleState(fault)
       }
@@ -471,24 +541,59 @@ export class SupabaseDataProvider implements DataProvider, SyncCapableProvider {
     const sent: ScoreEvent[] = []
     let last: SyncFault | null = null
     for (const e of ready) {
-      try {
-        await remote.upsert([toRow(e)])
+      const fault = await this.send(remote, e)
+      if (fault === null) {
         sent.push(e)
         this.blocked.delete(e.id)
-      } catch (err) {
-        const fault = faultOf(err)
-        // The link died mid-pass: stop, keep what landed, hold nothing
-        // against the rows we never got to ask about.
-        if (isTransient(fault)) {
-          last = fault
-          break
-        }
-        this.block(e, fault)
-        last = fault
+        continue
       }
+      // The link died mid-pass: stop, keep what landed, hold nothing against
+      // the rows we never got to ask about.
+      if (isTransient(fault)) {
+        last = fault
+        break
+      }
+      this.block(e, fault)
+      last = fault
     }
     if (sent.length > 0) await this.drain(sent, outbox)
     this.settleState(last)
+  }
+
+  /**
+   * Send one award, and on a forced pass try harder before giving up.
+   *
+   * The honest row goes first, always: nothing is rewritten that the server
+   * would have taken as recorded. Only once it has actually been refused —
+   * and only during a forced sync, with a signed-in user to credit — is it
+   * re-sent under them. Returns null on success, or the fault that stands.
+   */
+  private async send(remote: RemoteEventStore, event: ScoreEvent): Promise<SyncFault | null> {
+    let fault: SyncFault
+    try {
+      await remote.upsert([toRow(event)])
+      return null
+    } catch (err) {
+      fault = faultOf(err)
+    }
+    const actorId = this.repairAs
+    if (!actorId || !isRepairable(fault) || actorId === event.actorId) return fault
+
+    const fixed = repaired(event, actorId)
+    try {
+      await remote.upsert([toRow(fixed)])
+    } catch (err) {
+      // Re-crediting was not the problem. Report what the honest row said,
+      // not what the rewritten one said — the first answer is the true one.
+      const second = faultOf(err)
+      return isTransient(second) ? second : fault
+    }
+    // The mirror keeps the copy that actually reached the server, so the
+    // audit log on this phone matches the shared log rather than quietly
+    // disagreeing with it about who awarded the point.
+    this.write(this.read().map((e) => (e.id === fixed.id ? { ...fixed, syncedAt: e.syncedAt } : e)))
+    this.recovered++
+    return null
   }
 
   /** Clear the outbox of what landed and stamp it synced in the mirror. */

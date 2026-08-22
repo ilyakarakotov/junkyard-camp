@@ -178,8 +178,20 @@ closed. Postgres fails a whole statement over one bad row, so a batch that
 comes back refused is re-sent one award at a time — the good ones land, and
 only the row the server objects to is held back, with the reason it gave.
 The sync screen reads that reason out, says what to do about it, and forces a
-full retry (held awards included) on demand. A held award is never discarded:
-it stays in the outbox and keeps counting on that phone's board until the
-server takes it.
+full retry (held awards included) on demand.
+
+Almost every refusal that is not about the award itself comes down to
+`actor_id` — RLS is `actor_id = auth.uid()`, so an award recorded under
+another account, or before anyone signed in, is refused for good. Rather than
+strand a point a team earned, **force sync re-sends a still-refused award
+credited to whoever pressed the button**, and marks it recovered in the note
+so the audit log shows the swap. Only that one field is ever rewritten; the
+day, team, category, value, id and timestamp are untouched, and the honest row
+is always tried first. `reversesEventId` is never rewritten — `liveEvents`
+reads it in both directions, so stripping it to dodge a foreign key would turn
+an undo into a live event and re-award the category it was undoing.
+
+A held award is never discarded: it stays in the outbox and keeps counting on
+that phone's board until the server takes it.
 
 See `CLAUDE.md` for the design system and the full data model.

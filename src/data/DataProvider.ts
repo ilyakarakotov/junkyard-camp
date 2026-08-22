@@ -60,6 +60,16 @@ export interface BlockedEvent {
   attempts: number
 }
 
+/** What a forced pass achieved, beyond the state it left behind. */
+export interface ForceSyncResult extends SyncState {
+  /**
+   * Awards that only got through once they were re-credited to the person
+   * who pressed the button. Worth saying out loud: their attribution in the
+   * audit log changed, and the note on each one records that it did.
+   */
+  recovered: number
+}
+
 /**
  * The extra surface a backed provider carries. Kept off `DataProvider` itself
  * so local-only mode does not have to pretend to have a network.
@@ -72,8 +82,13 @@ export interface SyncCapableProvider {
    * Retry everything now, held-back awards included, and re-read the shared
    * log. This is the "force sync" button: it clears the quarantine so every
    * queued award gets one more real attempt, whatever happened last time.
+   *
+   * `actorId` is the signed-in user. Given one, an award the server still
+   * refuses is re-sent credited to them rather than left stranded — see
+   * `repaired()` in SupabaseDataProvider for exactly what that rewrites
+   * (one field) and what it never touches (everything that means anything).
    */
-  forceSync(): Promise<SyncState>
+  forceSync(opts?: { actorId?: string }): Promise<ForceSyncResult>
 }
 
 export function isSyncCapable(dp: DataProvider): dp is DataProvider & SyncCapableProvider {

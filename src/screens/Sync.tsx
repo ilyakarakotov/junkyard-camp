@@ -29,7 +29,8 @@ export default function Sync() {
   const { sync, forceSync, listBlockedEvents, teams, categories, days } = useStore()
   const [blocked, setBlocked] = useState<BlockedEvent[]>([])
   const [busy, setBusy] = useState(false)
-  const [outcome, setOutcome] = useState<string | null>(null)
+  const [ran, setRan] = useState(false)
+  const [recovered, setRecovered] = useState(0)
 
   const reload = useCallback(() => {
     void listBlockedEvents().then(setBlocked)
@@ -38,14 +39,14 @@ export default function Sync() {
 
   const run = async () => {
     setBusy(true)
-    setOutcome(null)
-    const before = sync?.pending ?? 0
-    await forceSync()
-    // Read the outcome off the store's next state rather than announcing
-    // success the moment the promise settles: "SYNCED" over a queue that did
+    setRan(false)
+    const result = await forceSync()
+    // The outcome is read off the state the attempt left behind, never
+    // announced because the promise settled: "SYNCED" over a queue that did
     // not move is the same lie the old silent catch told.
+    setRecovered(result.recovered)
     setBusy(false)
-    setOutcome(before === 0 ? 'checked' : 'ran')
+    setRan(true)
   }
 
   const pending = sync?.pending ?? 0
@@ -113,16 +114,33 @@ export default function Sync() {
 
               <ForceButton busy={busy || sync.syncing} onPress={() => void run()} />
 
-              {outcome && !busy && (
-                <p
-                  role="status"
-                  className="tech-label mt-2 text-center"
-                  style={{ color: clear ? 'var(--color-lamp-hot)' : 'var(--color-text-dim)' }}
-                >
-                  {clear
-                    ? 'Everything is on the server'
-                    : `${pending} still waiting${held > 0 ? ` · ${held} held` : ''}`}
-                </p>
+              {ran && !busy && (
+                <div role="status" className="mt-2">
+                  <p
+                    className="tech-label text-center"
+                    style={{ color: clear ? 'var(--color-lamp-hot)' : 'var(--color-text-dim)' }}
+                  >
+                    {clear
+                      ? 'Everything is on the server'
+                      : `${pending} still waiting${held > 0 ? ` · ${held} held` : ''}`}
+                  </p>
+                  {recovered > 0 && (
+                    /*
+                     * Said out loud because it changed the record: these
+                     * awards went through credited to whoever pressed the
+                     * button, not to whoever originally made them. The note
+                     * on each one says so too, in the audit log.
+                     */
+                    <p
+                      className="font-body mt-1 text-center"
+                      style={{ fontSize: 12, color: 'var(--color-lamp-hot)' }}
+                    >
+                      {recovered} {recovered === 1 ? 'award was' : 'awards were'} stuck on who
+                      recorded {recovered === 1 ? 'it' : 'them'} — sent through under your name,
+                      and marked as recovered in the audit log.
+                    </p>
+                  )}
+                </div>
               )}
 
               {blocked.length > 0 && (

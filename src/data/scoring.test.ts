@@ -321,3 +321,25 @@ describe('day rail resolution', () => {
     expect(resolveActiveDay(DAYS, on(2026, 9, 1)).id).toBe('day4')
   })
 })
+
+/*
+ * A compensating event has to be credited to whoever writes it. RLS is
+ * `actor_id = auth.uid()`, so a correction credited to the leader who made
+ * the original award is refused by the server for good: the phone shows the
+ * correction, the shared log keeps the award live, and nothing ever
+ * reconciles the two.
+ */
+describe('who a reversal is credited to', () => {
+  it('credits the person doing the reversing', () => {
+    const original = { ...ev('gems', 'day1', 'good_deed', 10), actorId: 'leader-a' }
+    expect(reversalOf(original, 'd1', 'Correction', 'leader-b').actorId).toBe('leader-b')
+  })
+
+  it('cancels the original whoever is credited', () => {
+    const original = { ...ev('gems', 'day1', 'good_deed', 10), actorId: 'leader-a' }
+    const off = reversalOf(original, 'd1', 'Correction', 'leader-b')
+    expect(off.deltaDeci).toBe(-original.deltaDeci)
+    expect(off.reversesEventId).toBe(original.id)
+    expect(liveEvents([original, off])).toEqual([])
+  })
+})

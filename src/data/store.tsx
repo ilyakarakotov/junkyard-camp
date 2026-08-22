@@ -96,8 +96,12 @@ interface StoreValue {
    * Retry now — held-back awards included — and re-read the shared log. The
    * sync screen's force button. Resolves once the attempt is finished, so the
    * screen can report what happened rather than guessing.
+   *
+   * An award the server still refuses is re-sent credited to the signed-in
+   * user, which is what gets a point unstuck when the trouble is who recorded
+   * it rather than what it was. Resolves with how many needed that.
    */
-  forceSync(): Promise<void>
+  forceSync(): Promise<{ recovered: number }>
   /** The awards the server is refusing, with the reason for each. */
   listBlockedEvents(): Promise<BlockedEvent[]>
 
@@ -223,12 +227,15 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   )
 
   const forceSync = useCallback(async () => {
-    if (!syncDp) return
+    if (!syncDp) return { recovered: 0 }
     setSyncState({ ...syncDp.getSyncState(), syncing: true })
-    const next = await syncDp.forceSync()
+    // The signer travels with the request: it is what lets a forced pass
+    // re-credit an award the server refuses rather than leave the point stuck.
+    const next = await syncDp.forceSync({ actorId: user?.id })
     setSyncState(next)
     setEvents(await dp.getEvents())
-  }, [syncDp, dp])
+    return { recovered: next.recovered }
+  }, [syncDp, dp, user])
 
   const listBlockedEvents = useCallback(
     async () => (syncDp ? syncDp.getBlockedEvents() : []),
@@ -288,6 +295,13 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
     [canUnlockDay],
   )
 
+  /*
+   * Who this device writes as. RLS is `actor_id = auth.uid()`, so this is not
+   * cosmetic: an event minted under anyone else's id is refused by the server
+   * for good, however many times it is retried.
+   */
+  const actorId = useCallback(() => user?.id ?? 'leader-1', [user])
+
   const newEvent = useCallback(
     (
       dayId: string,
@@ -304,12 +318,12 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       deltaDeci,
       note,
       // RLS requires actor_id = auth.uid() — you write as yourself, always.
-      actorId: user?.id ?? 'leader-1',
+      actorId: actorId(),
       deviceId: getDeviceId(),
       reversesEventId: null,
       syncedAt: null,
     }),
-    [user],
+    [actorId],
   )
 
   const push = useCallback(
@@ -366,7 +380,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       } else {
         const existing = binaryEvent(events, dayId, teamId, categoryId)
         if (!existing) return
-        await push([reversalOf(existing, getDeviceId(), 'Correction')])
+        await push([reversalOf(existing, getDeviceId(), 'Correction', actorId())])
       }
     },
     [events, newEvent, push, isEditableDay],
@@ -391,7 +405,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
         )
         .at(-1)
       if (!latest) return
-      await push([reversalOf(latest, getDeviceId(), 'Correction')])
+      await push([reversalOf(latest, getDeviceId(), 'Correction', actorId())])
     },
     [events, push, isEditableDay],
   )
@@ -413,7 +427,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
         .filter((e) => e.dayId === dayId && e.teamId === teamId && e.categoryId === 'golden_key')
         .at(-1)
       if (!latest) return
-      await push([reversalOf(latest, getDeviceId(), 'Correction')])
+      await push([reversalOf(latest, getDeviceId(), 'Correction', actorId())])
     },
     [events, push, isEditableDay],
   )
@@ -425,7 +439,7 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       const reversals = batch.eventIds
         .map((id) => byId.get(id))
         .filter((e): e is ScoreEvent => Boolean(e))
-        .map((e) => reversalOf(e, getDeviceId()))
+        .map((e) => reversalOf(e, getDeviceId(), 'Undo', actorId()))
       await push(reversals)
     },
     [events, push, isEditableDay],
