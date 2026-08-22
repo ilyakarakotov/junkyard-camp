@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { mayUseTestMode } from '../data/testMode'
 import { BackTab, BrassConfirm, CornerScrews, Plate, ScreenFrame } from '../components/chrome'
+import SyncPanel from '../components/SyncPanel'
 
 /**
  * The menu (§6.5): the app's one navigation hub, opened from the board's
@@ -75,6 +76,11 @@ export default function Menu() {
            * fix is the same one Board.tsx documents for the opposite fault —
            * spend the extra height on real metal, not on a bigger gap.
            */}
+          {/* Above the list, not buried under it: a leader opens this screen
+              BECAUSE their points are not moving, and the panel is what they
+              came for. It renders nothing when the outbox is clear. */}
+          <SyncPanel />
+
           <div className="flex flex-col" style={{ gap: 8 }}>
             {items.map((item) => (
               <Plate

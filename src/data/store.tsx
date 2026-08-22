@@ -23,9 +23,20 @@ import { createDefaultProvider } from './provider'
 import { SandboxDataProvider, type SandboxOps } from './SandboxDataProvider'
 import { isTestMode } from './testMode'
 import { useAuth, type AuthUser } from './auth'
+import type { SyncState } from './SupabaseDataProvider'
 import { binaryEvent, checkInCount, liveEvents, reversalOf } from './derive'
 import { BINARY_DECI, KEY_DECI, MAX_CHECK_INS } from './scoring'
 import { DAYS, canBackdateDay, resolveActiveDay, resolveEditableDayId } from './seed'
+
+/**
+ * The actor id for a new event. In local-only mode `useAuth` supplies a
+ * standing local user, so this only ever throws in a backed build with no
+ * session — which RequireAuth already prevents.
+ */
+function requireActor(user: AuthUser | null): string {
+  if (!user) throw new Error('Cannot record an award with nobody signed in')
+  return user.id
+}
 
 interface StoreValue {
   teams: Team[]
@@ -80,10 +91,25 @@ interface StoreValue {
   isBackdating: boolean
 
   /**
-   * Backend sync readout for the unsynced chrome: is the network up, and how
-   * many events are still waiting in the outbox. Null in local-only mode.
+   * Backend sync readout for the unsynced chrome and the menu's sync panel:
+   * the network flag, how many events are still waiting in the outbox, how
+   * many of those the server is actively refusing, and why. Null in local-only
+   * mode. `lastError` is the part that was missing when a phone at camp spent
+   * two days unable to sync with nothing on screen to say so.
    */
-  sync: { online: boolean; pending: number } | null
+  sync: SyncState | null
+  /**
+   * Push the outbox now. The flusher already retries on its own, but a leader
+   * whose points are not moving needs something to press — and needs to be
+   * told what came back. Resolves once the attempt has finished.
+   */
+  retrySync(): Promise<void>
+  /**
+   * Rescue awards the server refuses because they were recorded under another
+   * sign-in, by re-stamping them to whoever is signed in now. Returns how many
+   * were re-stamped. Never automatic — see repairActor in the provider.
+   */
+  repairSyncActor(): Promise<number>
 
   /** Roll call: commit a whole column of teams in one gesture. A note rides
       on every awarded event — good deeds require one, like keys. */
@@ -181,14 +207,35 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
   // Only a backend-aware provider (SupabaseDataProvider.getSyncState) gets a
   // sync readout; in local-only mode `sync` stays null and the unsynced
   // chrome hides itself.
+  //
+  // Read from the PROVIDER rather than recomputed here: the counts the UI has
+  // to show now include why the server refused a row, which only the flusher
+  // knows. `events` and `online` stay in the deps because every provider
+  // notify() refreshes them, which is exactly when the sync state moves too.
   const syncAware = 'getSyncState' in dp
-  const sync = useMemo(
+  const sync = useMemo<SyncState | null>(
     () =>
       syncAware
-        ? { online, pending: events.filter((e) => e.syncedAt === null).length }
+        ? {
+            ...(dp as { getSyncState(id?: string): SyncState }).getSyncState(user?.id),
+            online,
+          }
         : null,
-    [syncAware, online, events],
+    [syncAware, dp, online, events, user],
   )
+
+  const retrySync = useCallback(async () => {
+    if (!('flush' in dp)) return
+    await (dp as { flush(): Promise<void> }).flush()
+    setEvents(await dp.getEvents())
+  }, [dp])
+
+  const repairSyncActor = useCallback(async () => {
+    if (!user || !('repairActor' in dp)) return 0
+    const n = await (dp as { repairActor(id: string): Promise<number> }).repairActor(user.id)
+    setEvents(await dp.getEvents())
+    return n
+  }, [dp, user])
 
   // Day locks. Per-device by design: someone reopens the device in hand to fix
   // a miss, and the RLS policy permits the matching insert — the lock is UI
@@ -258,8 +305,19 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       categoryId,
       deltaDeci,
       note,
-      // RLS requires actor_id = auth.uid() — you write as yourself, always.
-      actorId: user?.id ?? 'leader-1',
+      /*
+       * RLS requires actor_id = auth.uid() — you write as yourself, always.
+       *
+       * There is no fallback id here on purpose. This used to read
+       * `user?.id ?? 'leader-1'`, which in a backed build mints an award the
+       * server can never accept: 'leader-1' is not a uuid, and even as one it
+       * would not be auth.uid(). Such a row sits in the outbox for the rest of
+       * the phone's life. RequireAuth means `user` is always set on any screen
+       * that can score, so this throw is unreachable in practice — and if it
+       * ever does fire, failing the award loudly beats writing one that is
+       * silently undeliverable.
+       */
+      actorId: requireActor(user),
       deviceId: getDeviceId(),
       reversesEventId: null,
       syncedAt: null,
@@ -439,6 +497,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unlockDay,
       isBackdating,
       sync,
+      retrySync,
+      repairSyncActor,
       commitRollCall,
       setBinary,
       addCheckIn,
@@ -466,6 +526,8 @@ export function StoreProvider({ children, provider }: { children: ReactNode; pro
       unlockDay,
       isBackdating,
       sync,
+      retrySync,
+      repairSyncActor,
       commitRollCall,
       setBinary,
       addCheckIn,

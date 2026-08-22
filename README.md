@@ -171,4 +171,15 @@ footer shows the pending count), sync automatically when the network returns,
 and can't double-award — retries reuse the same client-generated event id.
 Other leaders' awards arrive live over a realtime subscription.
 
+**When the server refuses a row.** A batch insert is one statement, so one row
+the RLS policy rejects fails every award sent with it. The flusher tells a
+rejection from a dead zone by SQLSTATE: a network failure retries the whole
+batch, a permanent one (42501, 23503, 22P02…) drops to one row at a time so
+everything that can land does, and quarantines only the row that cannot. The
+reason is kept and shown — tap `▲ N UNSYNCED` to open the menu, where the sync
+panel says what the server said and offers **Retry sync now**. Awards recorded
+under a different sign-in on the same phone can be re-stamped to whoever is
+signed in ("Re-submit as me"); it is always a person's choice, never automatic.
+Nothing leaves the outbox until the server has confirmed it.
+
 See `CLAUDE.md` for the design system and the full data model.

@@ -297,7 +297,23 @@ policy), added to the realtime publication.
 `SupabaseDataProvider` keeps a localStorage mirror the UI always reads
 (instant, offline-safe). Unsynced events (`syncedAt: null`) are the outbox;
 they flush on every append, on `online`, on a 15s interval and on boot, via an
-upsert idempotent by client UUID. A realtime INSERT subscription merges other
+upsert idempotent by client UUID.
+
+**A rejected row must never hold the others hostage, and a sync failure must
+never be silent.** A batch upsert is one SQL statement, so a row the RLS policy
+refuses fails every award sent with it — and a bare `catch {}` makes that look
+exactly like being offline. That combination stranded a leader's phone for two
+days at camp: 127 rejections, a working connection, and nothing on screen. So
+`flushOnce` classifies the failure (`RemoteWriteError.permanent`, by SQLSTATE:
+42501, 23503, 22P02…). A network error retries the whole batch; a permanent one
+drops to one row at a time, delivers everything that can land, and quarantines
+only the row that cannot — with its reason, in `jr:sync-blocked`, surviving the
+restart the leader will certainly try. Quarantine is a state a row can leave:
+held rows are retried individually, so one blocked because its day was not open
+yet heals itself when it opens. `getSyncState()` carries the reason to the UI,
+`SyncPanel` shows it in plain words with **Retry sync now**, and `repairActor`
+re-stamps awards recorded under another sign-in — the one repair a phone can
+make itself, and never automatic. A realtime INSERT subscription merges other
 leaders' events, so several leaders can score at once and the big screen is
 live. Phase-0 seed events are dropped on first start so mock data never
 reaches the real log. The board footer's `status / sync` line is live when

@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SupabaseDataProvider } from './SupabaseDataProvider'
 import { EVENTS_KEY } from './LocalStorageDataProvider'
 import { MemoryOutbox } from './outbox'
-import { fromRow, toRow, type RemoteEventStore, type ScoreEventInsert, type ScoreEventRow } from './remote'
+import {
+  fromRow,
+  RemoteWriteError,
+  toRow,
+  type RemoteEventStore,
+  type ScoreEventInsert,
+  type ScoreEventRow,
+} from './remote'
 import type { CategoryId, ScoreEvent, TeamId } from './types'
 
 /**
@@ -41,6 +48,13 @@ class FakeRemote implements RemoteEventStore {
   rows: ScoreEventRow[] = []
   upsertCalls: ScoreEventInsert[][] = []
   failUpsert = false
+  /**
+   * Stands in for the RLS policy: a row this predicate rejects raises 42501,
+   * exactly as Postgres does — and, as in Postgres, it fails the WHOLE
+   * statement, taking every other row in the batch with it. That is the
+   * behaviour that stranded a phone at camp for two days.
+   */
+  reject: ((r: ScoreEventInsert) => boolean) | null = null
   private cb: ((row: ScoreEventRow) => void) | null = null
 
   async fetchAll(): Promise<ScoreEventRow[]> {
@@ -50,6 +64,14 @@ class FakeRemote implements RemoteEventStore {
   async upsert(rows: ScoreEventInsert[]): Promise<void> {
     this.upsertCalls.push(rows)
     if (this.failUpsert) throw new Error('offline')
+    if (this.reject && rows.some(this.reject)) {
+      throw new RemoteWriteError(
+        '42501',
+        null,
+        null,
+        'new row violates row-level security policy for table "score_events"',
+      )
+    }
     const now = new Date().toISOString()
     for (const r of rows) {
       if (!this.rows.some((x) => x.id === r.id)) this.rows.push({ ...r, created_at: now })
@@ -254,6 +276,140 @@ describe('SupabaseDataProvider', () => {
     await p.flush()
     expect(remote.rows.map((r) => r.id)).toEqual([real.id])
     p.close()
+  })
+})
+
+/**
+ * These cover the failure that actually happened at camp on 2026-08-21: a
+ * phone with a working connection, a full outbox, and a server refusing one
+ * poisoned row — 127 rejections over 23 hours, every one of them swallowed.
+ */
+describe('a row the server refuses', () => {
+  it('does not stop the other awards from reaching the server', async () => {
+    const poison = { ...ev('gems'), actorId: 'someone-else' }
+    const good1 = ev('warriors')
+    const good2 = ev('pearls')
+    remote.reject = (r) => r.actor_id === 'someone-else'
+
+    await provider.appendEvents([good1, poison, good2])
+    await provider.flush()
+
+    const landed = remote.rows.map((r) => r.id).sort()
+    expect(landed).toEqual([good1.id, good2.id].sort())
+    // ...and the refused one is still held, not lost.
+    expect((await outbox.all()).map((e) => e.id)).toEqual([poison.id])
+  })
+
+  it('reports why, instead of looking exactly like being offline', async () => {
+    remote.reject = () => true
+    await provider.appendEvents([ev()])
+    await provider.flush()
+
+    const state = provider.getSyncState()
+    expect(state.lastError?.code).toBe('42501')
+    expect(state.blocked).toBe(1)
+    expect(state.pending).toBe(1)
+    expect(state.lastError?.plain).toMatch(/different sign-in|not open to you/i)
+  })
+
+  it('keeps the refused row out of every later batch', async () => {
+    const poison = { ...ev('gems'), actorId: 'someone-else' }
+    remote.reject = (r) => r.actor_id === 'someone-else'
+    await provider.appendEvents([poison])
+    await provider.flush()
+
+    remote.upsertCalls = []
+    const later = ev('forged')
+    await provider.appendEvents([later])
+    await provider.flush()
+
+    // The new award goes up on its own, never batched with the poison again.
+    expect(remote.rows.map((r) => r.id)).toContain(later.id)
+    for (const call of remote.upsertCalls) {
+      if (call.length > 1) expect(call.map((r) => r.id)).not.toContain(poison.id)
+    }
+  })
+
+  it('lets a blocked row heal once the server changes its mind', async () => {
+    const late = ev('rustco', 'day3')
+    remote.reject = (r) => r.day_id === 'day3'
+    await provider.appendEvents([late])
+    await provider.flush()
+    expect(provider.getSyncState().blocked).toBe(1)
+
+    // Day 3 opens. Nothing about the row changed — only the policy.
+    remote.reject = null
+    await provider.flush()
+
+    expect(remote.rows.map((r) => r.id)).toContain(late.id)
+    expect(provider.getSyncState().blocked).toBe(0)
+    expect(provider.getSyncState().pending).toBe(0)
+  })
+
+  it('does not quarantine anything merely because the network is down', async () => {
+    remote.failUpsert = true
+    await provider.appendEvents([ev(), ev('warriors')])
+    await provider.flush()
+
+    expect(provider.getSyncState().blocked).toBe(0)
+    expect(provider.getSyncState().pending).toBe(2)
+
+    remote.failUpsert = false
+    await provider.flush()
+    expect(provider.getSyncState().pending).toBe(0)
+  })
+})
+
+describe('repairActor', () => {
+  it('re-stamps awards recorded under another sign-in and delivers them', async () => {
+    const mine = ev('warriors')
+    const theirs = { ...ev('gems'), actorId: 'the-other-leader' }
+    remote.reject = (r) => r.actor_id !== 'natasha'
+
+    await provider.appendEvents([mine, theirs])
+    await provider.flush()
+    // Both are refused: this device is signed in as nobody the server knows.
+    expect(remote.rows).toHaveLength(0)
+    expect(provider.getSyncState('natasha').wrongActor).toBe(2)
+
+    const fixed = await provider.repairActor('natasha')
+
+    expect(fixed).toBe(2)
+    expect(remote.rows.map((r) => r.id).sort()).toEqual([mine.id, theirs.id].sort())
+    expect(remote.rows.every((r) => r.actor_id === 'natasha')).toBe(true)
+    expect(provider.getSyncState().pending).toBe(0)
+  })
+
+  it('rewrites the mirror too, so the audit log matches what the server got', async () => {
+    const theirs = { ...ev('gems'), actorId: 'the-other-leader' }
+    remote.reject = (r) => r.actor_id !== 'natasha'
+    await provider.appendEvents([theirs])
+    await provider.flush()
+
+    await provider.repairActor('natasha')
+
+    const mirrored = (await provider.getEvents()).find((e) => e.id === theirs.id)
+    expect(mirrored?.actorId).toBe('natasha')
+    expect(mirrored?.syncedAt).not.toBeNull()
+  })
+
+  it('is a no-op when nothing is blocked on the actor', async () => {
+    await provider.appendEvents([ev()])
+    await provider.flush()
+    expect(await provider.repairActor('natasha')).toBe(0)
+  })
+
+  it('does not offer to re-stamp rows the signed-in user already owns', async () => {
+    // Blocked for the DAY, not the actor: re-stamping would change nothing,
+    // so the panel must not offer a button that silently does nothing.
+    const mine = { ...ev('gems', 'day4'), actorId: 'natasha' }
+    remote.reject = (r) => r.day_id === 'day4'
+    await provider.appendEvents([mine])
+    await provider.flush()
+
+    expect(provider.getSyncState('natasha').blocked).toBe(1)
+    expect(provider.getSyncState('natasha').wrongActor).toBe(0)
+    expect(await provider.repairActor('natasha')).toBe(0)
   })
 })
 

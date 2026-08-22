@@ -8,11 +8,46 @@ import {
   createSupabaseEventStore,
   fromRow,
   getSupabaseClient,
+  RemoteWriteError,
   toRow,
   type RemoteEventStore,
 } from './remote'
 
 const FLUSH_MS = 15_000
+
+/**
+ * Rows the server has refused for a reason that will not change on its own.
+ * Kept OUT of the batch (see flushOnce) and retried one at a time, and kept in
+ * localStorage so the reason survives the restart a leader will certainly try.
+ */
+const BLOCKED_KEY = 'jr:sync-blocked'
+
+export interface BlockedRow {
+  code: string | null
+  message: string
+  /** Wording for a leader rather than for Postgres. */
+  plain: string
+  at: string
+}
+
+export interface SyncState {
+  online: boolean
+  /** Events still in the outbox — everything not yet on the server. */
+  pending: number
+  /** Of those, the ones the server actively refuses. */
+  blocked: number
+  /** True while a flush is in flight, so a retry button can say so. */
+  syncing: boolean
+  /** Why the last attempt failed, or null if the last one was clean. */
+  lastError: BlockedRow | null
+  /** When something last reached the server. */
+  lastSyncedAt: string | null
+  /**
+   * Blocked rows recorded under somebody else's sign-in. These are the ones
+   * `repairActor` can rescue, and the count is what the UI offers to fix.
+   */
+  wrongActor: number
+}
 
 /** Phase-0 mock camp state must never reach the real backend. */
 const isSeedEvent = (e: ScoreEvent) => e.id.startsWith('seed-')
@@ -49,6 +84,13 @@ export class SupabaseDataProvider implements DataProvider {
   private flushing = false
   private flushQueued = false
   private inFlight: Promise<void> = Promise.resolve()
+
+  private blocked = new Map<string, BlockedRow>()
+  private blockedLoaded = false
+  private lastError: BlockedRow | null = null
+  private lastSyncedAt: string | null = null
+  /** Actor ids on blocked rows, so the UI can offer to re-stamp them. */
+  private blockedActors = new Map<string, string>()
 
   constructor(store?: RemoteEventStore | null, outbox?: OutboxStore | null) {
     this.store = store
@@ -135,9 +177,71 @@ export class SupabaseDataProvider implements DataProvider {
     return () => this.listeners.delete(listener)
   }
 
-  /** Extra surface beyond DataProvider, for the unsynced chrome. */
-  getSyncState(): { online: boolean } {
-    return { online: this.online }
+  /**
+   * Extra surface beyond DataProvider, for the unsynced chrome and the sync
+   * panel. `currentActorId` is who is signed in: without it `wrongActor`
+   * would count every policy rejection, and offer a "re-submit as me" button
+   * that re-stamps nothing because the rows already carry that actor.
+   */
+  getSyncState(currentActorId?: string): SyncState {
+    this.loadBlocked()
+    const unsynced = this.read().filter((e) => e.syncedAt === null)
+    const wrongActor = currentActorId
+      ? [...this.blockedActors.values()].filter((a) => a !== currentActorId).length
+      : 0
+    return {
+      online: this.online,
+      pending: unsynced.length,
+      blocked: this.blocked.size,
+      syncing: this.flushing,
+      lastError: this.lastError,
+      lastSyncedAt: this.lastSyncedAt,
+      wrongActor,
+    }
+  }
+
+  /**
+   * Re-stamp blocked awards to the person signed in on this device and push
+   * them again.
+   *
+   * This exists because of what actually happened at camp: a phone signed in
+   * as one leader, scored, then signed in as another. Every award from the
+   * first session carries the first actor's id, and the RLS policy requires
+   * `actor_id = auth.uid()` — so those rows are refused for as long as the
+   * phone lives, and under the old all-or-nothing flush they took every later
+   * award down with them.
+   *
+   * Re-stamping is a deliberate, human-triggered act, never automatic. It
+   * changes who the log says awarded the point, so it must be a choice
+   * somebody makes with their eyes open — and the alternative is real points
+   * that the scoreboard can never record. The person tapping it is the person
+   * signed in, vouching for awards their own device captured.
+   */
+  async repairActor(actorId: string): Promise<number> {
+    this.loadBlocked()
+    const outbox = this.outbox()
+    if (!outbox || this.blockedActors.size === 0) return 0
+    const ids = new Set(
+      [...this.blockedActors.entries()].filter(([, a]) => a !== actorId).map(([id]) => id),
+    )
+    if (ids.size === 0) return 0
+    const pending = await outbox.all()
+    const fixed = pending.filter((e) => ids.has(e.id)).map((e) => ({ ...e, actorId }))
+    if (fixed.length === 0) return 0
+    await outbox.put(fixed)
+    // The mirror carries the same actor, so the audit log agrees with the row
+    // the server is about to receive.
+    const byId = new Map(fixed.map((e) => [e.id, e]))
+    this.write(this.read().map((e) => byId.get(e.id) ?? e))
+    // Unblock so the next flush actually tries them.
+    for (const id of ids) {
+      this.blocked.delete(id)
+      this.blockedActors.delete(id)
+    }
+    this.saveBlocked()
+    this.notify()
+    await this.flush()
+    return fixed.length
   }
 
   /** Push everything in the outbox. Re-entrant: callers join the in-flight run. */
@@ -147,14 +251,21 @@ export class SupabaseDataProvider implements DataProvider {
       return this.inFlight
     }
     this.flushing = true
+    this.notify()
     this.inFlight = (async () => {
       try {
         do {
           this.flushQueued = false
           await this.flushOnce()
         } while (this.flushQueued)
+      } catch (err) {
+        // `void this.flush()` is called from four places; an escaping
+        // rejection there is an unhandled promise rejection every 15s and
+        // tells nobody anything. Record it where the UI can read it instead.
+        this.recordError(err)
       } finally {
         this.flushing = false
+        this.notify()
       }
     })()
     return this.inFlight
@@ -189,7 +300,14 @@ export class SupabaseDataProvider implements DataProvider {
     // async boot chain is still reconciling must not be missed.
     if (remote) remote.onInsert((row) => this.mergeRemote([fromRow(row)]))
     void (async () => {
-      await this.reconcileOutbox()
+      // Each step is guarded: a phone whose IndexedDB is gone (private
+      // browsing, evicted storage) used to reject out of this chain, which
+      // skipped the server refresh AND the first flush entirely.
+      try {
+        await this.reconcileOutbox()
+      } catch {
+        // nothing reconcilable — the mirror is still on screen
+      }
       await this.refreshFromServer()
       await this.flush()
     })()
@@ -296,22 +414,160 @@ export class SupabaseDataProvider implements DataProvider {
     this.notify()
   }
 
+  /**
+   * One drain of the outbox.
+   *
+   * ONE BAD ROW MUST NEVER HOLD THE REST HOSTAGE. This used to send the whole
+   * outbox as a single upsert and swallow any error with a bare `catch {}`. A
+   * batch insert is one statement, so a row the policy refuses fails all of
+   * them — and a phone at camp sat on two days of real awards, retrying the
+   * same doomed batch every fifteen seconds, with nothing on screen, in the
+   * console or in the log to say why. Both halves of that are fixed here:
+   * failures are classified rather than swallowed, and a permanent rejection
+   * drops to one row at a time so the good awards get through and only the
+   * genuinely bad row is held back.
+   */
   private async flushOnce(): Promise<void> {
     const remote = this.remote()
     const outbox = this.outbox()
     if (!remote || !outbox) return
-    const pending = await outbox.all()
-    if (pending.length === 0) return
+    this.loadBlocked()
+
+    let pending: ScoreEvent[]
     try {
-      await remote.upsert(pending.map(toRow))
+      pending = await outbox.all()
     } catch {
-      return // still offline — events stay in the outbox, nothing is lost
+      // The durable store itself is unavailable (private browsing, evicted
+      // storage). Nothing to do, and it must not reject the flush.
+      return
     }
-    await outbox.delete(pending.map((e) => e.id))
-    const stamp = new Date().toISOString()
-    const done = new Set(pending.map((e) => e.id))
-    this.write(this.read().map((e) => (done.has(e.id) ? { ...e, syncedAt: stamp } : e)))
+    if (pending.length === 0) {
+      if (this.lastError) {
+        this.lastError = null
+        this.notify()
+      }
+      return
+    }
+
+    // Quarantined rows never travel with the batch again.
+    const batch = pending.filter((e) => !this.blocked.has(e.id))
+    const held = pending.filter((e) => this.blocked.has(e.id))
+
+    if (batch.length > 0) {
+      try {
+        await remote.upsert(batch.map(toRow))
+        await this.settle(outbox, batch)
+      } catch (err) {
+        if (!(err instanceof RemoteWriteError) || !err.permanent) {
+          // Offline, or the server had a moment. The whole batch waits.
+          this.recordError(err)
+          return
+        }
+        // Something in there is poison. Find out what, one row at a time, so
+        // every award that CAN land does — today, not after someone notices.
+        this.recordError(err)
+        for (const e of batch) {
+          if (!(await this.pushOne(remote, outbox, e))) break
+        }
+      }
+    }
+
+    // Retry the held rows individually. A row blocked because its day was not
+    // open yet heals itself the moment that day opens, so quarantine has to be
+    // a state a row can leave on its own.
+    for (const e of held) {
+      if (!(await this.pushOne(remote, outbox, e))) break
+    }
     this.notify()
+  }
+
+  /**
+   * Push a single event. Returns false when the failure was a network one, so
+   * the caller stops rather than grinding through the rest of the outbox
+   * against a server that is not answering.
+   */
+  private async pushOne(
+    remote: RemoteEventStore,
+    outbox: OutboxStore,
+    e: ScoreEvent,
+  ): Promise<boolean> {
+    try {
+      await remote.upsert([toRow(e)])
+    } catch (err) {
+      if (!(err instanceof RemoteWriteError) || !err.permanent) {
+        this.recordError(err)
+        return false
+      }
+      this.blocked.set(e.id, {
+        code: err.code,
+        message: err.message,
+        plain: err.plain,
+        at: new Date().toISOString(),
+      })
+      // Only an actor mismatch is repairable from the phone, and only a 42501
+      // can be one — anything else needs a person who knows the camp.
+      if (err.code === '42501') this.blockedActors.set(e.id, e.actorId)
+      this.saveBlocked()
+      return true
+    }
+    if (this.blocked.delete(e.id)) {
+      this.blockedActors.delete(e.id)
+      this.saveBlocked()
+    }
+    await this.settle(outbox, [e])
+    return true
+  }
+
+  /** A row is on the server: out of the outbox, stamped in the mirror. */
+  private async settle(outbox: OutboxStore, rows: ScoreEvent[]): Promise<void> {
+    await outbox.delete(rows.map((e) => e.id))
+    const stamp = new Date().toISOString()
+    const done = new Set(rows.map((e) => e.id))
+    this.write(this.read().map((e) => (done.has(e.id) ? { ...e, syncedAt: stamp } : e)))
+    this.lastSyncedAt = stamp
+    this.lastError = null
+    this.notify()
+  }
+
+  private recordError(err: unknown): void {
+    const w = err instanceof RemoteWriteError ? err : null
+    this.lastError = {
+      code: w?.code ?? null,
+      message: w?.message ?? (err instanceof Error ? err.message : 'Could not reach the server'),
+      plain: w?.plain ?? 'Could not reach the server.',
+      at: new Date().toISOString(),
+    }
+    this.notify()
+  }
+
+  private loadBlocked(): void {
+    if (this.blockedLoaded) return
+    this.blockedLoaded = true
+    try {
+      const raw = JSON.parse(localStorage.getItem(BLOCKED_KEY) ?? '{}') as Record<
+        string,
+        BlockedRow & { actorId?: string }
+      >
+      for (const [id, v] of Object.entries(raw)) {
+        this.blocked.set(id, { code: v.code, message: v.message, plain: v.plain, at: v.at })
+        if (v.actorId) this.blockedActors.set(id, v.actorId)
+      }
+    } catch {
+      // A corrupt quarantine file is not worth failing sync over — the rows
+      // are still in the outbox and will simply be re-classified.
+    }
+  }
+
+  private saveBlocked(): void {
+    const out: Record<string, BlockedRow & { actorId?: string }> = {}
+    for (const [id, v] of this.blocked) {
+      out[id] = { ...v, actorId: this.blockedActors.get(id) }
+    }
+    try {
+      localStorage.setItem(BLOCKED_KEY, JSON.stringify(out))
+    } catch {
+      // Quota. The in-memory map still holds for this session.
+    }
   }
 
   private read(): ScoreEvent[] {

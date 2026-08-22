@@ -64,6 +64,63 @@ export function fromRow(r: ScoreEventRow): ScoreEvent {
   }
 }
 
+/**
+ * Postgres SQLSTATEs that mean "the server will refuse this row every time".
+ * Sending it again in ten seconds, or in ten hours, changes nothing:
+ *
+ *   42501  the row-level security policy refused it — wrong actor, or a day
+ *          that is not open to this person
+ *   23503  a foreign key does not resolve (an unknown day, team, category,
+ *          actor, or a compensating event whose original never landed)
+ *   23502  a NOT NULL column arrived null
+ *   23514  a CHECK constraint failed
+ *   22P02  malformed input — a uuid column that did not get a uuid
+ *
+ * The distinction matters because it decides what the flusher does next. A
+ * network error means "try the whole batch again later"; one of these means
+ * "this row is poison, and if it stays in the batch it takes every other
+ * award down with it."
+ */
+const PERMANENT_SQLSTATES = new Set(['42501', '23503', '23502', '23514', '22P02', '23505'])
+
+/**
+ * A write the server rejected, with enough detail to act on and to show a
+ * human. The old code threw `new Error(error.message)` and the provider
+ * caught it with a bare `catch {}` — so a policy rejection was indistinguish-
+ * able from being in a dead zone, and a phone could retry the same doomed
+ * batch for two days without a single word reaching anybody.
+ */
+export class RemoteWriteError extends Error {
+  constructor(
+    readonly code: string | null,
+    readonly details: string | null,
+    readonly hint: string | null,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'RemoteWriteError'
+  }
+
+  /** True when retrying this row unchanged can never succeed. */
+  get permanent(): boolean {
+    return this.code !== null && PERMANENT_SQLSTATES.has(this.code)
+  }
+
+  /** What to tell a leader holding the phone, in their language, not Postgres'. */
+  get plain(): string {
+    switch (this.code) {
+      case '42501':
+        return 'The server refused these points: either they were recorded under a different sign-in, or that day is not open to you.'
+      case '23503':
+        return 'These points refer to something the server does not have yet — most often an undo whose original award never arrived.'
+      case '22P02':
+        return 'These points were recorded without a valid sign-in, so the server cannot tell who awarded them.'
+      default:
+        return this.message
+    }
+  }
+}
+
 export interface RemoteEventStore {
   /** The whole shared log. Camp-scale data: well under one page's 10k range. */
   fetchAll(): Promise<ScoreEventRow[]>
@@ -127,7 +184,16 @@ export function createSupabaseEventStore(): RemoteEventStore | null {
       const { error } = await supabase
         .from('score_events')
         .upsert(rows, { onConflict: 'id', ignoreDuplicates: true })
-      if (error) throw new Error(error.message)
+      // PostgREST hands back the SQLSTATE; keeping it is the whole difference
+      // between "we are offline" and "the server said no, and here is why".
+      if (error) {
+        throw new RemoteWriteError(
+          error.code ?? null,
+          error.details ?? null,
+          error.hint ?? null,
+          error.message,
+        )
+      }
     },
     onInsert(fn) {
       cb = fn
