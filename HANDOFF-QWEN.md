@@ -86,6 +86,13 @@ browser fires `pointercancel`, and the pull dies. RollCall is ~815px tall at
 390×844, so the lever always sits in a scrollable region. Add
 `touchAction: 'none'` to the grip's style.
 
+> **Superseded — the drag is gone.** `touchAction: 'none'` bought reliability
+> but never enough of it, and leaders at camp kept losing awards to pulls that
+> did not register. The whole housing is now one native `<button>` that commits
+> on click. Nothing in the app is drag-committed any more, so the "let the one
+> drag target claim its gesture" clause at the end of this section no longer
+> applies — there is no drag target left to claim anything.
+
 **5. Long-press selects text and pops the iOS callout.** No `user-select` or
 `-webkit-touch-callout` anywhere in `src/`. Every team name and numeral is
 selectable, so a long-press on a row gives a blue selection and a "Copy / Look

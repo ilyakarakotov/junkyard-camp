@@ -70,7 +70,7 @@ node scripts/check-dod.mjs         layout, tap targets, reduced motion
 node scripts/check-console.mjs     every route mounts with no warning or error
 node scripts/check-acceptance.mjs  the spec's acceptance criteria, in a browser
 node scripts/check-commit-flow.mjs award, undo, and the log stays append-only
-node scripts/drag-shot.mjs         lever stroke frames
+node scripts/stroke-shot.mjs       lever stroke frames
 ```
 
 Every gate that opens a browser needs a dev server already running on `:5173`.

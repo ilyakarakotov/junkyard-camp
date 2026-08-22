@@ -148,7 +148,11 @@ it reads expensive.
 ### Motion
 
 - `transform` and `opacity` only. No layout-triggering properties. 60fps target.
-- Drag tracks finger 1:1, no easing. Spring-back `cubic-bezier(0.34, 1.56, 0.64, 1)` 400ms.
+- **Nothing in this app is committed by a drag.** Awards land on a press, on a
+  target no smaller than a thumb: leaders score one-handed while running a camp,
+  and a gesture a phone can lose to a scroll loses points silently. Commit
+  strokes still animate the full throw — the press picks the position, the
+  finger never streams it. Spring-back `cubic-bezier(0.34, 1.56, 0.64, 1)` 400ms.
 - Honor `prefers-reduced-motion`: keep state changes and tube ignition, drop arcs
   and token flight.
 

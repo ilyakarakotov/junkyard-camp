@@ -340,46 +340,59 @@ try {
 /* ---- 5. Lever rest and fired are unmistakably different ---------------- */
 
 await goto('#/call/good_deed')
+// The grip's offset INSIDE its own housing, not its position in the viewport:
+// pressing the button scrolls it into view, and a viewport-relative reading
+// would net the scroll off the travel and under-report the stroke.
 const grip = () =>
   page.evaluate(() => {
-    const el = document.querySelector('[role="slider"][aria-label="Commit lever"]')
+    const el = document.querySelector('[data-grip]')
     if (!el) return null
-    const r = el.getBoundingClientRect()
-    return Math.round(r.top)
+    return Math.round(
+      el.getBoundingClientRect().top - el.parentElement.getBoundingClientRect().top,
+    )
   })
 const restTop = await grip()
 check('the lever is on the roll call', restTop !== null, true)
 if (restTop !== null) {
-  // Arm it: the pointer handler returns early with nothing queued
-  // (Lever.tsx `dead`), so a row has to be selected first. Most of day1's
-  // good_deed is already seeded (data/seed.ts) — only GEMS is still open —
-  // so filter to whichever row is still enabled rather than assume row 0:
-  // that row (WARRIORS) is already scored and disabled, and a click on a
-  // disabled native <button> is a no-op, which is why nothing ever armed.
+  // Watch the WHOLE stroke from inside the page rather than sampling it once
+  // on a stopwatch. The seat only holds for SEAT_HOLD_MS (520ms in Lever.tsx)
+  // and committing the column costs several hundred milliseconds of its own,
+  // which a fixed `waitForTimeout` after the click silently spends — the grip
+  // is home again by the time a single sample lands, and the gate reads a
+  // working lever as a dead one.
+  await page.evaluate(() => {
+    const el = document.querySelector('[data-grip]')
+    let max = 0
+    const tick = () => {
+      const d = el.getBoundingClientRect().top - el.parentElement.getBoundingClientRect().top
+      if (d > max) max = d
+      window.__gripMax = Math.round(max)
+      requestAnimationFrame(tick)
+    }
+    tick()
+  })
+  // Queue something first: the button is genuinely `disabled` with nothing
+  // selected (Lever.tsx `dead`). Most of day1's good_deed is already seeded
+  // (data/seed.ts) — only GEMS is still open — so filter to whichever row is
+  // still enabled rather than assume row 0: that row (WARRIORS) is already
+  // scored and disabled, and a click on a disabled native <button> is a no-op.
   await page.locator('button[aria-pressed]:not([disabled])').first().click()
   await page.waitForTimeout(200)
   const track = await page.evaluate(() => {
-    const el = document.querySelector('[role="slider"][aria-label="Commit lever"]')
+    const el = document.querySelector('[data-grip]')
     return Math.round(el?.parentElement?.getBoundingClientRect().height ?? 0)
   })
-  // Drive it with a real pointer gesture. The grip only answers pointer
-  // events — the dispatched KeyboardEvent('End') this replaces is not a key
-  // onKeyDown ever handles (only the arrows and Enter/Space are), and a
-  // single ArrowDown is only 0.25 of 1.0 travel anyway, short of the 0.6 arm
-  // threshold either way.
-  const box = await page.locator('[role="slider"][aria-label="Commit lever"]').boundingBox()
-  if (box) {
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 150, { steps: 12 })
-    await page.mouse.up()
-  }
-  // Sample promptly: the grip seats on fire and then springs back after
-  // SEAT_HOLD_MS (520ms in Lever.tsx), so waiting past that would measure
-  // the return animation rather than the seated state §6.3 is about.
-  await page.waitForTimeout(250)
-  const firedTop = await grip()
-  const travel = Math.abs((firedTop ?? 0) - restTop)
+  // Fire it the way a leader does: one press on the housing. The gate used to
+  // synthesise a 150px pointer drag, which is precisely the gesture leaders
+  // could not land reliably on a phone — a check that passes on a gesture
+  // only a script can perform is not evidence the control works.
+  const commit = page.locator('button[aria-label^="Commit"]').first()
+  check('the commit button carries the queued count', await commit.getAttribute('aria-label'), 'Commit 1 team')
+  await commit.click()
+  // Past the seat hold and the spring-back, so the peak is certainly recorded.
+  await page.waitForTimeout(1200)
+  const firedTop = await page.evaluate(() => window.__gripMax ?? 0)
+  const travel = Math.abs(firedTop - restTop)
   // Rest is the grip above the emitter, fired is below it — the fault this
   // replaces was a grip that stopped level with the cylinder, so "fired"
   // looked like "at rest with sparks added" (§6.3).

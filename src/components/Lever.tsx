@@ -28,13 +28,27 @@ import { GlassTube, Plate, Screw } from './chrome'
  *    |-o=====o-| <- tube idling  |-o##### o-| <- tube erupts, branches to rails
  *    |·        |                 |·        |
  *    |=░░░░░░░=|                 |=▓▓▓▓▓▓▓=| <- grip seated on the footing
- *    [ PULL TO COMMIT ]          [ PULL TO COMMIT ]
+ *    [ PRESS TO COMMIT ]         [ PRESS TO COMMIT ]
  *
- * Interaction: drag tracks the finger 1:1 with no easing; >=60% travel arms it
- * (navigator.vibrate(20)); releasing while armed fires. Release below the
- * threshold springs back on cubic-bezier(0.34, 1.56, 0.64, 1) over 400ms.
- * On trigger the grip snaps to the base and STAYS SEATED through the commit
- * beat before returning. Only transform and opacity animate.
+ * INTERACTION: PRESS, NOT DRAG. The whole housing is one native <button> and
+ * the commit lands on its click. This used to be a 26px grip you had to drag
+ * 128px past a 60% arm threshold, and in the field that gesture lost awards:
+ * a phone can steal a vertical drag for a scroll, a thumb can start on the
+ * rail instead of the grip, a finger can lift a few pixels early — and every
+ * one of those failures is silent. Leaders pulled, nothing happened, and they
+ * could not tell whether the points had gone in.
+ *
+ * A click is the most reliable input a browser has. A tap that wanders still
+ * fires; a finger that slides off the housing still cancels; Enter and Space
+ * work because the element is a real button rather than a div wearing a role.
+ * The recess is ~350x200, so the target cannot be missed one-handed.
+ *
+ * The stroke survives intact — it is just driven by the press instead of the
+ * finger's position. Finger down dips the grip a few pixels and strikes the
+ * tube (the lever taking the weight); the release throws it the whole way and
+ * the grip STAYS SEATED through the commit beat before springing back on
+ * cubic-bezier(0.34, 1.56, 0.64, 1) over 400ms. Only transform and opacity
+ * animate.
  */
 
 const H = 236
@@ -77,25 +91,35 @@ const GAUGE_W = 27
 const TUBE_COLLAR = 38
 const TUBE_INSET = 34
 const TUBE_H = 28
-const ARM_THRESHOLD = 0.6
+/**
+ * How far the grip dips while a finger is down, before the release throws it.
+ * Small on purpose: this is the lever taking the weight, not the stroke.
+ */
+const PRESS_TRAVEL = 0.12
+/**
+ * The dip cannot be dropped on pointerup — the click that actually fires the
+ * lever is dispatched AFTER it, and releasing the grip first would spring it
+ * up for a frame before the throw. So the press is released on a short timer
+ * that `fire` cancels, which also springs the grip back on its own if the
+ * press never becomes a click (finger slid off, gesture stolen by a scroll).
+ */
+const RELEASE_MS = 220
 
 /** How long the grip stays seated at the base before returning. */
 const SEAT_HOLD_MS = 520
 const RETURN_MS = 400
 
 export interface LeverProps {
-  label?: string
   /**
-   * Caption while armed or seated. Defaults to `label`: reference 03 still
-   * reads `PULL TO COMMIT` at full discharge, and a caption that swaps under
-   * the finger reads as a web button rather than an engraved nameplate.
+   * The engraved nameplate. It has to name the real gesture: an engraved
+   * `PULL` on something you press is the plate lying about its own mechanism,
+   * and the plate is the only instruction this screen gives.
    */
-  armedLabel?: string
+  label?: string
   /** Drives the queued-count readout and the disabled state. */
   pendingCount?: number
   disabled?: boolean
   onFire: () => void
-  onArmedChange?: (armed: boolean) => void
   /** True for the whole discharge beat, so the screen above can rim-light. */
   onDischarge?: (active: boolean) => void
   /**
@@ -106,14 +130,19 @@ export interface LeverProps {
   groove?: ReactNode
 }
 
-type Phase = 'idle' | 'drag' | 'seated' | 'return'
+type Phase = 'idle' | 'press' | 'seated' | 'return'
 
 /**
  * The engraved tick column down a gauge sub-plate. Dark engravings at rest;
  * on discharge they ignite to `--color-lamp-hot` with the bloom the reference
  * shows — nearly half the ignited column reads as near-white amber there.
+ *
+ * `level` and not a boolean, because the gauge now has three readings: dark at
+ * rest, part-lit while the press charges, full at the commit. A gauge that
+ * jumps straight to full the instant a finger lands has nothing left to say
+ * when the award actually lands.
  */
-function Ticks({ lit, flip = false }: { lit: boolean; flip?: boolean }) {
+function Ticks({ level, flip = false }: { level: number; flip?: boolean }) {
   const rows = 29
   /* Two stacked columns — dark engravings and ignited amber — cross-faded on
      OPACITY. Transitioning `background` or `filter` would repaint 29 elements a
@@ -127,7 +156,7 @@ function Ticks({ lit, flip = false }: { lit: boolean; flip?: boolean }) {
         filter: on
           ? 'drop-shadow(0 0 4px var(--color-lamp)) drop-shadow(0 0 9px rgba(237,144,64,0.55))'
           : undefined,
-        opacity: on ? (lit ? 1 : 0) : 1,
+        opacity: on ? level : 1,
         transition: 'opacity 150ms ease-out',
       }}
     >
@@ -170,24 +199,19 @@ function Ticks({ lit, flip = false }: { lit: boolean; flip?: boolean }) {
 }
 
 export default function Lever({
-  label = 'PULL TO COMMIT',
-  armedLabel,
+  label = 'PRESS TO COMMIT',
   pendingCount,
   disabled,
   onFire,
-  onArmedChange,
   onDischarge,
   groove,
 }: LeverProps) {
   const reduced = usePrefersReducedMotion()
-  const [travel, setTravel] = useState(0) // 0..1
   const [phase, setPhase] = useState<Phase>('idle')
   const [flash, setFlash] = useState(false)
-  const wasArmed = useRef(false)
-  const drag = useRef<{ pointerId: number; startY: number; startTravel: number } | null>(null)
-  const gripRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [width, setWidth] = useState(354)
 
   useEffect(() => {
@@ -199,103 +223,108 @@ export default function Lever({
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  useEffect(
+    () => () => {
+      timers.current.forEach(clearTimeout)
+      if (releaseTimer.current) clearTimeout(releaseTimer.current)
+    },
+    [],
+  )
 
   /**
    * `dead` gates INTERACTION only. Nothing visual may read it: the reference's
    * resting state has nothing selected and is still full brass.
    */
   const dead = Boolean(disabled) || pendingCount === 0
-  const armed = travel >= ARM_THRESHOLD
-  const dragging = phase === 'drag'
+  const pressed = phase === 'press'
   const seated = phase === 'seated'
-
-  useEffect(() => {
-    if (armed !== wasArmed.current) {
-      if (armed) navigator.vibrate?.(20)
-      onArmedChange?.(armed)
-    }
-    wasArmed.current = armed
-  }, [armed, onArmedChange])
+  /**
+   * Travel is now a function of the phase rather than of the finger's Y. The
+   * geometry below is unchanged — the grip still crosses the tube and seats on
+   * the footing — it is just that the press picks the position instead of the
+   * drag streaming it.
+   */
+  const travel = seated ? 1 : pressed ? PRESS_TRAVEL : 0
 
   useEffect(() => {
     onDischarge?.(seated)
   }, [seated, onDischarge])
 
+  const clearRelease = () => {
+    if (releaseTimer.current) clearTimeout(releaseTimer.current)
+    releaseTimer.current = null
+  }
+
   const fire = useCallback(() => {
+    if (dead || phase === 'seated' || phase === 'return') return
+    clearRelease()
     // Seat hard at the base and HOLD through the commit beat.
     setPhase('seated')
-    setTravel(1)
     setFlash(true)
     navigator.vibrate?.(20)
     onFire()
     timers.current.push(setTimeout(() => setFlash(false), 170))
-    timers.current.push(
-      setTimeout(() => {
-        setPhase('return')
-        setTravel(0)
-      }, SEAT_HOLD_MS),
-    )
+    timers.current.push(setTimeout(() => setPhase('return'), SEAT_HOLD_MS))
     timers.current.push(setTimeout(() => setPhase('idle'), SEAT_HOLD_MS + RETURN_MS))
-  }, [onFire])
+  }, [dead, phase, onFire])
 
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (dead || phase === 'seated' || phase === 'return') return
-      gripRef.current?.setPointerCapture(e.pointerId)
-      drag.current = { pointerId: e.pointerId, startY: e.clientY, startTravel: travel }
-      setPhase('drag')
-    },
-    [dead, phase, travel],
-  )
+  /** Finger down: the lever takes the weight and the tube starts to charge. */
+  const takeWeight = useCallback(() => {
+    if (dead || phase === 'seated' || phase === 'return') return
+    clearRelease()
+    setPhase('press')
+    navigator.vibrate?.(12)
+  }, [dead, phase])
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!drag.current || e.pointerId !== drag.current.pointerId) return
-    const dy = e.clientY - drag.current.startY
-    setTravel(Math.min(1, Math.max(0, drag.current.startTravel + dy / TRAVEL)))
+  /**
+   * Finger up — but NOT the commit. The click follows this event, so the dip
+   * is released on a timer `fire` cancels; see RELEASE_MS. Every way a press
+   * can end without a click (slid off the housing, gesture stolen by a scroll,
+   * key released after focus moved) lands here and springs the grip back.
+   */
+  const letGo = useCallback(() => {
+    clearRelease()
+    releaseTimer.current = setTimeout(
+      () => setPhase((p) => (p === 'press' ? 'idle' : p)),
+      RELEASE_MS,
+    )
   }, [])
 
-  const endDrag = useCallback(
-    (e: React.PointerEvent) => {
-      if (!drag.current || e.pointerId !== drag.current.pointerId) return
-      drag.current = null
-      if (travel >= ARM_THRESHOLD) fire()
-      else {
-        setPhase('idle')
-        setTravel(0)
-      }
-    },
-    [travel, fire],
-  )
-
-  /** Keyboard: the lever is a slider, so arrows and Enter both throw it. */
+  /* A real <button> already fires its click on Enter and Space; these only
+     carry the dip, so the keyboard gets the same stroke the thumb does. */
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (dead || phase === 'seated' || phase === 'return') return
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-        e.preventDefault()
-        setTravel((t) => Math.min(1, t + 0.25))
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-        e.preventDefault()
-        setTravel((t) => Math.max(0, t - 0.25))
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        fire()
-      }
+      if (e.key === 'Enter' || e.key === ' ') takeWeight()
     },
-    [dead, phase, fire],
+    [takeWeight],
+  )
+  const onKeyUp = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') letGo()
+    },
+    [letGo],
   )
 
-  // The tube's emission follows the pull, then goes full on discharge.
-  const glow = seated ? 1 : phase === 'return' ? 0.3 : travel
-  const storm = (seated || (armed && dragging)) && !reduced
-  /** The blown-out core: full at seat, already present under an armed finger. */
-  const core = seated ? 1 : armed && dragging && !reduced ? 0.72 : 0
-  const litTicks = seated || armed
+  // The tube charges under the finger, then goes full on discharge.
+  const glow = seated ? 1 : phase === 'return' ? 0.3 : pressed ? 0.55 : 0
+  /**
+   * THE COMMIT IS THE PEAK, and the press must not pre-empt it. `storm` is the
+   * full electrical event — branches jumping to the rails, the posts and the
+   * boss taking the light, the housing washed teal — and it belongs to the
+   * seat alone. Under the finger the machine only CHARGES: the filament
+   * strikes, the gauges climb, the bore lifts. The press and the release are
+   * about a tenth of a second apart in the hand, so if both read as a
+   * discharge the award has no beat of its own left.
+   */
+  const storm = seated && !reduced
+  const charging = pressed && !reduced
+  /** The blown-out core is the award landing. Nothing else earns it. */
+  const core = seated && !reduced ? 1 : 0
+  const tickLevel = seated ? 1 : charging ? 0.5 : 0
 
   const gripTransform = `translateY(${travel * TRAVEL}px)`
-  const gripTransition = dragging
-    ? 'none'
+  const gripTransition = pressed
+    ? 'transform 90ms cubic-bezier(0.3, 0.72, 0.4, 1)'
     : seated
       ? 'transform 110ms cubic-bezier(0.25, 0.8, 0.35, 1)'
       : `transform ${RETURN_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1)`
@@ -313,14 +342,22 @@ export default function Lever({
   /** The travelling grip's boss: the arc's lower contact post, as in 03. */
   const bossY = GRIP_TOP + GRIP_H / 2 + travel * TRAVEL
   /**
-   * The engraved nameplate. Reference 02 and 03 both read `PULL TO COMMIT`, and
-   * they are the two states where nothing is queued — so the plain caption is
-   * what the references show. While teams ARE queued the plate also engraves the
-   * load, which is the one piece of state a leader needs before pulling.
+   * The engraved nameplate. References 02 and 03 both read `PULL TO COMMIT`;
+   * this is the one place the build deliberately departs from them, because
+   * the plate is the only instruction the screen gives and the gesture is now
+   * a press. While teams ARE queued the plate also engraves the load, which is
+   * the one piece of state a leader needs before committing.
    */
   const caption =
-    (armed || seated ? (armedLabel ?? label) : label).toUpperCase() +
+    label.toUpperCase() +
     (pendingCount ? ` · ${pendingCount} TEAM${pendingCount === 1 ? '' : 'S'}` : '')
+  /**
+   * The button's accessible name. The housing's parts are all aria-hidden
+   * decoration, so without this the control announces as an unnamed button.
+   */
+  const actionLabel = pendingCount
+    ? `Commit ${pendingCount} team${pendingCount === 1 ? '' : 's'}`
+    : 'Commit — no teams selected'
   const queued =
     pendingCount === undefined || pendingCount === 0
       ? 'CH-01 · COMMIT'
@@ -498,7 +535,7 @@ export default function Lever({
               `radial-gradient(86% 74% at 50% ${(((TUBE_Y - TOP_MARGIN) / (H - TOP_MARGIN - 4)) * 100).toFixed(1)}%,` +
               'rgba(168,246,234,0.3) 0%, rgba(120,224,210,0.25) 22%, rgba(88,200,186,0.18) 44%,' +
               'rgba(76,178,166,0.1) 66%, rgba(70,158,148,0.05) 84%, rgba(68,140,132,0.02) 100%)',
-            opacity: storm ? (seated ? 1 : 0.55) : 0,
+            opacity: storm ? 1 : charging ? 0.26 : 0,
             transition: 'opacity 160ms ease-out',
           }}
         />
@@ -556,8 +593,8 @@ export default function Lever({
             <Screw slot={slot} size={9} />
           </span>
         ))}
-        <Ticks lit={litTicks} />
-        <Ticks lit={litTicks} flip />
+        <Ticks level={tickLevel} />
+        <Ticks level={tickLevel} flip />
 
         {/* ---- two full-height brass rails ---- */}
         {[railL, railR].map(rail)}
@@ -576,8 +613,8 @@ export default function Lever({
             zIndex: 2,
             background:
               'radial-gradient(closest-side, rgba(47,217,208,0.3) 0%, rgba(47,217,208,0.14) 34%, rgba(47,217,208,0.04) 62%, transparent 80%)',
-            opacity: storm ? (seated ? 1 : 0.55) : 0,
-            transform: `scale(${storm ? 1 : 0.7})`,
+            opacity: storm ? 1 : charging ? 0.3 : 0,
+            transform: `scale(${storm ? 1 : charging ? 0.84 : 0.7})`,
             transition: 'opacity 150ms ease-out, transform 220ms ease-out',
           }}
         />
@@ -592,7 +629,7 @@ export default function Lever({
             zIndex: 2,
             background:
               'radial-gradient(58% 46% at 50% 50%, rgba(226,255,253,0.5) 0%, rgba(47,217,208,0.28) 34%, rgba(47,217,208,0.08) 62%, transparent 84%)',
-            opacity: storm ? (seated ? 1 : 0.5) : 0,
+            opacity: storm ? 1 : charging ? 0.24 : 0,
             transition: 'opacity 150ms ease-out',
           }}
         />
@@ -627,7 +664,7 @@ export default function Lever({
               'rgba(120,222,213,0.3) 26%, rgba(104,208,200,0.2) 54%,' +
               'rgba(88,190,182,0.1) 74%, rgba(78,172,165,0.03) 90%, transparent 100%)',
             opacity: 0.5 + glow * 0.5,
-            transition: seated ? 'opacity 110ms ease-out' : dragging ? 'none' : 'opacity 300ms ease-out',
+            transition: seated ? 'opacity 110ms ease-out' : pressed ? 'opacity 130ms ease-out' : 'opacity 300ms ease-out',
           }}
         />
 
@@ -671,7 +708,7 @@ export default function Lever({
                   'linear-gradient(180deg, rgba(47,217,208,0.05) 0%, rgba(47,217,208,0.45) 40%,' +
                   'rgba(240,255,254,0.98) 50%, rgba(47,217,208,0.45) 60%, rgba(47,217,208,0.06) 100%)',
                 opacity: 0.05 + glow * 0.95,
-                transition: seated ? 'opacity 110ms ease-out' : dragging ? 'none' : 'opacity 300ms ease-out',
+                transition: seated ? 'opacity 110ms ease-out' : pressed ? 'opacity 130ms ease-out' : 'opacity 300ms ease-out',
               }}
             />
             {/* the electrodes: brass rods entering the bore from each collar.
@@ -704,14 +741,14 @@ export default function Lever({
                 x2={boreW - 26}
                 y2={TUBE_H / 2}
                 seed={11}
-                intensity={seated ? 1 : armed ? 0.95 : 0.46}
-                chaos={seated ? 1.5 : armed ? 1.25 : 0.42}
+                intensity={seated ? 1 : charging ? 0.72 : 0.46}
+                chaos={seated ? 1.5 : charging ? 0.8 : 0.42}
                 /* At rest the reference's filament is a HAIRLINE — one thin
                    teal squiggle whose brightest sample is L105 in a bore that
                    sits at L45. A weight of 1 draws an 18px bloom in a 28px
                    bore, which is what turned the resting tube into a bar. */
-                weight={seated ? 1.4 : armed ? 1.15 : 0.32}
-                strands={seated ? 3 : armed ? 2 : 1}
+                weight={seated ? 1.4 : charging ? 0.66 : 0.32}
+                strands={seated ? 3 : charging ? 2 : 1}
                 active={!reduced}
               />
             </svg>
@@ -822,18 +859,18 @@ export default function Lever({
         />
         {/* ---- arcs: every bolt lands on a brass collar at both ends ---- */}
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden style={{ zIndex: 2 }}>
-          {/* full discharge: branches jump from the tube to both rails.
-              Armed-and-dragging is a charging flicker, deliberately below the
-              commit's own punch — the storm must peak at the award, not
-              pre-empt it. */}
+          {/* Full discharge: branches jump from the tube to both rails. This is
+              the SEAT and nothing else — under the finger the arc stays inside
+              its own glass, and the branches breaking out of it are what says
+              the award has landed. */}
           {storm && (
             <>
-              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={postTopY} seed={23} intensity={seated ? 1 : 0.5} chaos={1.9} strands={seated ? 2 : 1} weight={1.15} />
-              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={postTopY} seed={31} intensity={seated ? 1 : 0.5} chaos={1.9} strands={seated ? 2 : 1} weight={1.15} />
-              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={bossY} seed={57} intensity={seated ? 0.95 : 0.4} chaos={1.8} strands={seated ? 2 : 1} weight={1.05} />
-              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={bossY} seed={71} intensity={seated ? 0.95 : 0.4} chaos={1.8} strands={seated ? 2 : 1} weight={1.05} />
-              <ArcBolt x1={boreL} y1={TUBE_Y} x2={railL} y2={TUBE_Y - 44} seed={97} intensity={seated ? 0.8 : 0.3} chaos={2.1} strands={1} />
-              <ArcBolt x1={boreR} y1={TUBE_Y} x2={railR} y2={TUBE_Y + 44} seed={13} intensity={seated ? 0.8 : 0.3} chaos={2.1} strands={1} />
+              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={postTopY} seed={23} intensity={1} chaos={1.9} strands={2} weight={1.15} />
+              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={postTopY} seed={31} intensity={1} chaos={1.9} strands={2} weight={1.15} />
+              <ArcBolt x1={boreL + 26} y1={TUBE_Y} x2={railL} y2={bossY} seed={57} intensity={0.95} chaos={1.8} strands={2} weight={1.05} />
+              <ArcBolt x1={boreR - 26} y1={TUBE_Y} x2={railR} y2={bossY} seed={71} intensity={0.95} chaos={1.8} strands={2} weight={1.05} />
+              <ArcBolt x1={boreL} y1={TUBE_Y} x2={railL} y2={TUBE_Y - 44} seed={97} intensity={0.8} chaos={2.1} strands={1} />
+              <ArcBolt x1={boreR} y1={TUBE_Y} x2={railR} y2={TUBE_Y + 44} seed={13} intensity={0.8} chaos={2.1} strands={1} />
               {[
                 [railL, postTopY],
                 [railR, postTopY],
@@ -891,27 +928,25 @@ export default function Lever({
             height: TUBE_H,
             borderRadius: 9999,
             zIndex: 2,
-            boxShadow: storm
+            boxShadow: storm || charging
               ? 'inset 0 2px 0 rgba(255,252,240,0.9), inset 0 1px 3px rgba(255,250,235,0.3),' +
                 'inset 0 -1.5px 0 rgba(150,232,226,0.5), inset 0 -3px 4px rgba(26,15,7,0.3)'
               : 'inset 0 2px 0 rgba(255,252,240,0.85), inset 0 1px 3px rgba(255,250,235,0.28),' +
                 'inset 0 -1.5px 0 rgba(58,36,20,0.7), inset 0 -3px 4px rgba(26,15,7,0.45)',
-            opacity: storm ? 1 : 0.34,
+            opacity: storm ? 1 : charging ? 0.7 : 0.34,
             transition: 'opacity 150ms ease-out',
           }}
         />
 
-        {/* ---- grip: knurled brass bar on two small round bosses ---- */}
+        {/* ---- grip: knurled brass bar on two small round bosses ----
+            Moving hardware now, not a control: the press is taken by the
+            button over the whole housing, so the grip is the part that shows
+            the stroke rather than the part you have to hit. `data-grip` is the
+            handle the acceptance gate measures the travel by. */}
         <div
-          ref={gripRef}
-          role="slider"
-          tabIndex={dead ? -1 : 0}
-          aria-label="Commit lever"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(travel * 100)}
-          aria-disabled={dead}
-          className={dead ? 'absolute inset-x-0' : 'absolute inset-x-0 cursor-grab active:cursor-grabbing'}
+          data-grip
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0"
           style={{
             top: GRIP_TOP,
             height: GRIP_H,
@@ -919,16 +954,7 @@ export default function Lever({
             transform: gripTransform,
             transition: gripTransition,
             willChange: 'transform',
-            /* Pointer capture does not stop the browser from scrolling: the
-               first vertical move fires pointercancel and kills the pull
-               unless the grip itself claims the gesture. */
-            touchAction: 'none',
           }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onKeyDown={onKeyDown}
         >
           {/* Knurled bar spanning the rails, its ends clamped by the bosses.
               The shared `.knurl` runs a 4px pitch, which at a 26px bar reads as
@@ -1153,7 +1179,10 @@ export default function Lever({
           />
           <span
             className="engraved font-display font-semibold uppercase"
-            style={{ fontSize: 10.5, letterSpacing: '0.14em', lineHeight: 1 }}
+            /* An engraved plate is struck once and cannot reflow: at a narrow
+               housing (the /lab bench) the caption would wrap to two lines and
+               spill off the plaque. Clipping is the honest failure here. */
+            style={{ fontSize: 10.5, letterSpacing: '0.14em', lineHeight: 1, whiteSpace: 'nowrap' }}
           >
             {caption}
           </span>
@@ -1184,6 +1213,50 @@ export default function Lever({
               'rgba(12,7,2,0.2) 72%, rgba(12,7,2,0.34) 100%),' +
               'radial-gradient(112% 128% at 50% -6%, transparent 58%,' +
               'rgba(11,6,2,0.08) 82%, rgba(11,6,2,0.15) 100%)',
+          }}
+        />
+
+        {/*
+          ---- the hit area: the WHOLE housing commits ----
+          Last child and topmost, so nothing above can shadow it — and entirely
+          transparent, so it changes what you can hit and nothing you can see.
+          The top brass margin is deliberately outside it: `ALL` and `UNDO` live
+          up there and must stay separately pressable, and the 4px between the
+          tab's bottom edge and TOP_MARGIN is the buffer against a thumb that
+          reaches for `ALL` and lands low.
+        */}
+        <button
+          type="button"
+          disabled={dead}
+          aria-label={actionLabel}
+          onClick={fire}
+          onPointerDown={takeWeight}
+          onPointerUp={letGo}
+          onPointerCancel={letGo}
+          onPointerLeave={letGo}
+          onKeyDown={onKeyDown}
+          onKeyUp={onKeyUp}
+          onBlur={letGo}
+          className="absolute"
+          style={{
+            left: 4,
+            right: 4,
+            top: TOP_MARGIN,
+            bottom: 4,
+            zIndex: 4,
+            appearance: 'none',
+            border: 0,
+            padding: 0,
+            background: 'transparent',
+            borderRadius: 4,
+            cursor: dead ? 'default' : 'pointer',
+            /* `manipulation` and not `none`: the press is a tap, so the page
+               keeps its own scrolling and the browser keeps its fast click. */
+            touchAction: 'manipulation',
+            /* iOS would otherwise flash a grey slab over the entire housing on
+               every commit — the one thing that would make a hand-built brass
+               machine read as a web page. */
+            WebkitTapHighlightColor: 'transparent',
           }}
         />
       </Plate>

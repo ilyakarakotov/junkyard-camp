@@ -34,7 +34,7 @@ export default function Lab() {
     <div className="min-h-dvh px-4 py-5" style={{ maxWidth: 390, margin: '0 auto' }}>
       <h1 className="display-title mb-4 text-[22px]">Component bench</h1>
 
-      <Section title={`Lever · commit stroke · fired ${fired}`}>
+      <Section title={`Lever · press to commit · fired ${fired}`}>
         <Lever pendingCount={5} onFire={() => setFired((n) => n + 1)} />
       </Section>
 

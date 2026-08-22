@@ -152,7 +152,10 @@ References: `02-rollcall-rest.jpg` (rest), `03-rollcall-commit.jpg` (discharge).
     down the outer side of each. At rest the ticks are dark engravings.
   - A **glass tube** across the mid-track with brass end collars. At rest a thin
     teal arc idles inside it.
-  - A brass plate at the bottom reading `PULL TO COMMIT`, flanked by two tiny
+  - A brass plate at the bottom reading `PULL TO COMMIT` — the build engraves
+    `PRESS TO COMMIT` instead, the one deliberate departure from the art: the
+    housing commits on a tap, and the plate is the only instruction the screen
+    gives. It is flanked by two tiny
     diamond marks.
   - **On commit** (03): the grip travels to the bottom; the tube erupts —
     blown-out white core, heavy teal bloom, and **branches jumping from the tube

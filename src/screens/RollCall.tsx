@@ -22,9 +22,11 @@ import type { CommitBatch, TeamId } from '../data/types'
  * cog knob — because the sockets already say "4 of 7"; a subtitle repeating it
  * costs a line and buys nothing.
  *
- * Toggle the eight teams with their cog knobs, pull the lever once, everything
+ * Toggle the eight teams with their cog knobs, press the lever once, everything
  * commits together. Every row is a 56px plate and the **whole plate is the hit
- * area**; this has to be a five-second interaction with a phone in one hand.
+ * area**, and so is the whole lever housing; this has to be a five-second
+ * interaction with a phone in one hand, so nothing on this screen is smaller
+ * than a thumb or asks for a gesture more precise than a tap.
  *
  * Committed rows ignite in a 40ms stagger, and any row that lands its seventh
  * check-in fires the surge — that is the 0.6 -> 1.0 jump made visible.
@@ -684,7 +686,7 @@ export default function RollCall() {
       ) : (
         <span
           className="engraved tech-label text-[8px]"
-          /* The last thing read before the pull. A queue count says how many
+          /* The last thing read before the press. A queue count says how many
              teams; while backdating, which day is the part that can be wrong. */
           style={isBackdating ? { color: 'var(--color-lamp)' } : undefined}
         >

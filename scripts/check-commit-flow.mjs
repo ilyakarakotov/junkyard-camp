@@ -1,4 +1,4 @@
-// End-to-end: does pulling the lever actually commit the column, and does
+// End-to-end: does pressing the lever actually commit the column, and does
 // undo actually walk it back? Exercises the real event log, not a mock.
 // Usage: node scripts/check-commit-flow.mjs
 import { chromium } from 'playwright-core'
@@ -36,18 +36,12 @@ const n = await selectable.count()
 check(`exactly one team outstanding for GOOD DEED`, n, 1)
 await selectable.first().click()
 await page.waitForTimeout(150)
-check('lever reports one pending team', await page.locator('text=/PULL TO COMMIT · 1 TEAM\\b/').count(), 1)
+check('lever reports one pending team', await page.locator('text=/PRESS TO COMMIT · 1 TEAM\\b/').count(), 1)
 
-// Pull the lever the whole way and release.
-const grip = page.locator('[role="slider"]').first()
-await grip.scrollIntoViewIfNeeded()
-const box = await grip.boundingBox()
-const cx = box.x + box.width / 2
-const cy = box.y + box.height / 2
-await page.mouse.move(cx, cy)
-await page.mouse.down()
-for (let i = 1; i <= 8; i++) await page.mouse.move(cx, cy + (176 * 0.95 * i) / 8)
-await page.mouse.up()
+// Press the lever. One plain click on the housing — the point of the control
+// is that this is all it takes, so the gate exercises exactly that and not a
+// synthesised gesture that only a script would ever produce.
+await page.locator('button[aria-label^="Commit"]').first().click()
 await page.waitForTimeout(600)
 
 // A good deed asks for the deed before it commits — the note is required and
